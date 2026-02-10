@@ -4,7 +4,7 @@ import json
 api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
 youtube = build('youtube', 'v3', developerKey=api_key)
 
-# with open("../Code/json_files/all_channel_ids.json") as f:
+# with open("../code/json_files/all_channel_ids.json") as f:
 #     all_ids = json.load(f)
 
 def channel_id_to_name(list_of_ids):
