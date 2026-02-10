@@ -1,0 +1,6 @@
+pandas
+google-api-python-client
+python-dateutil
+youtube_transcript_api
+langdetect
+yt-dlp
