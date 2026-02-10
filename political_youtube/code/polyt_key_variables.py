@@ -7,7 +7,7 @@ start_date = datetime(2020, 1, 1)
 final_end_date = datetime(2022, 1, 1)
 #period of analysis
 published_after_analysis = "2022-10-07T00:00:00Z"
-published_before_analysis = "2025-10-07T00:00:00Z"
+published_before_analysis = "2026-01-31T00:00:00Z"
 
 query_list = ["Bundestagswahl", "USA Wahl"]
 

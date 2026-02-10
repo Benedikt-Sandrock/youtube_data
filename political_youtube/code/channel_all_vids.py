@@ -12,8 +12,8 @@ api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
 youtube = build('youtube', 'v3', developerKey=api_key_c)
 
-videos_total_file = "../../JSON Files/videos_by_channel_total_german.json"
-videos_total_file_2 = "../../JSON Files/videos_by_channel_total_german_3years.json"
+videos_total_file = "../JSON Files/videos/videos_total.json"
+videos_total_file_2 = "../JSON Files/videos/videos_total.json"
 
 if os.path.exists(videos_total_file):
     with open(videos_total_file, "r", encoding = "utf-8") as f:
@@ -26,7 +26,7 @@ print(f"Bereits verarbeitete Channels: {len(processed_channel_ids)}")
 
 # Channel IDs
 
-with open(f"../../JSON Files/channel_ids_classified/all_channel_ids_german_3years.json", "r", encoding="utf-8") as f:
+with open(f"../JSON Files/large_channels_list.json", "r", encoding="utf-8") as f:
     channel_ids = json.load(f)
 
 
@@ -86,7 +86,7 @@ def get_channel_videos(channel_id, published_after, published_before):
 # -----------------------------
 new_videos = []
 
-for cid in channel_ids:
+for cid in channel_ids[0:20]:
 
     if cid in processed_channel_ids:
         print(f"Channel bereits vorhanden, übersprungen: {cid}")
@@ -104,7 +104,7 @@ all_videos = videos_total + new_videos
 unique_videos = {v["video_id"]: v for v in all_videos}
 videos_total = list(unique_videos.values())
 
-with open(videos_total_file_2, "w", encoding = "utf-8") as f:
+with open(videos_total_file, "w", encoding = "utf-8") as f:
     json.dump(videos_total, f, ensure_ascii = False, indent = 2)
 
 # with open(f"json_files/query_list/files_{query}/videos_by_channel_{query}.json", "w", encoding = "utf-8") as f:
