@@ -1,0 +1,22 @@
+1. channels manuell überprüfen oder automatisch?
+letzte überprüfte ID: UCXTdslQ6FFPyAXamSvTh6gA, Galaxy Mapping
+-> blacklist: manuell überprüfte channels
+
+2. Englische Channles raussuchen
+3. Neue Datei erstellen: all_channel_ids_approved -> discovered - englische Channels
+4. videos_by_channel_total aktualisieren, videos englischsprachiger Channels raussschmeißen
+
+
+37547 keyword alt -> 5736
+11827 sampled alt -> 4346
+
+4651 -> Anzahl Transkripte komplett
+
+All channels: 91 -> 131
+German Channels: 30 -> 38
+Foreign Channels: 61 -> 93
+Total Videos: 100012
+Keywords: 5736
+
+Channel IDs, die in Videos sind, aber nicht mehr gefunden wurden:
+{'UCVaDYNXdsfzACUsHGHB4CMw', 'UCXYKYEYgk1ntGNJgJv9JhNA', 'UCV2NG8o-D8UJeviySULl4fw'}
