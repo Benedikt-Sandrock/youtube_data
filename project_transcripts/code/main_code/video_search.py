@@ -1,7 +1,7 @@
 from googleapiclient.discovery import build
 import json
 import os
-from project_transcripts.Code.main_code.key_variables import ziel_directory, query_list, start_date, final_end_date
+from project_transcripts.code.main_code.key_variables import ziel_directory, query_list, start_date, final_end_date
 from help_functions import is_german_channel, load_set, set_to_json
 from dateutil.relativedelta import relativedelta
 
