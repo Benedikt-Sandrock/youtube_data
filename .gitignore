@@ -3,3 +3,4 @@
 __pycache__
 /project_transcripts/Transcript files/
 /project_videos/code/downloads/
+.env
