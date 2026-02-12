@@ -109,8 +109,8 @@ for cid in channel_ids:
         if not channel_videos:
             new_videos.append({"video_id": f"no_video_found_{cid}",
                                     "channel_id": cid,
-                                    "published_at": None,
-                                    "title": None})
+                                    "published_at": f"no_video_found_{cid}",
+                                    "title": f"no_video_found_{cid}"})
     except Exception as e:
        print(e)
        break

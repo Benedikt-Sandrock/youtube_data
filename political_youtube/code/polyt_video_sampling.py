@@ -29,6 +29,8 @@ random.seed(42)
 with open(input_file, "r", encoding="utf-8") as f:
     data = json.load(f)
 
+data = [v for v in data if not v["title"].startswith("no_video_found")]
+
 # Nach Channel gruppieren
 channels = defaultdict(list)
 for v in data:
