@@ -10,7 +10,7 @@ api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
 api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
 
-youtube = build('youtube', 'v3', developerKey=api_key_c)
+youtube = build('youtube', 'v3', developerKey=api_key)
 
 videos_total_file = "../JSON Files/videos/videos_total.json"
 videos_total_file_2 = "../JSON Files/videos/videos_total.json"
@@ -56,10 +56,20 @@ def get_channel_videos(channel_id, published_after, published_before):
         pl_response = pl_request.execute()
 
         for item in pl_response.get("items", []):
-            video_id = item["contentDetails"]["videoId"]
-            pub_date = item["contentDetails"]["videoPublishedAt"]
-            title = item["snippet"]["title"]
+            content_details = item.get("contentDetails")
+            snippet = item.get("snippet", {})
 
+            if not isinstance(content_details, dict):
+                video_id = snippet.get("resourceId", {}).get("videoId")
+                pub_date = snippet.get("publishedAt")
+            else:
+                video_id = content_details.get("videoId")
+                pub_date = content_details.get("videoPublishedAt") or snippet.get("publishedAt")
+
+            title = snippet.get("title")
+
+            if not video_id or not pub_date:
+                continue
             # Abbruch, wenn Video vor dem Zeitraum liegt
             if pub_date < published_after:
                 next_page = None  # Stoppe Paging
@@ -86,17 +96,24 @@ def get_channel_videos(channel_id, published_after, published_before):
 # -----------------------------
 new_videos = []
 
-for cid in channel_ids[0:20]:
+for cid in channel_ids:
+    try:
+        if cid in processed_channel_ids:
+            print(f"Channel bereits vorhanden, übersprungen: {cid}")
+            continue
 
-    if cid in processed_channel_ids:
-        print(f"Channel bereits vorhanden, übersprungen: {cid}")
-        continue
-
-    print(f"Neue Channel ID: {cid}")
-    channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
-    print(f"Gefundene Videos: {len(channel_videos)}")
-    new_videos.extend(channel_videos)
-
+        print(f"Neue Channel ID: {cid}")
+        channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
+        print(f"Gefundene Videos: {len(channel_videos)}")
+        new_videos.extend(channel_videos)
+        if not channel_videos:
+            new_videos.append({"video_id": f"no_video_found_{cid}",
+                                    "channel_id": cid,
+                                    "published_at": None,
+                                    "title": None})
+    except Exception as e:
+       print(e)
+       break
 # -----------------------------
 # Deduplication nach Video-ID
 # -----------------------------
