@@ -1,0 +1,3 @@
+Search for all names of parties. 1.1.2024-31.12.2025, yearly search
+complete_channel_list includes only searches for parties.
+All channel ids discovered results from searches for "Politik" in 3-months intervals for 2025

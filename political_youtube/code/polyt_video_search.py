@@ -9,7 +9,7 @@ from dateutil.relativedelta import relativedelta
 api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
 api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
-youtube = build('youtube', 'v3', developerKey=api_key)
+youtube = build('youtube', 'v3', developerKey=api_key_c)
 
 ziel_directory = os.path.join(ziel_directory)
 os.makedirs(ziel_directory, exist_ok=True)
@@ -59,7 +59,7 @@ for query in query_list:
     results = []
 
     while current_start < final_end_date:
-        current_end = current_start + relativedelta(months = 3)
+        current_end = current_start + relativedelta(years = 1)
         if current_end > final_end_date:
             current_end = final_end_date
 
@@ -162,12 +162,12 @@ for query in query_list:
     with open(all_channels_path, "w", encoding="utf-8") as f:
         json.dump(sorted(all_channel_ids), f, indent=2, ensure_ascii=False)
 
-    with open(german_channels_path, "w", encoding="utf-8") as f:
-        json.dump(sorted(german_channels), f, indent=2, ensure_ascii=False)
-
-    with open(foreign_channels_path, "w", encoding="utf-8") as f:
-        json.dump(sorted(foreign_channels), f, indent=2, ensure_ascii=False)
-    print("\nKlassifizierte Channels gespeichert")
+    # with open(german_channels_path, "w", encoding="utf-8") as f:
+    #     json.dump(sorted(german_channels), f, indent=2, ensure_ascii=False)
+    #
+    # with open(foreign_channels_path, "w", encoding="utf-8") as f:
+    #     json.dump(sorted(foreign_channels), f, indent=2, ensure_ascii=False)
+    # print("\nKlassifizierte Channels gespeichert")
 
     #safe_json(foreign_channels_path, foreign_channels)
     set_to_json(german_channels_reference, german_ref)

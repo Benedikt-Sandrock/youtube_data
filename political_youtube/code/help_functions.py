@@ -108,11 +108,23 @@ def classify_channels_from_json(
     with open(input_json_path, "r", encoding="utf-8") as f:
         channel_ids = json.load(f)
 
+    if os.path.exists(output_all_channels_path):
+        with open(output_all_channels_path, "r", encoding="utf-8") as f:
+            try:
+                all_channels = json.load(f)
+            except json.JSONDecodeError:
+                all_channels = []
+    else:
+        all_channels = []
+
+    reference_set = {v["channel_id"] for v in all_channels}
     german_channels = []
     foreign_channels = []
-    all_channels = []
 
     for idx, channel_id in enumerate(channel_ids, start=1):
+        if channel_id in reference_set:
+            print(f"[{idx}/{len(channel_ids)}] {channel_id} → Übersprungen (bereits vorhanden)")
+            continue
         try:
             is_german, details = is_german_channel(
                 youtube=youtube,
@@ -141,17 +153,17 @@ def classify_channels_from_json(
 
         print(f"[{idx}/{len(channel_ids)}] {channel_id} → {'DE' if is_german else 'NON-DE'}")
 
-    # Output 1: Nur deutsche Channels
-    with open(output_german_only_path, "w", encoding="utf-8") as f:
-        json.dump(german_channels, f, ensure_ascii=False, indent=2)
-
-    # Output 2: Nur nicht-deutsche Channels
-    with open(output_foreign_only_path, "w", encoding="utf-8") as f:
-        json.dump(foreign_channels, f, ensure_ascii=False, indent=2)
-
-    # Output 3: Alle Channels mit Flag
-    with open(output_all_channels_path, "w", encoding="utf-8") as f:
-        json.dump(all_channels, f, ensure_ascii=False, indent=2)
+        # # Output 1: Nur deutsche Channels
+        # with open(output_german_only_path, "w", encoding="utf-8") as f:
+        #     json.dump(german_channels, f, ensure_ascii=False, indent=2)
+        #
+        # # Output 2: Nur nicht-deutsche Channels
+        # with open(output_foreign_only_path, "w", encoding="utf-8") as f:
+        #     json.dump(foreign_channels, f, ensure_ascii=False, indent=2)
+        #
+        # Output 3: Alle Channels mit Flag
+        with open(output_all_channels_path, "w", encoding="utf-8") as f:
+            json.dump(all_channels, f, ensure_ascii=False, indent=2)
 
 # endregion
 
@@ -184,6 +196,48 @@ def channel_id_to_name(youtube, list_of_ids):
             results.append(None)
             print(f"{channel_id} -> Fehler: {e}")
     return results
+
+
+def channel_id_to_name_batched(youtube, list_of_ids):
+    results_dict = {}
+    # Wir verarbeiten die IDs in 50er Schritten
+    for i in range(0, len(list_of_ids), 50):
+        chunk = list_of_ids[i:i + 50]
+        # Die IDs müssen für die API mit Komma verbunden werden
+        id_string = ",".join(chunk)
+
+        try:
+            request = youtube.channels().list(
+                part="snippet",
+                id=id_string,
+                maxResults=50
+            )
+            response = request.execute()
+
+            # Wir speichern die Ergebnisse kurz in einem Dictionary {ID: Name}
+            # damit wir die Reihenfolge der ursprünglichen Liste beibehalten können
+            found_channels = {
+                item["id"]: item["snippet"]["title"]
+                for item in response.get("items", [])
+            }
+
+            # Ergebnisse für diesen Batch loggen
+            for channel_id in chunk:
+                name = found_channels.get(channel_id)
+                if name:
+                    print(f"{channel_id} -> {name}")
+                    results_dict[channel_id] = name
+                else:
+                    print(f"{channel_id} -> Kein Kanal gefunden")
+                    results_dict[channel_id] = None
+
+        except Exception as e:
+            print(f"Fehler beim Batch {i // 50 + 1}: {e}")
+            for channel_id in chunk:
+                results_dict[channel_id] = None
+
+    # Die Liste in der ursprünglichen Reihenfolge zurückgeben
+    return [results_dict.get(cid) for cid in list_of_ids]
 # endregion
 
 
@@ -263,12 +317,36 @@ def check_classification(file_path, key = "german_ratio", value =0.7):
 
 if __name__ == "__main__":
     api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
-    with open("../../JSON Files/channel_ids_classified/all_channel_ids_german_3years.json", "r", encoding ="utf-8") as f:
-        channel_list = json.load(f)
+    youtube = build('youtube', 'v3', developerKey=api_key_c)
 
-    channel_id_to_name(youtube, channel_list)
+    import json
+    with open("../JSON Files/ident_1803/channel_metadata.json", "r", encoding = "utf-8") as f:
+        metadata = json.load(f)
+    print(f"Vorherige Anzahl: {len(metadata)}")
+    large_channels = [c["Channel_ID"] for c in metadata if c["Subscribers"] > 10000]
+    print(f"Anzahl großer Channels: {len(large_channels)}")
+    with open("../JSON Files/ident_1803/complete_channel_list_large.json", "w", encoding="utf-8") as f:
+        json.dump(large_channels, f, indent = 2, ensure_ascii=False)
+
+    classify_channels_from_json(youtube, "../JSON Files/ident_1803/complete_channel_list_large.json",
+                                "../JSON Files/ident_1803/complete_channel_list_german.json",
+                                "../JSON Files/ident_1803/complete_channel_list_foreign.json",
+                                "../JSON Files/ident_1803/complete_channel_list_classified.json")
+    # from metadata import get_channel_metadata
+    # with open("../JSON Files/ident_1803/complete_channel_list.json", "r", encoding = "utf-8") as f:
+    #     channel_list = json.load(f)
+    #
+    # result = get_channel_metadata(youtube, channel_list)
+    # with open("../JSON Files/ident_1803/channel_metadata.json", "w", encoding = "utf-8") as f:
+    #     json.dump(result, f, indent= 2, ensure_ascii=False)
+    #
+    # channel_id_to_name_batched(youtube, channel_list)
+    # with open("../../JSON Files/channel_ids_classified/all_channel_ids_german_3years.json", "r", encoding ="utf-8") as f:
+    #     channel_list = json.load(f)
+    #
+    # channel_id_to_name(youtube, channel_list)
 
     # input_path = "../JSON Files/all_channel_ids_discovered.json"
     # output_german_only = "../JSON Files/channel_ids_classified/all_channel_ids_german.json"
