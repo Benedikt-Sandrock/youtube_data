@@ -1,6 +1,10 @@
 """
 complete_channel_list.py
 
+NECESSARY FILES TO RUN THE SCRIPT:
+ - JSON file with videos of upload playlists (obtained via "all_channel_vids.py"
+
+
 List of functions: ["load_json", "save_json", "get_channel_metadata", "chunk_list",
 "collect_unique_ids", "is_german_channel", "classify_channels_from_json"]
 
@@ -31,6 +35,11 @@ from googleapiclient.discovery import build
 from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
+import time
+
+# measuring duration of the whole script
+starting_time_whole_script = time.perf_counter()
+
 
 api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
 api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
@@ -378,16 +387,15 @@ df = df.sort_values(by="name")
 
 
 """
-generate a file with videos downloaded via all_channel_vids for the respective channel list 
+5. generate a file with videos downloaded via all_channel_vids for the respective channel list 
 """
-import time
-
-start_time = time.perf_counter() # Präziser als time.time()
+print("Filtering videos from all videos scanned according to relevant channel list")
+start_time = time.perf_counter()
 
 all_videos_downloaded = load_json("../videos/videos_total.json")
 relevant_channels = load_json("large_german_channels/german_channels_100000k.json")
 relevant_channels = {c["channel_id"] for c in relevant_channels}
-
+print("Keeping only videos from channels on the list...")
 filtered_videos = [v for v in all_videos_downloaded if v["channel_id"] in relevant_channels]
 
 save_json("large_german_channels/video_files/all_videos_100k_channels.json", filtered_videos,
@@ -397,5 +405,90 @@ print(len(filtered_videos))
 end_time = time.perf_counter()
 execution_time = end_time - start_time
 
-print(f"Der Code hat {execution_time:.4f} Sekunden gedauert.")
+print(f"Code took {execution_time:.4f} seconds to run.")
 
+"""
+6. identify keyword videos
+"""
+
+import random
+from collections import defaultdict
+from datetime import datetime
+
+input_file = f"large_german_channels/video_files/all_videos_100k_channels.json"
+
+keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
+sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
+
+keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem"]
+
+cutoff_day = "2023-10-07T00:00:00Z"
+cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
+
+sample_size = 100
+
+random.seed(42)
+
+# load JSON
+with open(input_file, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+data = [v for v in data if not v["title"].startswith("no_video_found")]
+
+# group by channel
+channels = defaultdict(list)
+for v in data:
+    channels[v["channel_id"]].append(v)
+
+keyword_videos = []
+sampled_videos = []
+
+for channel_id, videos in channels.items():
+
+    with_keywords = []
+    without_keywords = []
+
+    for v in videos:
+        title = v.get("title", "").lower()
+
+        if any(k.lower() in title for k in keywords):
+            with_keywords.append(v)
+        else:
+            without_keywords.append(v)
+
+    keyword_videos.extend(with_keywords)
+
+    before = []
+    after = []
+
+    for v in without_keywords:
+        published = datetime.fromisoformat(
+            v["published_at"].replace("Z", "+00:00")
+        )
+
+        if published < cutoff_day_dt:
+            before.append(v)
+        else:
+            after.append(v)
+
+    if len(before) > sample_size:
+        before = random.sample(before, sample_size)
+
+    if len(after) > sample_size:
+        after = random.sample(after, sample_size)
+
+    sampled_videos.extend(before + after)
+
+# save files
+with open(keyword_file, "w", encoding="utf-8") as f:
+    json.dump(keyword_videos, f, ensure_ascii=False, indent=2)
+
+with open(sampled_file, "w", encoding="utf-8") as f:
+    json.dump(sampled_videos, f, ensure_ascii=False, indent=2)
+
+print(f"Keyword videos: {len(keyword_videos)}")
+print(f"Sampled videos: {len(sampled_videos)}")
+
+ending_time_whole_script = time.perf_counter()
+execution_time_whole_script = ending_time_whole_script - starting_time_whole_script
+print(f"Whole script takes {execution_time_whole_script:.2f} seconds to run.")
