@@ -1,3 +1,31 @@
 Search for all names of parties. 1.1.2024-31.12.2025, yearly search
-complete_channel_list includes only searches for parties.
 All channel ids discovered results from searches for "Politik" in 3-months intervals for 2025
+
+Large channels = channels with more than 10,000 subscribers
+
+Number of channels for different thresholds:
+Total number of channels: 1519
+Channels with more than 10000 subscribers: 790
+Of which German channels: 492
+Channels with more than 20000 subscribers: 676
+Of which German channels: 411
+Channels with more than 30000 subscribers: 606
+Of which German channels: 355
+Channels with more than 50000 subscribers: 495
+Of which German channels: 269
+Channels with more than 100000 subscribers: 390
+Of which German channels: 200
+
+
+Using only channels found when searching for party names:
+Total number of channels: 1069
+Channels with more than 10000 subscribers: 469
+Of which German channels: 360
+Channels with more than 20000 subscribers: 398
+Of which German channels: 305
+Channels with more than 30000 subscribers: 346
+Of which German channels: 259
+Channels with more than 50000 subscribers: 268
+Of which German channels: 194
+Channels with more than 100000 subscribers: 205
+Of which German channels: 146

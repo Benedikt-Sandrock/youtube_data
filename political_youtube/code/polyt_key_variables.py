@@ -9,11 +9,11 @@ final_end_date = datetime(2025, 12, 31)
 published_after_analysis = "2022-10-07T00:00:00Z"
 published_before_analysis = "2026-01-31T00:00:00Z"
 
-query_list = ["AfD"]
+query_list = ["BSW"]
 
 #query_list = ["Nahostkonflikt", "Gaza-Krieg", "Israel Palästina Konflikt", "Palästina Israel Konflikt"] #schon durchgelaufen monatsweise
 
-ziel_directory = f"../JSON Files/ident_1803/AfD"
+ziel_directory = f"../JSON Files/ident_1803/BSW"
 
 
 

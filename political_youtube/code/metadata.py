@@ -22,11 +22,11 @@ def get_channel_metadata(youtube, channel_ids):
 
         for item in response.get('items', []):
             data = {
-                'Name': item['snippet']['title'],
-                'Subscribers': int(item['statistics'].get('subscriberCount', 0)),
-                'Views': int(item['statistics'].get('viewCount', 0)),
-                'Videos': int(item['statistics'].get('videoCount', 0)),
-                'Channel_ID': item['id']
+                'name': item['snippet']['title'],
+                'subscribers': int(item['statistics'].get('subscriberCount', 0)),
+                'views': int(item['statistics'].get('viewCount', 0)),
+                'videos': int(item['statistics'].get('videoCount', 0)),
+                'channel_id': item['id']
             }
             all_data.append(data)
 
@@ -84,9 +84,9 @@ if __name__ == "__main__":
 
 
     # region channel metadata from json list
-    with open("../JSON Files/all_channel_ids_discovered.json", "r", encoding ="utf-8") as f:
+    with open("../JSON Files/old_identification/all_channel_ids_discovered_old.json", "r", encoding ="utf-8") as f:
         data = set(json.load(f))
-    with open("../JSON Files/all_channel_ids_metadata.json", "r", encoding ="utf-8") as f:
+    with open("../JSON Files/old_identification/all_channel_ids_metadata.json", "r", encoding ="utf-8") as f:
         metadata = json.load(f)
 
     existing_channels = {c["Channel_ID"] for c in metadata}
@@ -99,12 +99,12 @@ if __name__ == "__main__":
     print(len(new_metadata))
 
     metadata.extend(new_metadata)
-    with open("../JSON Files/all_channel_ids_metadata.json", "w", encoding = "utf-8") as f:
+    with open("../JSON Files/old_identification/all_channel_ids_metadata.json", "w", encoding ="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=4)
 
     # endregion
 
-    with open("../JSON Files/all_channel_ids_metadata.json", "r", encoding = "utf-8") as f:
+    with open("../JSON Files/old_identification/all_channel_ids_metadata.json", "r", encoding ="utf-8") as f:
         data_all = json.load(f)
     print(len(data_all))
 
@@ -117,11 +117,11 @@ if __name__ == "__main__":
     large_channels = [c for c in data if int(c["Subscribers"]) > 10000]
     print(len(large_channels))
 
-    with open("../JSON Files/large_channels.json", "w", encoding = "utf-8") as f:
+    with open("../JSON Files/old_identification/large_channels.json", "w", encoding ="utf-8") as f:
         json.dump(large_channels, f, ensure_ascii=False, indent=4)
 
     # region classify channels from json
-    # input_path = "../JSON Files/all_channel_ids_discovered.json"
+    # input_path = "../JSON Files/all_channel_ids_discovered_old.json"
     # output_german_only = "../JSON Files/channel_ids_classified/all_channel_ids_german.json"
     # output_foreign_only = "../JSON Files/channel_ids_classified/all_channel_ids_foreign.json"
     # output_all_channels = "../JSON Files/channel_ids_classified/all_channel_ids_classified.json"

@@ -1,5 +1,101 @@
+"""
+complete_channel_list.py
+
+List of functions: ["load_json", "save_json", "get_channel_metadata", "chunk_list",
+"collect_unique_ids", "is_german_channel", "classify_channels_from_json"]
+
+Workflow:
+1. Collects all channel ids from lists in subfolders of the directory. Saves all unique ids in a
+new JSON file "complete_channel_list.json".
+Note: This list is used in all following steps. The reference files (metadata + classifier) contain
+data from all lists previously used. However, only channels from the new channel-list are used
+for new output files.
+
+2. Gets metadata for all channels and saves it as "channel_metadata.json".
+
+3. Isolates large channels (>10,000 subscribers) and classifies large channels: german/non-german
+-> "complete_channel_list_classified.json".
+
+4. Combines metadata and classification data to generate files of german channels with different
+subscriber thresholds (10k, 20k, 30k, 50k, 100k). Generates Excel file with all german channels
+(including their metadata) with more than 10k subscribers.
+
+Script can be run completely without interruption.
+"""
+
+
 import os
 import json
+import pandas as pd
+from googleapiclient.discovery import build
+from langdetect import detect, LangDetectException
+from collections import Counter
+from typing import Tuple
+
+api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
+api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
+
+youtube = build("youtube", "v3", developerKey=api_key_c)
+
+def load_json(path):
+    print(f"Reading file: '{path}'")
+    with open(path, "r", encoding = "utf-8") as f:
+        data = json.load(f)
+        return data
+
+
+def save_json(path, data, name = "data"):
+    print(f"Saving {name} to '{path}'")
+    with open(path, "w", encoding = "utf-8") as f:
+        json.dump(data, f, indent = 2, ensure_ascii=False)
+
+
+def get_channel_metadata(youtube, input_path, output_path):
+    with open(input_path, "r", encoding = "utf-8") as f:
+        channel_ids = json.load(f)
+
+    if os.path.exists(output_path):
+        with open(output_path, "r", encoding="utf-8") as f:
+            try:
+                all_data = json.load(f)
+            except json.JSONDecodeError:
+                all_data = []
+    else:
+        all_data = []
+
+    already_requested = {c["channel_id"] for c in all_data}
+    channel_ids_filtered = [c for c in channel_ids if c not in already_requested]
+    y = len(channel_ids) - len(channel_ids_filtered)
+
+    print(f"Channel IDs: {len(channel_ids)}"
+          f"\nOf which already classfied: {y}")
+
+    print(f"Requesting metadata for {len(channel_ids_filtered)} channels...")
+
+    for batch in chunk_list(channel_ids_filtered, 50):
+        request = youtube.channels().list(
+            part="snippet,statistics",
+            id=",".join(batch)
+        )
+        response = request.execute()
+
+        for item in response.get('items', []):
+            data = {
+                'name': item['snippet']['title'],
+                'subscribers': int(item['statistics'].get('subscriberCount', 0)),
+                'views': int(item['statistics'].get('viewCount', 0)),
+                'videos': int(item['statistics'].get('videoCount', 0)),
+                'channel_id': item['id']
+            }
+            all_data.append(data)
+
+    with open(output_path, "w", encoding = "utf-8") as f:
+        json.dump(all_data, f, indent = 2, ensure_ascii= False)
+
+
+def chunk_list(lst, chunk_size):
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]
 
 
 def collect_unique_ids(directory, filename):
@@ -16,15 +112,290 @@ def collect_unique_ids(directory, filename):
     return list(unique_ids)
 
 
-# result = collect_unique_ids("../ident_1803", "all_channel_ids_discovered.json")
-# print(f"Gefundene unterschiedliche Einträge: {len(result)}")
-# print(result)
-#
-# with open("complete_channel_list.json", "w", encoding="utf-8") as f:
-#     json.dump(result, f, indent=2, ensure_ascii=False)
+def is_german_channel(
+    youtube,
+    channel_id: str,
+    max_videos: int = 10,
+    german_threshold: float = 0.7
+) -> Tuple[bool, dict]:
+    """
+    Prüft, ob ein YouTube-Kanal überwiegend deutschsprachig ist.
+    """
+
+    details = {
+        "channel_id": channel_id,
+        "defaultLanguage": None,
+        "country": None,
+        "german_ratio": 0.0
+    }
+
+    #Kanal-Metadaten
+    channel_response = youtube.channels().list(
+        part="snippet,contentDetails",
+        id=channel_id
+    ).execute()
+
+    if not channel_response["items"]:
+        return False, details
+
+    snippet = channel_response["items"][0]["snippet"]
+    details["defaultLanguage"] = snippet.get("defaultLanguage")
+    details["country"] = snippet.get("country")
+
+    #Harte Entscheidung
+    if details["defaultLanguage"] == "de":
+        return True, details
+
+    #Upload-Playlist
+    uploads_playlist_id = channel_response["items"][0]["contentDetails"][
+        "relatedPlaylists"
+    ]["uploads"]
+
+    playlist_items = youtube.playlistItems().list(
+        part="snippet",
+        playlistId=uploads_playlist_id,
+        maxResults=max_videos
+    ).execute()
+
+    video_ids = [
+        item["snippet"]["resourceId"]["videoId"]
+        for item in playlist_items.get("items", [])
+    ]
+
+    if not video_ids:
+        return False, details
+
+    #Videos abrufen
+    videos_response = youtube.videos().list(
+        part="snippet",
+        id=",".join(video_ids)
+    ).execute()
+
+    languages = []
+
+    for video in videos_response.get("items", []):
+        text = f"{video['snippet']['title']} {video['snippet'].get('description', '')}"
+
+        try:
+            lang = detect(text)
+            languages.append(lang)
+        except LangDetectException:
+            continue
+
+    if not languages:
+        return False, details
+
+    counter = Counter(languages)
+    german_ratio = counter.get("de", 0) / len(languages)
+    details["german_ratio"] = round(german_ratio, 2)
+
+    is_german = german_ratio >= german_threshold
+
+    # Weiches Zusatzsignal
+    if not is_german and details["country"] == "DE" and german_ratio >= 0.5:
+        is_german = True
+
+    return is_german, details
+
+
+def classify_channels_from_json(
+    youtube,
+    input_json_path: str,
+    output_german_only_path: str,
+    output_foreign_only_path: str,
+    output_all_channels_path: str,
+    max_videos: int = 10
+):
+    print("Classifying channels...")
+    with open(input_json_path, "r", encoding="utf-8") as f:
+        channel_ids = json.load(f)
+
+    if os.path.exists(output_all_channels_path):
+        with open(output_all_channels_path, "r", encoding="utf-8") as f:
+            try:
+                all_channels = json.load(f)
+            except json.JSONDecodeError:
+                all_channels = []
+    else:
+        all_channels = []
+
+    reference_set = {v["channel_id"] for v in all_channels}
+    german_channels = []
+    foreign_channels = []
+    counter = 0
+    for idx, channel_id in enumerate(channel_ids, start=1):
+        if channel_id in reference_set:
+            #print(f"[{idx}/{len(channel_ids)}] {channel_id} → Übersprungen (bereits vorhanden)")
+            counter +=1
+            continue
+        try:
+            is_german, details = is_german_channel(
+                youtube=youtube,
+                channel_id=channel_id,
+                max_videos=max_videos
+            )
+        except Exception as e:
+            # Failsafe: Kanal als nicht-deutsch markieren
+            is_german = False
+            details = {
+                "channel_id": channel_id,
+                "error": str(e)
+            }
+
+        if is_german:
+            german_channels.append(channel_id)
+
+        if not is_german:
+            foreign_channels.append(channel_id)
+
+        all_channels.append({
+            "channel_id": channel_id,
+            "is_german": is_german,
+            **details
+        })
+
+        print(f"[{idx}/{len(channel_ids)}] {channel_id} → {'DE' if is_german else 'NON-DE'}")
+
+        # # Output 1: Nur deutsche Channels
+        # with open(output_german_only_path, "w", encoding="utf-8") as f:
+        #     json.dump(german_channels, f, ensure_ascii=False, indent=2)
+        #
+        # # Output 2: Nur nicht-deutsche Channels
+        # with open(output_foreign_only_path, "w", encoding="utf-8") as f:
+        #     json.dump(foreign_channels, f, ensure_ascii=False, indent=2)
+        #
+        # Output 3: Alle Channels mit Flag
+        if idx % 10 == 0:
+            print(f"Saving output to: '{output_all_channels_path}'")
+            with open(output_all_channels_path, "w", encoding="utf-8") as f:
+                json.dump(all_channels, f, ensure_ascii=False, indent=2)
+
+    print(f"{counter}/{len(channel_ids)} were already classified.")
+    save_json(output_all_channels_path, all_channels)
+
+"""
+1. aggregate all lists to one list
+"""
+print("\nAggregating all channel IDs to a combined list:")
+
+result = collect_unique_ids("../ident_1803", "all_channel_ids_discovered.json")
+print(f"Number of unique IDs found: {len(result)}")
+#print(result)
+
+with open("complete_channel_list.json", "w", encoding="utf-8") as f:
+    json.dump(result, f, indent=2, ensure_ascii=False)
+
+
+"""
+2. get metadata
+"""
+print("\n\nGetting metadata:")
+
+get_channel_metadata(youtube, "complete_channel_list.json", "channel_metadata.json")
+
+print("\n")
+channels = load_json("complete_channel_list.json")
+metadata =  load_json("channel_metadata.json")
+
+print(f"Number of channels: {len(channels)}")
+#print(f"Number of channels with metadata available: {len(metadata)}")
+
+list_metadata = [c["channel_id"] for c in metadata]
+extra = [c for c in channels if c not in list_metadata]
+y2 = len(channels) - len(extra)
+print(f"Of which metadata available: {y2}")
+if extra:
+    print(f"Channels with no metadata available: {extra}")
+
+"""
+3. remove small channels and classify language
+"""
+
+print("\n\nRemoving small channels and classifying the language:")
+
+channels = load_json("complete_channel_list.json")
+channels_set = set(channels)
+channel_metadata = load_json("channel_metadata.json")
+
+channel_metadata = [item for item in channel_metadata if item["channel_id"] in channels_set]
+
+print(f"All channels: {len(channel_metadata)}")
+
+large_channels = [c["channel_id"] for c in channel_metadata if c["subscribers"] > 10000]
+print(f"Large channels: {len(large_channels)} (>10,000 subscribers)")
+
+save_json("complete_channel_list_large.json", large_channels)
+
+print("\n")
+
+classify_channels_from_json(youtube, "complete_channel_list_large.json",
+                                "complete_channel_list_german.json",
+                                "complete_channel_list_foreign.json",
+                                "complete_channel_list_classified.json")
+
+
+"""
+4. create lists of German channels with different thresholds
+"""
+print("\n\nCreating different lists of channels with different thresholds:")
 
 with open("complete_channel_list_classified.json", "r", encoding="utf-8") as f:
+    classifier = json.load(f)
+
+with open("channel_metadata.json", "r", encoding = "utf-8")as f:
+    metadata = json.load(f)
+
+with open("complete_channel_list.json", "r", encoding = "utf-8")as f:
+    relevant_channels = set(json.load(f))
+
+classifier = [item for item in classifier if item["channel_id"] in relevant_channels]
+metadata = [item for item in metadata if item["channel_id"] in relevant_channels]
+
+thresholds = [10000, 20000, 30000, 50000, 100000]
+print(f"Total number of channels: {len(relevant_channels)}")
+
+os.makedirs("large_german_channels", exist_ok=True)
+
+for t in thresholds:
+    large = [v["channel_id"] for v in metadata if v["subscribers"] > t]
+    print(f"Channels with more than {t} subscribers: {len(large)}")
+
+    german_channels = [c["channel_id"] for c in classifier if c["is_german"]
+                       and c["channel_id"] in large]
+    print(f"Of which German channels: {len(german_channels)}")
+
+    german_channels_tk = [c for c in metadata if c["channel_id"] in german_channels]
+    with open(f"large_german_channels/german_channels_{t}k.json", "w", encoding = "utf-8") as f:
+        json.dump(german_channels_tk, f, indent = 2, ensure_ascii=False)
+
+with open("large_german_channels/german_channels_10000k.json", "r", encoding = "utf-8") as f:
     data = json.load(f)
 
-german_channels = [c["channel_id"] for c in data if c["is_german"]]
-print(len(german_channels))
+df = pd.DataFrame(data)
+df = df.sort_values(by="name")
+
+#df.to_excel("german_channels.xlsx", index = False, engine="openpyxl")
+
+
+"""
+generate a file with videos downloaded via all_channel_vids for the respective channel list 
+"""
+import time
+
+start_time = time.perf_counter() # Präziser als time.time()
+
+all_videos_downloaded = load_json("../videos/videos_total.json")
+relevant_channels = load_json("large_german_channels/german_channels_100000k.json")
+relevant_channels = {c["channel_id"] for c in relevant_channels}
+
+filtered_videos = [v for v in all_videos_downloaded if v["channel_id"] in relevant_channels]
+
+save_json("large_german_channels/video_files/all_videos_100k_channels.json", filtered_videos,
+          "filtered_videos")
+
+print(len(filtered_videos))
+end_time = time.perf_counter()
+execution_time = end_time - start_time
+
+print(f"Der Code hat {execution_time:.4f} Sekunden gedauert.")
+

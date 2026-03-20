@@ -18,7 +18,7 @@ os.makedirs(ziel_directory, exist_ok=True)
 #Dateipfade definieren
 ###
 
-all_channels_path = os.path.join(ziel_directory, "all_channel_ids_discovered.json")
+all_channels_path = os.path.join(ziel_directory, "all_channel_ids_discovered_old.json")
 german_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_german.json")
 foreign_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
 german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
