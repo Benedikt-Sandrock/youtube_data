@@ -10,7 +10,7 @@ api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
 api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
 
-youtube = build('youtube', 'v3', developerKey=api_key)
+youtube = build('youtube', 'v3', developerKey=api_key_c)
 
 videos_total_file = "../JSON Files/videos/videos_total.json"
 videos_total_file_2 = "../JSON Files/videos/videos_total.json"
@@ -22,13 +22,18 @@ else:
     videos_total = []
 
 processed_channel_ids = {v["channel_id"] for v in videos_total}
-print(f"Bereits verarbeitete Channels: {len(processed_channel_ids)}")
+print(f"Insgesamt bereits verarbeitete Channels: {len(processed_channel_ids)}")
 
 # Channel IDs
 
-with open(f"../JSON Files/large_channels_list.json", "r", encoding="utf-8") as f:
-    channel_ids = json.load(f)
+with open(f"../JSON Files/ident_1803/large_german_channels/german_channels_10000k.json", "r", encoding="utf-8") as f:
+    channel_ids_dict = json.load(f)
 
+channel_ids = [c["channel_id"] for c in channel_ids_dict]
+print(f"Neue Channels: {len(channel_ids)}")
+channel_ids_set = set(channel_ids)
+new_channel_ids = channel_ids_set - processed_channel_ids
+print(f"Davon noch nicht überprüft: {len(new_channel_ids)}")
 
 # -----------------------------
 # Funktion: Videos aus Uploads-Playlist eines Kanals holen
@@ -99,7 +104,7 @@ new_videos = []
 for cid in channel_ids:
     try:
         if cid in processed_channel_ids:
-            print(f"Channel bereits vorhanden, übersprungen: {cid}")
+            #print(f"Channel bereits vorhanden, übersprungen: {cid}")
             continue
 
         print(f"Neue Channel ID: {cid}")

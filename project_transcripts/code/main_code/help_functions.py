@@ -151,7 +151,7 @@ def classify_channels_from_json(
     with open(output_all_channels_path, "w", encoding="utf-8") as f:
         json.dump(all_channels, f, ensure_ascii=False, indent=2)
 
-channel_classifier_inputs = ["../JSON Files/all_channel_ids_discovered.json",
+channel_classifier_inputs = ["../JSON Files/all_channel_ids_discovered_old.json",
     "../JSON Files/channel_ids_classified/all_channel_ids_german.json",
     "../JSON Files/channel_ids_classified/all_channel_ids_foreign.json",
     "../JSON Files/channel_ids_classified/all_channel_ids_classified.json"]
@@ -261,7 +261,7 @@ if __name__ == "__main__":
 
     channel_id_to_name(youtube, channel_list)
 
-    # input_path = "../JSON Files/all_channel_ids_discovered.json"
+    # input_path = "../JSON Files/all_channel_ids_discovered_old.json"
     # output_german_only = "../JSON Files/channel_ids_classified/all_channel_ids_german.json"
     # output_foreign_only = "../JSON Files/channel_ids_classified/all_channel_ids_foreign.json"
     # output_all_channels = "../JSON Files/channel_ids_classified/all_channel_ids_classified.json"

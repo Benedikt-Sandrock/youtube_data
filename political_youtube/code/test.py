@@ -8,7 +8,7 @@ with open(file_path, "r", encoding = "utf-8") as f:
 unique_channels = {v["channel_id"] for v in data}
 print(len(unique_channels))
 
-with open("../JSON Files/large_channels.json") as f:
+with open("../JSON Files/old_identification/large_channels.json") as f:
     data_2 = json.load(f)
 
 print(len(data_2))
