@@ -2,8 +2,8 @@
 complete_channel_list.py
 
 NECESSARY FILES TO RUN THE SCRIPT:
- - JSON file with videos of upload playlists (obtained via "all_channel_vids.py"
-
+ - JSON file with videos of upload playlists (obtained via "all_channel_vids.py")
+ - Input files with already downloaded transcripts
 
 List of functions: ["load_json", "save_json", "get_channel_metadata", "chunk_list",
 "collect_unique_ids", "is_german_channel", "classify_channels_from_json"]
@@ -24,7 +24,6 @@ for new output files.
 subscriber thresholds (10k, 20k, 30k, 50k, 100k). Generates Excel file with all german channels
 (including their metadata) with more than 10k subscribers.
 
-Script can be run completely without interruption.
 """
 
 
@@ -107,7 +106,7 @@ def chunk_list(lst, chunk_size):
         yield lst[i:i + chunk_size]
 
 
-def collect_unique_ids(directory, filename):
+def collect_unique_channel_ids(directory, filename):
     unique_ids = set()
 
     for root, dirs, files in os.walk(directory):
@@ -120,13 +119,46 @@ def collect_unique_ids(directory, filename):
 
     return list(unique_ids)
 
+def collect_downloaded_transcripts(list_of_files: list[str], list_of_ids: list[str]):
+    """
+    Takes a list of files and a list of IDs as Input. Searches existing transcript files for transcripts
+    to these IDs. Returns a df with video ID, transcript, and status for all IDs is found in another file.
+    """
+    print("Collecting already downloaded transcripts...")
+    id_to_file = {}
+
+    for file in list_of_files:
+        if not os.path.exists(file):
+            print(f"File not found: {file}")
+            continue
+        df = pd.read_csv(file, usecols = ["video_id"])
+        for video_id in df["video_id"].dropna().unique():
+            if str(video_id) not in id_to_file:
+                id_to_file[str(video_id)] = file
+
+    print(f"Found {len(id_to_file)} video IDs in transcript files.")
+
+    file_to_ids = {}
+    for video_id in list_of_ids:
+        file = id_to_file.get(str(video_id))
+        if file is None:
+            continue
+        file_to_ids.setdefault(file, set()).add(video_id)
+
+    results = []
+    for file, ids in file_to_ids.items():
+        df = pd.read_csv(file, usecols = ["video_id", "transcript", "status"])
+        matched = df[df["video_id"].isin(ids)].copy()
+        results.append(matched)
+
+    if not results:
+        return pd.DataFrame(columns = ["video_id", "transcript", "status"])
+
+    return pd.concat(results, ignore_index = True)
+
 
 def is_german_channel(
-    youtube,
-    channel_id: str,
-    max_videos: int = 10,
-    german_threshold: float = 0.7
-) -> Tuple[bool, dict]:
+    youtube, channel_id: str, max_videos: int = 10, german_threshold: float = 0.7) -> Tuple[bool, dict]:
     """
     Prüft, ob ein YouTube-Kanal überwiegend deutschsprachig ist.
     """
@@ -208,13 +240,8 @@ def is_german_channel(
 
 
 def classify_channels_from_json(
-    youtube,
-    input_json_path: str,
-    output_german_only_path: str,
-    output_foreign_only_path: str,
-    output_all_channels_path: str,
-    max_videos: int = 10
-):
+    youtube, input_json_path: str, output_german_only_path: str, output_foreign_only_path: str,
+    output_all_channels_path: str, max_videos: int = 10):
     print("Classifying channels...")
     with open(input_json_path, "r", encoding="utf-8") as f:
         channel_ids = json.load(f)
@@ -287,7 +314,7 @@ def classify_channels_from_json(
 """
 print("\nAggregating all channel IDs to a combined list:")
 
-result = collect_unique_ids("../ident_1803", "all_channel_ids_discovered.json")
+result = collect_unique_channel_ids("../ident_1803", "all_channel_ids_discovered.json")
 print(f"Number of unique IDs found: {len(result)}")
 #print(result)
 
@@ -398,14 +425,16 @@ relevant_channels = {c["channel_id"] for c in relevant_channels}
 print("Keeping only videos from channels on the list...")
 filtered_videos = [v for v in all_videos_downloaded if v["channel_id"] in relevant_channels]
 
+os.makedirs("large_german_channels/video_files/videos", exist_ok = True
+            )
 save_json("large_german_channels/video_files/all_videos_100k_channels.json", filtered_videos,
           "filtered_videos")
 
-print(len(filtered_videos))
+print(f"Total number of videos uploaded by relevant channels: {len(filtered_videos)}")
 end_time = time.perf_counter()
 execution_time = end_time - start_time
 
-print(f"Code took {execution_time:.4f} seconds to run.")
+print(f"Filtering videos took {execution_time:.2f} seconds to run.")
 
 """
 6. identify keyword videos
@@ -489,6 +518,57 @@ with open(sampled_file, "w", encoding="utf-8") as f:
 print(f"Keyword videos: {len(keyword_videos)}")
 print(f"Sampled videos: {len(sampled_videos)}")
 
+
+
+"""
+7. create a list of keyword/sampled videos and compare this list to all downloaded transcripts
+"""
+
+# create list of videos from dict
+keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
+sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
+
+keyword_vids = load_json(keyword_file)
+keyword_vids = [v["video_id"] for v in keyword_vids]
+
+sample_vids = load_json(sampled_file)
+sample_vids = [v["video_id"] for v in sample_vids]
+
+print("\n")
+# collect downloaded transcripts
+transcript_files = [
+    "../../Transcript files/youtube_transcripts_sampledvideos.csv",
+    "../../../project_transcripts/Transcript files/youtube_transkripte_2.csv"
+]
+downloaded_transcripts = collect_downloaded_transcripts(transcript_files, keyword_vids)
+print("\n")
+print(downloaded_transcripts.head())
+downloaded_transcripts.to_csv("../../Transcript files/political_yt_transcripts.csv", index = False)
+
+
+
+
+"""
+measuring time of code execution
+"""
+
 ending_time_whole_script = time.perf_counter()
 execution_time_whole_script = ending_time_whole_script - starting_time_whole_script
-print(f"Whole script takes {execution_time_whole_script:.2f} seconds to run.")
+print(f"\n\nWhole script took {execution_time_whole_script:.2f} seconds to run.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
