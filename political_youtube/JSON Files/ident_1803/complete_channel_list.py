@@ -449,7 +449,7 @@ input_file = f"large_german_channels/video_files/all_videos_100k_channels.json"
 keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
 
-keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem"]
+keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu"]
 
 cutoff_day = "2023-10-07T00:00:00Z"
 cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
@@ -523,7 +523,8 @@ print(f"Sampled videos: {len(sampled_videos)}")
 """
 7. create a list of keyword/sampled videos and compare this list to all downloaded transcripts
 """
-
+# !!! Specify export file to also be loaded in order not to lose any files !!!
+export_file = "../../Transcript files/political_yt_transcripts.csv"
 # create list of videos from dict
 keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
@@ -540,10 +541,15 @@ transcript_files = [
     "../../Transcript files/youtube_transcripts_sampledvideos.csv",
     "../../../project_transcripts/Transcript files/youtube_transkripte_2.csv"
 ]
-downloaded_transcripts = collect_downloaded_transcripts(transcript_files, keyword_vids)
-print("\n")
-print(downloaded_transcripts.head())
-downloaded_transcripts.to_csv("../../Transcript files/political_yt_transcripts.csv", index = False)
+
+if export_file in transcript_files:
+    downloaded_transcripts = collect_downloaded_transcripts(transcript_files, keyword_vids)
+    downloaded_transcripts.to_csv(export_file, index = False)
+    print("\n")
+    print(downloaded_transcripts.head())
+else:
+    print("Export file was not loaded. No export, to ensure that no data is lost.")
+
 
 
 
