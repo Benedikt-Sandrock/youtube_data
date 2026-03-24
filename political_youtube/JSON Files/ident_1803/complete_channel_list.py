@@ -538,6 +538,7 @@ sample_vids = [v["video_id"] for v in sample_vids]
 print("\n")
 # collect downloaded transcripts
 transcript_files = [
+    export_file,
     "../../Transcript files/youtube_transcripts_sampledvideos.csv",
     "../../../project_transcripts/Transcript files/youtube_transkripte_2.csv"
 ]
