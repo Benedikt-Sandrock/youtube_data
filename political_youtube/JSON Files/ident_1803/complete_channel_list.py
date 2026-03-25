@@ -136,7 +136,7 @@ def collect_downloaded_transcripts(list_of_files: list[str], list_of_ids: list[s
             if str(video_id) not in id_to_file:
                 id_to_file[str(video_id)] = file
 
-    print(f"Found {len(id_to_file)} video IDs in transcript files.")
+    print(f"Found {len(id_to_file)} already downloaded transcripts in existing files.")
 
     file_to_ids = {}
     for video_id in list_of_ids:
@@ -546,6 +546,8 @@ transcript_files = [
 if export_file in transcript_files:
     downloaded_transcripts = collect_downloaded_transcripts(transcript_files, keyword_vids)
     downloaded_transcripts.to_csv(export_file, index = False)
+
+    print(f"{len(downloaded_transcripts)} relevant transcripts are already downloaded.")
     print("\n")
     print(downloaded_transcripts.head())
 else:
