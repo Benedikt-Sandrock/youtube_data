@@ -5,7 +5,7 @@ NECESSARY FILES TO RUN THE SCRIPT:
  - JSON file with videos of upload playlists (obtained via "all_channel_vids.py")
  - Input files with already downloaded transcripts
 
-List of functions: ["load_json", "save_json", "get_channel_metadata", "chunk_list",
+List of functions: ["load_json", "save_json", "get_channel_metadata", "get_video_metadata", "chunk_list",
 "collect_unique_ids", "is_german_channel", "classify_channels_from_json"]
 
 Workflow:
@@ -58,7 +58,7 @@ def save_json(path, data, name = "data"):
         json.dump(data, f, indent = 2, ensure_ascii=False)
 
 
-def get_channel_metadata(youtube, input_path, output_path):
+def get_channel_metadata(youtube_client, input_path, output_path):
     with open(input_path, "r", encoding = "utf-8") as f:
         channel_ids = json.load(f)
 
@@ -81,7 +81,7 @@ def get_channel_metadata(youtube, input_path, output_path):
     print(f"Requesting metadata for {len(channel_ids_filtered)} channels...")
 
     for batch in chunk_list(channel_ids_filtered, 50):
-        request = youtube.channels().list(
+        request = youtube_client.channels().list(
             part="snippet,statistics",
             id=",".join(batch)
         )
@@ -101,6 +101,65 @@ def get_channel_metadata(youtube, input_path, output_path):
         json.dump(all_data, f, indent = 2, ensure_ascii= False)
 
 
+def get_video_metadata(youtube_client, input_path, output_path):
+    """
+    Takes YouTube client and list of video IDs as input and returns a dictionary with metadata for the respective
+    videos.
+    """
+    print("Getting video metadata...")
+
+    print(f"\nLoading input file: {input_path}")
+    with open(input_path, "r", encoding = "utf-8") as f:
+        video_ids = json.load(f)
+
+    if isinstance(video_ids[0], dict): #if a list of dicts is imported, only video ids are extracted
+        video_ids = [v["video_id"] for v in video_ids]
+
+    if os.path.exists(output_path):
+        with open(output_path, "r", encoding="utf-8") as f:
+            try:
+                all_videos = json.load(f)
+            except json.JSONDecodeError:
+                all_videos = []
+    else:
+        all_videos = []
+
+    already_requested = {v["video_id"] for v in all_videos}
+    video_ids_filtered = [v for v in video_ids if v not in already_requested]
+    y = len(video_ids) - len(video_ids_filtered)
+
+    print(f"Total number ideo IDs: {len(video_ids)}"
+          f"\nFor {y} video IDs, metadata already exists.")
+
+    print(f"Requesting metadata for {len(video_ids_filtered)} videos...")
+
+    for batch in chunk_list(video_ids_filtered, 50):
+        request = youtube_client.videos().list(
+            part="snippet,statistics,contentDetails",
+            id=",".join(batch)
+        )
+        response = request.execute()
+
+        for item in response.get("items", []):
+            video_data = {
+                "video_id": item["id"],
+                "title": item["snippet"]["title"],
+                "channel_title": item["snippet"]["channelTitle"],
+                "channel_id": item["snippet"]["channelId"],
+                "published_at": item["snippet"]["publishedAt"],
+                "duration": item["contentDetails"]["duration"],
+                "view_count": item["statistics"].get("viewCount"),
+                "like_count": item["statistics"].get("likeCount"),
+                "comment_count": item["statistics"].get("commentCount"),
+            }
+            all_videos.append(video_data)
+
+        time.sleep(0.1)
+    print(f"Saving metadata file to: {output_path}")
+    with open(output_path, "w", encoding = "utf-8") as f:
+        json.dump(all_videos, f, indent = 2, ensure_ascii=False)
+
+
 def chunk_list(lst, chunk_size):
     for i in range(0, len(lst), chunk_size):
         yield lst[i:i + chunk_size]
@@ -118,6 +177,7 @@ def collect_unique_channel_ids(directory, filename):
                 unique_ids.update(daten)
 
     return list(unique_ids)
+
 
 def collect_downloaded_transcripts(list_of_files: list[str], list_of_ids: list[str]):
     """
@@ -416,13 +476,14 @@ df = df.sort_values(by="name")
 """
 5. generate a file with videos downloaded via all_channel_vids for the respective channel list 
 """
-print("Filtering videos from all videos scanned according to relevant channel list")
+print("\nFiltering videos from all videos scanned according to relevant channel list")
 start_time = time.perf_counter()
 
 all_videos_downloaded = load_json("../videos/videos_total.json")
 relevant_channels = load_json("large_german_channels/german_channels_100000k.json")
+
 relevant_channels = {c["channel_id"] for c in relevant_channels}
-print("Keeping only videos from channels on the list...")
+print("\nKeeping only videos from channels on the list...")
 filtered_videos = [v for v in all_videos_downloaded if v["channel_id"] in relevant_channels]
 
 os.makedirs("large_german_channels/video_files/videos", exist_ok = True
@@ -434,7 +495,7 @@ print(f"Total number of videos uploaded by relevant channels: {len(filtered_vide
 end_time = time.perf_counter()
 execution_time = end_time - start_time
 
-print(f"Filtering videos took {execution_time:.2f} seconds to run.")
+print(f"\nFiltering videos took {execution_time:.2f} seconds to run.")
 
 """
 6. identify keyword videos
@@ -515,7 +576,8 @@ with open(keyword_file, "w", encoding="utf-8") as f:
 with open(sampled_file, "w", encoding="utf-8") as f:
     json.dump(sampled_videos, f, ensure_ascii=False, indent=2)
 
-print(f"Keyword videos: {len(keyword_videos)}")
+
+print(f"\nKeyword videos: {len(keyword_videos)}")
 print(f"Sampled videos: {len(sampled_videos)}")
 
 
@@ -523,6 +585,7 @@ print(f"Sampled videos: {len(sampled_videos)}")
 """
 7. create a list of keyword/sampled videos and compare this list to all downloaded transcripts
 """
+print("\nGetting already downloaded transcripts...")
 # !!! Specify export file to also be loaded in order not to lose any files !!!
 export_file = "../../Transcript files/political_yt_transcripts.csv"
 # create list of videos from dict
@@ -535,7 +598,6 @@ keyword_vids = [v["video_id"] for v in keyword_vids]
 sample_vids = load_json(sampled_file)
 sample_vids = [v["video_id"] for v in sample_vids]
 
-print("\n")
 # collect downloaded transcripts
 transcript_files = [
     export_file,
@@ -548,10 +610,21 @@ if export_file in transcript_files:
     downloaded_transcripts.to_csv(export_file, index = False)
 
     print(f"{len(downloaded_transcripts)} relevant transcripts are already downloaded.")
-    print("\n")
+    print("\nHead of transcript file:")
     print(downloaded_transcripts.head())
 else:
     print("Export file was not loaded. No export, to ensure that no data is lost.")
+
+"""
+8. get metadata for all relevant videos
+"""
+
+print("\n")
+
+#keyword file as input
+metadata_keyword_vids = f"large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json"
+
+get_video_metadata(youtube, keyword_file, metadata_keyword_vids)
 
 
 """
