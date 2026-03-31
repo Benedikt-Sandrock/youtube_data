@@ -35,13 +35,16 @@ from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
 import time
+from dotenv import load_dotenv
+
 
 # measuring duration of the whole script
 starting_time_whole_script = time.perf_counter()
 
-
-api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
-api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
+#loading api keys
+load_dotenv()
+api_key = os.getenv("API_KEY")
+api_key_c = os.getenv("API_KEY_C")
 
 youtube = build("youtube", "v3", developerKey=api_key_c)
 
@@ -510,7 +513,7 @@ input_file = f"large_german_channels/video_files/all_videos_100k_channels.json"
 keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
 
-keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu"]
+keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
 
 cutoff_day = "2023-10-07T00:00:00Z"
 cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
