@@ -5,3 +5,4 @@ youtube_transcript_api
 langdetect
 yt_dlp
 openpyxl
+python-dotenv
