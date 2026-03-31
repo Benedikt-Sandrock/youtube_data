@@ -23,6 +23,11 @@ ziel_directory = f"../JSON Files"
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+    api_key = os.getenv("API_KEY")
+    api_key_c = os.getenv("API_KEY_C")
     import json
     #with open("../JSON Files/videos_keywords_total_3years.json", "r", encoding = "utf-8") as f:
     #    data = json.load(f)
@@ -39,7 +44,6 @@ if __name__ == "__main__":
     print(big_channels)
     # import json
     # from googleapiclient.discovery import build
-    # api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
     # youtube = build('youtube', 'v3', developerKey=api_key)
     # with open("../JSON Files/channel_ids_classified/all_channel_ids_classified_german_3years.json", "r", encoding ="utf-8") as f:
     #     data = json.load(f)
@@ -104,7 +108,6 @@ if __name__ == "__main__":
     #
     #
     # # print(processed_channel_ids)
-    # # api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
     # # from googleapiclient.discovery import build
     # #
     # # youtube = build('youtube', 'v3', developerKey=api_key)

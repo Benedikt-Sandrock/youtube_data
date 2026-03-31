@@ -2,12 +2,14 @@ from googleapiclient.discovery import build
 import json
 import os
 from key_variables import published_before_analysis, published_after_analysis
-
+from dotenv import load_dotenv
 # -----------------------------
 # API-Key und Einstellungen
 # -----------------------------
-api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
-api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
+load_dotenv()
+api_key = os.getenv("API_KEY")
+api_key_c = os.getenv("API_KEY_C")
+
 
 
 youtube = build('youtube', 'v3', developerKey=api_key_c)

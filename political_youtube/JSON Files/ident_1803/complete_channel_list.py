@@ -35,13 +35,13 @@ from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
 import time
-from dotenv import load_dotenv
 
 
 # measuring duration of the whole script
 starting_time_whole_script = time.perf_counter()
 
 #loading api keys
+from dotenv import load_dotenv
 load_dotenv()
 api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
