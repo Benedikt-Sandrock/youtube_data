@@ -253,7 +253,11 @@ def check_classification(file_path, key = "german_ratio", value =0.7):
 
 
 if __name__ == "__main__":
-    api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
+    from dotenv import load_dotenv
+
+    load_dotenv()
+    api_key = os.getenv("API_KEY")
+    api_key_c = os.getenv("API_KEY_C")
     youtube = build('youtube', 'v3', developerKey=api_key)
 
     with open("../../JSON Files/channel_ids_classified/all_channel_ids_german_3years.json", "r", encoding ="utf-8") as f:

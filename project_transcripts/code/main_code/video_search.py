@@ -5,8 +5,10 @@ from project_transcripts.code.main_code.key_variables import ziel_directory, que
 from help_functions import is_german_channel, load_set, set_to_json
 from dateutil.relativedelta import relativedelta
 
-
-api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
+from dotenv import load_dotenv
+load_dotenv()
+api_key = os.getenv("API_KEY")
+api_key_c = os.getenv("API_KEY_C")
 
 youtube = build('youtube', 'v3', developerKey=api_key)
 

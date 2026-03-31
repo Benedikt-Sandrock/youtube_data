@@ -5,9 +5,11 @@ from polyt_key_variables import ziel_directory, query_list, start_date, final_en
 from help_functions import is_german_channel, load_set, set_to_json
 from dateutil.relativedelta import relativedelta
 
+from dotenv import load_dotenv
+load_dotenv()
+api_key = os.getenv("API_KEY")
+api_key_c = os.getenv("API_KEY_C")
 
-api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
-api_key_c = "AIzaSyBjtKhLfb-EyaWxc-vCROX6VTWA66j8sHE"
 
 youtube = build('youtube', 'v3', developerKey=api_key_c)
 
