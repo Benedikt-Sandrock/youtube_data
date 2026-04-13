@@ -46,7 +46,7 @@ load_dotenv()
 api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
-youtube = build("youtube", "v3", developerKey=api_key_c)
+youtube = build("youtube", "v3", developerKey=api_key)
 
 def load_json(path):
     print(f"Reading file: '{path}'")
@@ -628,6 +628,11 @@ print("\n")
 metadata_keyword_vids = f"large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json"
 
 get_video_metadata(youtube, keyword_file, metadata_keyword_vids)
+
+#inspect data
+video_metadata = pd.read_json(metadata_keyword_vids)
+
+
 
 
 """

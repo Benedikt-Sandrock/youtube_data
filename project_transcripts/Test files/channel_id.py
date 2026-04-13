@@ -1,7 +1,9 @@
 from googleapiclient.discovery import build
 import json
-
-api_key = "AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE"
+import os
+from dotenv import load_dotenv
+load_dotenv()
+api_key = os.getenv("API_KEY")
 youtube = build('youtube', 'v3', developerKey=api_key)
 
 # with open("../code/json_files/all_channel_ids.json") as f:
