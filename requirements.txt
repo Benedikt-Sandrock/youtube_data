@@ -6,3 +6,4 @@ langdetect
 yt_dlp
 openpyxl
 python-dotenv
+matplotlib

@@ -3,3 +3,8 @@
 __pycache__
 /project_videos/code/downloads/
 .env
+/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels.json
+/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json
+/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_sampled.json
+/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json
+/political_youtube/JSON Files/ident_1803/comment_analysis/comment_data_backup.csv
