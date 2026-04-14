@@ -1,76 +1,83 @@
-import os
 import pandas as pd
-from dotenv import load_dotenv
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import numpy as np
+import matplotlib.pyplot as plt
 
-load_dotenv()
-api_key = os.getenv("API_KEY")
-api_key_c = os.getenv("API_KEY_C")
+df_videos = pd.read_json("../large_german_channels/video_files/"
+                         "metadata_all_videos_100k_channels_keywords.json")
+df_comments = pd.read_csv("comment_data.csv")
 
-df = pd.read_json("../large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
-df = df[df["comment_count"].notna() & (df["comment_count"] != 0)]
-print(len(df))
-print(df["comment_count"].sum())
+df_videos["published_at"] = pd.to_datetime(df_videos["published_at"], utc = True)
+df_comments["date"] = pd.to_datetime(df_comments["date"], utc = True)
 
-list_of_ids = df["video_id"].tolist()
-print(len(list_of_ids))
+print(df_videos.head())
+print(df_comments.head())
 
-youtube = build("youtube", "v3", developerKey=api_key)
+df_videos_small = df_videos[["video_id", "published_at", "title"]]
+df_comments = df_comments[["video_id", "date"]]
 
-output_file = "comment_data.csv"
-checkpoint_file = "processed_ids.txt"
+df_merged = pd.merge(df_comments, df_videos_small, on= "video_id", how = "inner")
+
+df_merged["diff_time"] = df_merged["date"] - df_merged["published_at"]
+df_merged["days_since_upload"] = df_merged["diff_time"].dt.total_seconds() / (24*3600)
+#df_merged =  df_merged.sort_values(by = "days_since_upload")
+
+# with pd.option_context("display.max_columns", None):
+#     print(df_merged.head())
+
+print("Anzahl Kommentare gesamt:")
+print(len(df_merged))
+
+df_negative = df_merged[df_merged["days_since_upload"] < 0]
+print("Anzahl Kommentare vor offiziellem Upload-Datum:")
+print(len(df_negative))
+
+bins = [0, 1, 7, 30, 90, 365, 5000]
+labels = ["Tag 1", "Woche 1", "Monat 1", "Monat 2-3", "Jahr 1", "älter"]
+
+df_merged["period"] = pd.cut(df_merged["days_since_upload"], bins = bins, labels = labels, include_lowest = True)
+
+# with pd.option_context("display.max_columns", None):
+#     print(df_merged.head())
+
+distribution = df_merged['period'].value_counts(normalize=True).sort_index() * 100
+print(distribution)
 
 
-def get_comments_for_videos(id_list):
-    print(f"Total number of IDs: {len(id_list)}")
-    if os.path.exists(output_file):
-        processed_df = pd.read_csv(output_file, usecols=["video_id"])
-        processed_ids = set(processed_df["video_id"].unique())
-        print(f"Already processed IDs: {len(processed_ids)}")
-    else:
-        processed_ids = {}
-        print("No processed IDs")
+ax = distribution.plot(kind='bar', color='teal', figsize=(10, 6))
 
-    for v_id in id_list:
-        if v_id in processed_ids:
-            continue
+for p in ax.patches:
+    ax.annotate(f'{p.get_height():.1f}%', # Text: Wert auf 1 Nachkommastelle gerundet
+                (p.get_x() + p.get_width() / 2., p.get_height()), # Position: Mitte des Balkens, oben
+                ha='center', va='center', # Ausrichtung
+                xytext=(0, 9), # Text-Versatz (9 Punkte nach oben)
+                textcoords='offset points',
+                fontsize=10,
+                fontweight='bold')
 
-        video_comments = []
+plt.title('When do people comment?')
+plt.ylabel('Share of comments in %')
+plt.xlabel('Period after release')
+plt.xticks(rotation=45)
+plt.ylim(0, distribution.max() * 1.15)
 
-        try:
-            request = youtube.commentThreads().list(
-                part = "snippet",
-                videoId = v_id,
-                maxResults = 100,
-                textFormat = "plainText"
-            )
+plt.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+plt.savefig("comment_distribution.png", format="png", dpi=300)
+plt.show()
 
-            while request:
-                response = request.execute()
-                for item in response["items"]:
-                    comment = item["snippet"]["topLevelComment"]["snippet"]
-                    video_comments.append({
-                        "video_id": v_id,
-                        "author": comment["authorDisplayName"],
-                        "text": comment["textDisplay"],
-                        "date": comment["publishedAt"],
-                        "likes": comment["likeCount"]
-                    })
+df_channel_match = df_videos[["video_id", "channel_title", "comment_count", "like_count", "view_count"]]
 
-                if "nextPageToken" in response:
-                    request = youtube.commentThreads().list_next(request, response)
-                else:
-                    request = None
+df_channel_match['is_empty'] = df_channel_match['comment_count'].isna() | (df_channel_match['comment_count'] == 0)
+channel_stats = df_channel_match.groupby('channel_title').agg(
+    proportion_empty = ("is_empty", "mean"),
+    average_views = ("view_count", "mean"),
+    average_likes = ("like_count", "mean"),
+    average_comments = ("comment_count", "mean")
+).reset_index()
 
-            if video_comments:
-                df_temp = pd.DataFrame(video_comments)
-                df_temp.to_csv(output_file, mode = "a", index = False, header=not os.path.exists(output_file))
 
-        except HttpError as e:
-            print(f"Error at id {v_id}: {e}")
-            continue
 
-#get_comments_for_videos(list_of_ids)
-df = pd.read_csv(output_file)
-print(len(df))
+channel_stats = channel_stats.sort_values(by="proportion_empty", ascending = False)
+channel_stats.to_csv("channel_stats.csv")
+
+
