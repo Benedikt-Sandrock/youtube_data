@@ -14,17 +14,21 @@ print(f"Total number of videos: {len(df)}")
 df = pd.merge(df, news_channels, on = "channel_id", how = "left")
 
 df["published_at"] = pd.to_datetime(df["published_at"])
-df = df[(df["published_at"] > "2023-07-07T00:00:00Z") & (df["published_at"] < "2023-11-07T00:00:00Z")]
+df = df[(df["published_at"] > "2023-07-07T00:00:00Z") & (df["published_at"] < "2023-10-20T00:00:00Z")]
 df["treated"] = df["published_at"] >= treatment_day
 df["keyword_video"] = df["title"].str.contains(pattern, case = False, na = False)
 #df["any_keyword_video"] = df.groupby("channel_id")["keyword_video"].transform("any")
 
 channels = df.groupby("channel_id")
 print(f"Number of channels: {len(channels)}")
-
+df_after = df[(df["published_at"] >= treatment_day) & (df["keyword_video"] == 1)]
+df_before = df[(df["published_at"] < treatment_day) & (df["keyword_video"] == 1)]
+print(f"Videos before treatment: {len(df_before)}")
+print(f"Videos after treatment: {len(df_after)}")
 stats = df.groupby('treated').agg(
     keyword_share = ("keyword_video", "mean"),
 )
+
 
 stats_2 = df.groupby(["treated", "channel_id"])["keyword_video"].any().reset_index()
 stats_2 = stats_2.groupby("treated").agg(
@@ -35,9 +39,18 @@ print(stats)
 print(stats_2)
 
 df_without_news = df[df["news_channel"] == 0.0]
-channels = df_without_news.groupby("channel_id")
 
+channels = df_without_news.groupby("channel_id")
 print(f"Number of channels without news channels: {len(channels)}")
+
+df_after = df_without_news[(df_without_news["published_at"] >= treatment_day) & (df["keyword_video"] == 1)]
+df_before = df_without_news[(df_without_news["published_at"] < treatment_day) & (df["keyword_video"] == 1)]
+print(f"Videos before treatment: {len(df_before)}")
+print(f"Videos after treatment: {len(df_after)}")
+channels_posting_after = df_after.groupby("channel_id")
+print(f"By {len(channels_posting_after)} different channels")
+
+df_after.to_csv("videos_after_treatment.csv")
 
 stats_without_news = df_without_news.groupby("treated").agg(
     keyword_share=("keyword_video", "mean"),
@@ -54,6 +67,4 @@ print(stats_without_news_2)
 
 
 df.to_csv("filtered.csv")
-#print(len(df))
-#print(df[["title", "keyword_video"]].head())
 
