@@ -513,7 +513,7 @@ input_file = f"large_german_channels/video_files/all_videos_100k_channels.json"
 keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
 
-keywords = ["nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
+keywords = ["nahe osten", "naher osten", "nahen osten", "nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
 
 cutoff_day = "2023-10-07T00:00:00Z"
 cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
