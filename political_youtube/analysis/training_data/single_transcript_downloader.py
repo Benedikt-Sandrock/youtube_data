@@ -21,7 +21,7 @@ def save_to_csv(daten_chunk, file_path):
     )
 
 file_path = "../../Transcript files/single_transcripts.csv"
-video_id = "86HPw9YKU2g"
+video_id = "f1QsZfwNqL8"
 daten = []
 
 try:

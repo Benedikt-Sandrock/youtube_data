@@ -81,4 +81,15 @@ print(stats_without_news_2)
 df.to_csv("filtered.csv", index = False)
 
 
+df_length = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/"
+                         "metadata_all_videos_100k_channels_keywords.json")
 
+df_length["duration"] = pd.to_timedelta(df_length["duration"])
+print(df_length["duration"].describe())
+
+df_filtered = df_length[
+    (df_length["duration"] > pd.Timedelta(minutes = 1)) &
+    (df_length["duration"] <= pd.Timedelta(minutes = 1, seconds = 10))
+]
+
+print(df_filtered)

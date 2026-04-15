@@ -26,7 +26,6 @@ subscriber thresholds (10k, 20k, 30k, 50k, 100k). Generates Excel file with all 
 
 """
 
-
 import os
 import json
 import pandas as pd
@@ -375,13 +374,15 @@ def classify_channels_from_json(
 """
 1. aggregate all lists to one list
 """
+print(f"Aktuelles Arbeitsverzeichnis: {os.getcwd()}")
+
 print("\nAggregating all channel IDs to a combined list:")
 
-result = collect_unique_channel_ids("../ident_1803", "all_channels/all_channel_ids_discovered.json")
+result = collect_unique_channel_ids("party_identification", "all_channel_ids_discovered.json")
 print(f"Number of unique IDs found: {len(result)}")
 #print(result)
 
-with open("all_channels/complete_channel_list.json", "w", encoding="utf-8") as f:
+with open("complete_channel_list.json", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
 
@@ -584,7 +585,6 @@ print(f"\nKeyword video_files: {len(keyword_videos)}")
 print(f"Sampled video_files: {len(sampled_videos)}")
 
 
-
 """
 7. create a list of keyword/sampled video_files and compare this list to all downloaded transcripts
 """
@@ -634,7 +634,6 @@ video_metadata = pd.read_json(metadata_keyword_vids)
 
 
 
-
 """
 measuring time of code execution
 """
@@ -642,20 +641,3 @@ measuring time of code execution
 ending_time_whole_script = time.perf_counter()
 execution_time_whole_script = ending_time_whole_script - starting_time_whole_script
 print(f"\n\nWhole script took {execution_time_whole_script:.2f} seconds to run.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

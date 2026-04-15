@@ -11,7 +11,7 @@ api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
 
-youtube = build('youtube', 'v3', developerKey=api_key_c)
+youtube = build('youtube', 'v3', developerKey=api_key)
 
 ziel_directory = os.path.join(ziel_directory)
 os.makedirs(ziel_directory, exist_ok=True)
@@ -20,22 +20,22 @@ os.makedirs(ziel_directory, exist_ok=True)
 #Dateipfade definieren
 ###
 
-all_channels_path = os.path.join(ziel_directory, "all_channel_ids_discovered_old.json")
-german_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_german.json")
-foreign_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
-german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
-foreign_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_foreign_reference.json"
+all_channels_path = os.path.join(ziel_directory, "all_channel_ids_discovered.json")
+# german_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_german.json")
+# foreign_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
+# german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
+# foreign_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_foreign_reference.json"
 identification_vids = "../JSON Files/video_files/identification_vids.json"
 ###
 #Dateien laden
 ###
 print("Dateien werden geladen:")
-german_ref = load_set(german_channels_reference)
-foreign_ref = load_set(foreign_channels_reference)
+# german_ref = load_set(german_channels_reference)
+# foreign_ref = load_set(foreign_channels_reference)
 
 all_channel_ids = load_set(all_channels_path)
-german_channels = load_set(german_channels_path)
-foreign_channels = load_set(foreign_channels_path)
+# german_channels = load_set(german_channels_path)
+# foreign_channels = load_set(foreign_channels_path)
 
 if os.path.exists(identification_vids):
     with open(identification_vids, "r", encoding="utf-8") as f:
@@ -61,7 +61,7 @@ for query in query_list:
     results = []
 
     while current_start < final_end_date:
-        current_end = current_start + relativedelta(years = 1)
+        current_end = current_start + relativedelta(months = 3)
         if current_end > final_end_date:
             current_end = final_end_date
 
@@ -157,12 +157,12 @@ for query in query_list:
     # endregion
 
     #Speichern der Ergebnisse
-
-    with open(identification_vids, "w", encoding = "utf-8") as f:
-        json.dump(ident_vids, f, indent=2, ensure_ascii=False)
-
     with open(all_channels_path, "w", encoding="utf-8") as f:
         json.dump(sorted(all_channel_ids), f, indent=2, ensure_ascii=False)
+
+    # with open(identification_vids, "w", encoding = "utf-8") as f:
+    #     json.dump(ident_vids, f, indent=2, ensure_ascii=False)
+
 
     # with open(german_channels_path, "w", encoding="utf-8") as f:
     #     json.dump(sorted(german_channels), f, indent=2, ensure_ascii=False)
