@@ -7,4 +7,6 @@ __pycache__
 /political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json
 /political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_sampled.json
 /political_youtube/JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json
-/political_youtube/JSON Files/ident_1803/comment_analysis/comment_data_backup.csv
+/political_youtube/analysis/comment_analysis/comment_data_backup.csv
+/political_youtube/JSON Files/video_files/videos_total.json
+/political_youtube/JSON Files/video_files/

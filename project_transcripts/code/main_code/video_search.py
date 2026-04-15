@@ -95,7 +95,7 @@ for query in query_list:
     ]
     print(f"Gefundene Videos: {len(videos)}")
     # with open(f"{ziel_directory}/files_queries/files_{query}/videos_{query}.json", "w", encoding ="utf-8") as f:
-    #     json.dump(videos, f, indent=2, ensure_ascii=False)
+    #     json.dump(video_files, f, indent=2, ensure_ascii=False)
 
     #Extraktion der Channel IDs
     channel_ids = {video["channel_id"] for video in videos}
