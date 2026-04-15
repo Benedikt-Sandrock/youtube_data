@@ -54,7 +54,7 @@ extreme_channels = ["UCT0wo1uc6G3UTuM_MiacA9g", "UCXJBRgiZRZvfilIGQ4wN5CQ", "UCB
                     "UCw-SjGVT0HK7czJkLgdv3Fw", "UCUuab1dctZzN5ZmRmQnTzkg", "UChkELlk5GBaUCVx8-94IK_Q",
                     "UCbanHTRuGv2Fi7flpO735yw", "UCgvFsn6bRKqND1cW3HpzDrA","UCAsMARoXqla-WJpclxZjABg",
                     "UC1RJJZSO2GYBrPQuiLUp1dA", "UCK78LteBgoyE1XlSwBZWd0A", "UCICWTMc7Jni_u5ORVXBOnLQ"]
-with open("../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json", "r", encoding = "utf-8") as f:
+with open("../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json", "r", encoding ="utf-8") as f:
     data = json.load(f)
 
 random.seed(42)

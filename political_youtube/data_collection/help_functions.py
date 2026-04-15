@@ -4,6 +4,7 @@ from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
 import os
+import time
 
 # region is_german_channel
 def is_german_channel(
@@ -242,13 +243,13 @@ def channel_id_to_name_batched(youtube, list_of_ids):
 
 
 total_videos_input = "../JSON Files/videos_by_channel_total.json"
-blacklist_file = "../../JSON Files/channel_ids_classified/all_channel_ids_foreign.json"
+blacklist_file = "../JSON Files/channel_ids_classified/all_channel_ids_foreign.json"
 german_videos_output = "../JSON Files/videos_by_channel_total_german.json"
 german_videos_output_2 = "../JSON Files/videos_by_channel_total_german_2.json"
 
 # region filter_blacklist
 def filter_blacklist(total_videos_input, blacklist_file, german_videos_output):
-    #filters all videos from total videos that are not from german channels
+    #filters all video_files from total video_files that are not from german channels
     with open(total_videos_input, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -315,6 +316,63 @@ def check_classification(file_path, key = "german_ratio", value =0.7):
     print(len(threshold_channels))
 
 
+def get_channel_metadata(youtube, channel_ids):
+
+    all_data = []
+    for batch in chunk_list(channel_ids, 50):
+        request = youtube.channels().list(
+            part="snippet,statistics",
+            id=",".join(batch)
+        )
+        response = request.execute()
+
+        for item in response.get('items', []):
+            data = {
+                'name': item['snippet']['title'],
+                'subscribers': int(item['statistics'].get('subscriberCount', 0)),
+                'views': int(item['statistics'].get('viewCount', 0)),
+                'video_files': int(item['statistics'].get('videoCount', 0)),
+                'channel_id': item['id']
+            }
+            all_data.append(data)
+
+    return all_data
+
+
+
+def get_video_metadata(video_ids):
+    all_videos = []
+
+    for batch in chunk_list(video_ids, 50):
+        request = youtube.videos().list(
+            part="snippet,statistics,contentDetails",
+            id=",".join(batch)
+        )
+        response = request.execute()
+
+        for item in response.get("items", []):
+            video_data = {
+                "video_id": item["id"],
+                "title": item["snippet"]["title"],
+                "channel_title": item["snippet"]["channelTitle"],
+                "channel_id": item["snippet"]["channelId"],
+                "published_at": item["snippet"]["publishedAt"],
+                "duration": item["contentDetails"]["duration"],
+                "view_count": item["statistics"].get("viewCount"),
+                "like_count": item["statistics"].get("likeCount"),
+                "comment_count": item["statistics"].get("commentCount"),
+            }
+            all_videos.append(video_data)
+
+        time.sleep(0.1)
+
+    return all_videos
+
+
+def chunk_list(lst, chunk_size):
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i:i + chunk_size]
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
@@ -326,18 +384,18 @@ if __name__ == "__main__":
     youtube = build('youtube', 'v3', developerKey=api_key_c)
 
     import json
-    with open("../JSON Files/ident_1803/channel_metadata.json", "r", encoding = "utf-8") as f:
+    with open("../JSON Files/ident_1803/all_channels/channel_metadata.json", "r", encoding ="utf-8") as f:
         metadata = json.load(f)
     print(f"Vorherige Anzahl: {len(metadata)}")
     large_channels = [c["Channel_ID"] for c in metadata if c["Subscribers"] > 10000]
     print(f"Anzahl großer Channels: {len(large_channels)}")
-    with open("../JSON Files/ident_1803/complete_channel_list_large.json", "w", encoding="utf-8") as f:
+    with open("../JSON Files/ident_1803/all_channels/complete_channel_list_large.json", "w", encoding="utf-8") as f:
         json.dump(large_channels, f, indent = 2, ensure_ascii=False)
 
-    classify_channels_from_json(youtube, "../JSON Files/ident_1803/complete_channel_list_large.json",
+    classify_channels_from_json(youtube, "../JSON Files/ident_1803/all_channels/complete_channel_list_large.json",
                                 "../JSON Files/ident_1803/complete_channel_list_german.json",
                                 "../JSON Files/ident_1803/complete_channel_list_foreign.json",
-                                "../JSON Files/ident_1803/complete_channel_list_classified.json")
+                                "../JSON Files/ident_1803/all_channels/complete_channel_list_classified.json")
     # from metadata import get_channel_metadata
     # with open("../JSON Files/ident_1803/complete_channel_list.json", "r", encoding = "utf-8") as f:
     #     channel_list = json.load(f)

@@ -8,7 +8,8 @@ load_dotenv()
 api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
-df = pd.read_json("../large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
+df = pd.read_json(
+    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
 
 df = df[df["comment_count"].notna() & (df["comment_count"] != 0)]
 print(len(df))

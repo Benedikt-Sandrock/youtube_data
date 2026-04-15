@@ -3,10 +3,10 @@ import random
 from collections import defaultdict
 from datetime import datetime
 
-input_file = f"../JSON Files/videos/videos_total.json"
+input_file = f"../JSON Files/video_files/videos_total.json"
 
-keyword_file = f"../JSON Files/videos/videos_keywords_total.json"
-sampled_file = f"../JSON Files/videos/videos_sampled_total.json"
+keyword_file = f"../JSON Files/video_files/videos_keywords_total.json"
+sampled_file = f"../JSON Files/video_files/videos_sampled_total.json"
 
 keywords = [
     "nahost",

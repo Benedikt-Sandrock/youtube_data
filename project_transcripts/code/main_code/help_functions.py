@@ -188,7 +188,7 @@ german_videos_output = "../JSON Files/videos_by_channel_total_german.json"
 german_videos_output_2 = "../JSON Files/videos_by_channel_total_german_2.json"
 
 def filter_blacklist(total_videos_input, blacklist_file, german_videos_output):
-    #filters all videos from total videos that are not from german channels
+    #filters all video_files from total video_files that are not from german channels
     with open(total_videos_input, "r", encoding="utf-8") as f:
         data = json.load(f)
 

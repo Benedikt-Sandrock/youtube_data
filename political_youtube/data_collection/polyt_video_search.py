@@ -4,8 +4,8 @@ import os
 from polyt_key_variables import ziel_directory, query_list, start_date, final_end_date
 from help_functions import is_german_channel, load_set, set_to_json
 from dateutil.relativedelta import relativedelta
-
 from dotenv import load_dotenv
+
 load_dotenv()
 api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
@@ -25,7 +25,7 @@ german_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "a
 foreign_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
 german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
 foreign_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_foreign_reference.json"
-identification_vids = "../JSON Files/videos/identification_vids.json"
+identification_vids = "../JSON Files/video_files/identification_vids.json"
 ###
 #Dateien laden
 ###
@@ -112,7 +112,7 @@ for query in query_list:
             existing_video_ids.add(video["video_id"])
     print("Video-Liste aktualisiert.")
     # with open(f"{ziel_directory}/files_queries/files_{query}/videos_{query}.json", "w", encoding ="utf-8") as f:
-    #     json.dump(videos, f, indent=2, ensure_ascii=False)
+    #     json.dump(video_files, f, indent=2, ensure_ascii=False)
 
     #Extraktion der Channel IDs
     channel_ids = {video["channel_id"] for video in videos}
@@ -172,8 +172,8 @@ for query in query_list:
     # print("\nKlassifizierte Channels gespeichert")
 
     #safe_json(foreign_channels_path, foreign_channels)
-    set_to_json(german_channels_reference, german_ref)
-    set_to_json(foreign_channels_reference, foreign_ref)
-    print("Referenzlisten aktualisiert")
+    # set_to_json(german_channels_reference, german_ref)
+    # set_to_json(foreign_channels_reference, foreign_ref)
+    # print("Referenzlisten aktualisiert")
 
 

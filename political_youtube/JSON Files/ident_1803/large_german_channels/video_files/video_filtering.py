@@ -9,7 +9,7 @@ treatment_day = "2023-10-07T00:00:00Z"
 news_channels = pd.read_excel("german_channels.xlsx", usecols=["channel_id", "news_channel"])
 df = pd.read_json("all_videos_100k_channels.json")
 
-print(f"Total number of videos: {len(df)}")
+print(f"Total number of video_files: {len(df)}")
 
 df = pd.merge(df, news_channels, on = "channel_id", how = "left")
 
@@ -34,7 +34,7 @@ stats_2 = df.groupby(["treated", "channel_id"])["keyword_video"].any().reset_ind
 stats_2 = stats_2.groupby("treated").agg(
     any_keyword_video = ("keyword_video", "mean")
 )
-print("Share of keyword videos before and after October 7:")
+print("Share of keyword video_files before and after October 7:")
 print(stats)
 print(stats_2)
 
@@ -60,7 +60,7 @@ stats_without_news_2 = df_without_news.groupby(["treated", "channel_id"])["keywo
 stats_without_news_2 = stats_without_news_2.groupby("treated").agg(
     any_keyword_video = ("keyword_video", "mean")
 )
-print("Share of keyword videos excluding news channels:")
+print("Share of keyword video_files excluding news channels:")
 print(stats_without_news)
 print(stats_without_news_2)
 

@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-df_videos = pd.read_json("../large_german_channels/video_files/"
-                         "metadata_all_videos_100k_channels_keywords.json")
+df_videos = pd.read_json(
+    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
 df_comments = pd.read_csv("comment_data.csv")
 
 df_videos["published_at"] = pd.to_datetime(df_videos["published_at"], utc = True)

@@ -13,8 +13,8 @@ api_key_c = os.getenv("API_KEY_C")
 
 youtube = build('youtube', 'v3', developerKey=api_key_c)
 
-videos_total_file = "../JSON Files/videos/videos_total.json"
-videos_total_file_2 = "../JSON Files/videos/videos_total.json"
+videos_total_file = "../JSON Files/video_files/videos_total.json"
+videos_total_file_2 = "../JSON Files/video_files/videos_total.json"
 
 if os.path.exists(videos_total_file):
     with open(videos_total_file, "r", encoding = "utf-8") as f:
