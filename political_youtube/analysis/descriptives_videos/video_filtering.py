@@ -6,6 +6,8 @@ keywords = ["nahe osten", "naher osten", "nahen osten", "nahost",
 
 pattern = '|'.join(keywords)
 
+keywords_2 = ["reaction", "reagiert"]
+pattern_2  = "|".join(keywords_2)
 treatment_day = "2023-10-07T00:00:00Z"
 news_channels = pd.read_excel("german_channels.xlsx", usecols=["channel_id", "news_channel"])
 df = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels.json")
@@ -29,6 +31,9 @@ print(channels_dropped)
 
 df["post_oct_7"] = df["published_at"] >= treatment_day
 df["keyword_video"] = df["title"].str.contains(pattern, case = False, na = False)
+df["reaction_video"] = df["title"].str.contains(pattern_2, case = False, na = False)
+print("Share of reaction videos:")
+print(df["reaction_video"].mean())
 
 
 df_after = df[(df["published_at"] >= treatment_day) & (df["keyword_video"] == 1)]
@@ -89,8 +94,9 @@ print(df_length["duration"].describe())
 bins = [0, 1, 5, 20, 60, df_length["duration"].max()]
 labels = ["<1", "1-5", "5-20", "20-60", ">60"]
 df_length["binned"] = pd.cut(df_length["duration"], bins = bins, labels = labels)
+df_length.to_csv("df_lenght.csv", index = False)
 bin_counts = df_length["binned"].value_counts().sort_index()
-
+print(bin_counts)
 plt.figure(figsize = (10, 6))
 bin_counts.plot(kind = "bar", color = "skyblue", edgecolor ="black", width = 0.7)
 plt.title("Videos by length", fontsize=14)
