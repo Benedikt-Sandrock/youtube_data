@@ -16,7 +16,7 @@ stop_word = "blocking"
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 video_list = f"../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json"
-file_path = f"../Transcript files/political_yt_transcripts.csv"
+file_path = f"../Transcript files/political_yt_transcripts_new.csv"
 file_path_backup = f"../Transcript files/political_yt_transcripts_backup.csv"
 
 os.makedirs(("../Transcript files"), exist_ok=True)

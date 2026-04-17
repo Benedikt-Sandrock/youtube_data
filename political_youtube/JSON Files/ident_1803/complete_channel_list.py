@@ -73,6 +73,7 @@ def get_channel_metadata(youtube_client, input_path, output_path):
     else:
         all_data = []
 
+
     already_requested = {c["channel_id"] for c in all_data}
     channel_ids_filtered = [c for c in channel_ids if c not in already_requested]
     y = len(channel_ids) - len(channel_ids_filtered)
@@ -167,16 +168,25 @@ def chunk_list(lst, chunk_size):
         yield lst[i:i + chunk_size]
 
 
-def collect_unique_channel_ids(directory, filename):
+def collect_unique_channel_ids(directory, filenames):
+    if isinstance(filenames, str):
+        filenames = [filenames]
+
     unique_ids = set()
+    target_files = set(filenames)
 
     for root, dirs, files in os.walk(directory):
-        if filename in files:
+        found_files = target_files.intersection(files)
+
+        for filename in found_files:
             path = os.path.join(root, filename)
 
             with open(path, 'r', encoding='utf-8') as f:
                 daten = json.load(f)
-                unique_ids.update(daten)
+                if isinstance(daten, list):
+                    unique_ids.update(daten)
+                else:
+                    unique_ids.add(daten)
 
     return list(unique_ids)
 
@@ -374,15 +384,16 @@ def classify_channels_from_json(
 """
 1. aggregate all lists to one list
 """
-print(f"Aktuelles Arbeitsverzeichnis: {os.getcwd()}")
+print(f"\nCurrent working directory: {os.getcwd()}")
 
 print("\nAggregating all channel IDs to a combined list:")
 
-result = collect_unique_channel_ids("party_identification", "all_channel_ids_discovered.json")
+result = collect_unique_channel_ids("party_identification", ["all_channel_ids_discovered.json",
+                                                             "all_channel_ids_discovered_2.json"])
 print(f"Number of unique IDs found: {len(result)}")
 #print(result)
 
-with open("complete_channel_list.json", "w", encoding="utf-8") as f:
+with open("all_channels/complete_channel_list.json", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
 
@@ -391,7 +402,7 @@ with open("complete_channel_list.json", "w", encoding="utf-8") as f:
 """
 print("\n\nGetting metadata:")
 
-get_channel_metadata(youtube, "all_channels/complete_channel_list.json", "all_channels/channel_metadata.json")
+get_channel_metadata(youtube, "all_channels/complete_channel_list.json","all_channels/channel_metadata.json")
 
 print("\n")
 channels = load_json("all_channels/complete_channel_list.json")
@@ -421,7 +432,7 @@ channel_metadata = [item for item in channel_metadata if item["channel_id"] in c
 
 print(f"All channels: {len(channel_metadata)}")
 
-large_channels = [c["channel_id"] for c in channel_metadata if c["subscribers"] > 10000]
+large_channels = [c["channel_id"] for c in channel_metadata if c["subscribers"] > 50000]
 print(f"Large channels: {len(large_channels)} (>10,000 subscribers)")
 
 save_json("all_channels/complete_channel_list_large.json", large_channels)
@@ -590,7 +601,7 @@ print(f"Sampled video_files: {len(sampled_videos)}")
 """
 print("\nGetting already downloaded transcripts...")
 # !!! Specify export file to also be loaded in order not to lose any files !!!
-export_file = "../../Transcript files/political_yt_transcripts.csv"
+export_file = "../../Transcript files/political_yt_transcripts_new.csv"
 # create list of video_files from dict
 keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
@@ -604,6 +615,7 @@ sample_vids = [v["video_id"] for v in sample_vids]
 # collect downloaded transcripts
 transcript_files = [
     export_file,
+    "../../Transcript files/political_yt_transcripts.csv",
     "../../Transcript files/youtube_transcripts_sampledvideos.csv",
     "../../../project_transcripts/Transcript files/youtube_transkripte_2.csv"
 ]

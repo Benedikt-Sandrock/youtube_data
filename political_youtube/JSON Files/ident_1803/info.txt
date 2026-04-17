@@ -17,15 +17,16 @@ Channels with more than 100000 subscribers: 390
 Of which German channels: 200
 
 
-Using only channels found when searching for party names:
-Total number of channels: 1069
-Channels with more than 10000 subscribers: 469
-Of which German channels: 360
-Channels with more than 20000 subscribers: 398
-Of which German channels: 305
-Channels with more than 30000 subscribers: 346
-Of which German channels: 259
-Channels with more than 50000 subscribers: 268
-Of which German channels: 194
-Channels with more than 100000 subscribers: 205
-Of which German channels: 146
+New Identification:
+Creating different lists of channels with different thresholds:
+Total number of channels: 3532
+Channels with more than 10000 subscribers: 1114
+Of which German channels: 361
+Channels with more than 20000 subscribers: 925
+Of which German channels: 347
+Channels with more than 30000 subscribers: 796
+Of which German channels: 331
+Channels with more than 50000 subscribers: 651
+Of which German channels: 296
+Channels with more than 100000 subscribers: 498
+Of which German channels: 217
