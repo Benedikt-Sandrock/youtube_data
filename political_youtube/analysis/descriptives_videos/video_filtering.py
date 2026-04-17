@@ -10,9 +10,6 @@ treatment_day = "2023-10-07T00:00:00Z"
 news_channels = pd.read_excel("german_channels.xlsx", usecols=["channel_id", "news_channel"])
 df = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels.json")
 
-df_dara = df[df["channel_id"] == "UC-75V7JVPyuhsdJnPJCP2GQ"]
-print(len(df_dara))
-
 print(f"Total number of video_files: {len(df)}")
 
 df = pd.merge(df, news_channels, on = "channel_id", how = "left")
@@ -21,9 +18,10 @@ df["published_at"] = pd.to_datetime(df["published_at"])
 channels_old = df["channel_id"].unique()
 print(len(channels_old))
 df = df[(df["published_at"] > "2022-10-07T00:00:00Z") & (df["published_at"] < "2023-10-20T00:00:00Z")]
+
 channels_new = df["channel_id"].unique()
 print(f"Number of channels: {len(channels_new)}")
-print("Sample: 200 german channels with more than 100,000 subscribers")
+
 channels_new = set(channels_new)
 channels_old = set(channels_old)
 channels_dropped = channels_old - channels_new
@@ -78,18 +76,30 @@ print("Share of keyword video_files excluding news channels:")
 print(stats_without_news)
 print(stats_without_news_2)
 
-df.to_csv("filtered.csv", index = False)
+#df.to_csv("filtered.csv", index = False)
 
 
 df_length = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/"
                          "metadata_all_videos_100k_channels_keywords.json")
 
 df_length["duration"] = pd.to_timedelta(df_length["duration"])
+df_length["duration"] = (df_length["duration"].dt.total_seconds()) / 60
 print(df_length["duration"].describe())
 
-df_filtered = df_length[
-    (df_length["duration"] > pd.Timedelta(minutes = 1)) &
-    (df_length["duration"] <= pd.Timedelta(minutes = 1, seconds = 10))
-]
+bins = [0, 1, 5, 20, 60, df_length["duration"].max()]
+labels = ["<1", "1-5", "5-20", "20-60", ">60"]
+df_length["binned"] = pd.cut(df_length["duration"], bins = bins, labels = labels)
+bin_counts = df_length["binned"].value_counts().sort_index()
 
-print(df_filtered)
+plt.figure(figsize = (10, 6))
+bin_counts.plot(kind = "bar", color = "skyblue", edgecolor ="black", width = 0.7)
+plt.title("Videos by length", fontsize=14)
+plt.xlabel("Duration in minutes", fontsize=12)
+plt.ylabel("Number of videos", fontsize=12)
+
+plt.xticks(rotation = 45)
+
+plt.grid(axis = "y", linestyle ="--", alpha = 0.7)
+plt.tight_layout()
+plt.savefig("videos_by_length.png", format = "png", dpi = 300)
+plt.show()
