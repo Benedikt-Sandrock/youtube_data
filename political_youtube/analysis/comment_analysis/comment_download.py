@@ -11,6 +11,7 @@ api_key_c = os.getenv("API_KEY_C")
 df = pd.read_json(
     "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
 
+print(len(df))
 df = df[df["comment_count"].notna() & (df["comment_count"] != 0)]
 print(len(df))
 print(df["comment_count"].sum())
