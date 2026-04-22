@@ -3,5 +3,6 @@ political_youtube/Transcript[[:space:]]files/* filter=lfs diff=lfs merge=lfs -te
 project_transcripts/Transcript[[:space:]]files/* filter=lfs diff=lfs merge=lfs -text
 political_youtube/Transcript[[:space:]]files/political_yt_transcripts.csv filter=lfs diff=lfs merge=lfs -text
 political_youtube/Transcript[[:space:]]files/political_yt_transcripts_new.csv filter=lfs diff=lfs merge=lfs -text
+political_youtube/Transcript[[:space:]]files/political_yt_transcripts_sample_vids.csv filter=lfs diff=lfs merge=lfs -text
 political_youtube/JSON[[:space:]]Files/video_files/videos_total.json filter=lfs diff=lfs merge=lfs -text
 political_youtube/JSON[[:space:]]Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json filter=lfs diff=lfs merge=lfs -text
