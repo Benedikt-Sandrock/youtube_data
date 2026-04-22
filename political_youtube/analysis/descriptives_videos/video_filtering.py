@@ -91,10 +91,11 @@ df_length["duration"] = pd.to_timedelta(df_length["duration"])
 df_length["duration"] = (df_length["duration"].dt.total_seconds()) / 60
 print(df_length["duration"].describe())
 
+
 bins = [0, 1, 5, 20, 60, df_length["duration"].max()]
 labels = ["<1", "1-5", "5-20", "20-60", ">60"]
 df_length["binned"] = pd.cut(df_length["duration"], bins = bins, labels = labels)
-df_length.to_csv("df_lenght.csv", index = False)
+#df_length.to_csv("df_length.csv", index = False)
 bin_counts = df_length["binned"].value_counts().sort_index()
 print(bin_counts)
 plt.figure(figsize = (10, 6))
