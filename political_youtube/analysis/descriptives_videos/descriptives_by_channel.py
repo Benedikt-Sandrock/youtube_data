@@ -4,7 +4,8 @@ import os
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 import pandas as pd
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 published_after_analysis = "2022-10-07T00:00:00Z"
 published_before_analysis = "2026-01-31T00:00:00Z"
@@ -14,11 +15,13 @@ load_dotenv()
 api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
-youtube = build("youtube", "v3", developerKey = api_key_c)
+youtube = build("youtube", "v3", developerKey = api_key)
 
 relevant_channels = {
     "Y-Kollektiv": "UCLoWcRy-ZjA-Erh0p_VDLjQ"
 }
+
+print(os.getcwd())
 
 def chunk_list(lst, chunk_size):
     for i in range(0, len(lst), chunk_size):
@@ -84,16 +87,16 @@ def get_video_metadata(youtube_client, input_path, output_path):
         print("Dict imported is transferred to list.")
         video_ids = [v["video_id"] for v in video_ids]
 
+    already_requested = set()
     if os.path.exists(output_path):
         with open(output_path, "r", encoding="utf-8") as f:
-            try:
-                all_videos = json.load(f)
-            except json.JSONDecodeError:
-                all_videos = []
-    else:
-        all_videos = []
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    already_requested.add(data["video_id"])
+                except json.JSONDecodeError:
+                    continue
 
-    already_requested = {v["video_id"] for v in all_videos}
     video_ids_filtered = [v for v in video_ids if v not in already_requested]
     y = len(video_ids) - len(video_ids_filtered)
 
@@ -101,32 +104,38 @@ def get_video_metadata(youtube_client, input_path, output_path):
           f"\nFor {y} video IDs, metadata already exists.")
 
     print(f"Requesting metadata for {len(video_ids_filtered)} video_files...")
+    chunk = 1
+    with open(output_path, "a", encoding = "utf-8") as f_out:
+        for batch in chunk_list(video_ids_filtered, 50):
+            all_videos = []
+            request = youtube_client.videos().list(
+                part="snippet,statistics,contentDetails",
+                id=",".join(batch)
+            )
+            response = request.execute()
 
-    for batch in chunk_list(video_ids_filtered, 50):
-        request = youtube_client.videos().list(
-            part="snippet,statistics,contentDetails",
-            id=",".join(batch)
-        )
-        response = request.execute()
+            for item in response.get("items", []):
+                video_data = {
+                    "video_id": item["id"],
+                    "title": item["snippet"]["title"],
+                    "channel_title": item["snippet"]["channelTitle"],
+                    "channel_id": item["snippet"]["channelId"],
+                    "published_at": item["snippet"]["publishedAt"],
+                    "duration": item["contentDetails"]["duration"],
+                    "view_count": item["statistics"].get("viewCount"),
+                    "like_count": item["statistics"].get("likeCount"),
+                    "comment_count": item["statistics"].get("commentCount"),
+                }
+                f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
+            f_out.flush()
 
-        for item in response.get("items", []):
-            video_data = {
-                "video_id": item["id"],
-                "title": item["snippet"]["title"],
-                "channel_title": item["snippet"]["channelTitle"],
-                "channel_id": item["snippet"]["channelId"],
-                "published_at": item["snippet"]["publishedAt"],
-                "duration": item["contentDetails"]["duration"],
-                "view_count": item["statistics"].get("viewCount"),
-                "like_count": item["statistics"].get("likeCount"),
-                "comment_count": item["statistics"].get("commentCount"),
-            }
-            all_videos.append(video_data)
-
-        time.sleep(0.1)
-    print(f"Saving metadata file to: {output_path}")
-    with open(output_path, "w", encoding = "utf-8") as f:
-        json.dump(all_videos, f, indent = 2, ensure_ascii=False)
+            if chunk % 10 ==0:
+                print(f"Processed {chunk*50} videos.")
+            time.sleep(0.1)
+            chunk += 1
+    # print(f"Saving metadata file to: {output_path}")
+    # with open(output_path, "w", encoding = "utf-8") as f:
+    #     json.dump(all_videos, f, indent = 2, ensure_ascii=False)
 
 
 def get_channel_videos(channel_id, published_after, published_before):
@@ -205,26 +214,119 @@ def get_channel_videos(channel_id, published_after, published_before):
 
 #get_video_metadata(youtube, "videos_nius.json", "videos_nius_metadata.json")
 
-#df = pd.read_json("videos_metadata.json")
-df = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
-df = df[df["channel_id"] == "UCQGqiGhMjc_p4lZEhSTb12g"]
-print(len(df))
+keywords = ["nahe osten", "naher osten", "nahen osten", "nahost",
+            "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
+
+pattern = '|'.join(keywords)
+treatment_day = "2023-10-07T00:00:00Z"
+
+df = pd.read_json("../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl", lines= True)
+
+df = df[df["channel_title"]== "Y-Kollektiv"]
+print(df["channel_title"].head(20))
+print(f"Len before filtering out shorts: {len(df)}")
+df["duration"] = pd.to_timedelta(df["duration"])
+df["duration"] = (df["duration"].dt.total_seconds()) / 60
+df = df[df["duration"] > 1]
+print(f"Len after filtering out shorts: {len(df)}")
+
+print(f"Len before filtering out videos before Oct 7 2022: {len(df)}")
+df["published_at"] = pd.to_datetime(df["published_at"])
+df = df[df["published_at"] > "2022-10-07T00:00:00Z"]
+print(f"Len after filtering out videos before Oct 7 2022: {len(df)}")
+
+
 df["comment_ratio"] = df["comment_count"] / df["view_count"] *100
 df["like_ratio"] = df["like_count"] / df["view_count"] *100
 df["engagement_ratio"] = (df["like_count"] + df["comment_count"]) /df["view_count"] *100
-df["duration"] = pd.to_timedelta(df["duration"])
-df["duration"] = (df["duration"].dt.total_seconds()) / 60
 
-df_no_shorts = df[df["duration"] > 1]
-top_engagement = df_no_shorts.nlargest(5, "engagement_ratio")
-top_likes = df_no_shorts.nlargest(5, "like_ratio")
-top_comments = df_no_shorts.nlargest(5, "comment_ratio")
+df["keyword_video"] = df["title"].str.contains(pattern, case = False, na =False)
+df["post_oct7"] = df["published_at"] >= treatment_day
 
-print(len(df))
-print(len(df_no_shorts))
+###
+# Bar diagram
+###
+# restrict sample to channels with at least one keyword video
+# keyword_channels = df[df["keyword_video"] == True]["channel_id"].unique()
+# temp_df = df[df["channel_id"].isin(keyword_channels)]
+# print(len(temp_df))
+# plt.figure(figsize=(10, 6))
+#
+# ax = sns.countplot(
+#     data=temp_df,
+#     x='post_oct7',
+#     hue='keyword_video',
+#     palette='muted'
+# )
+#
+# ax.set_xticklabels(['before Oct 7', 'after Oct 7'])
+# h, l = ax.get_legend_handles_labels()
+# ax.legend(h, ['no keyword', 'keyword'], title="video type")
+#
+# plt.title('Number of videos per category')
+# plt.ylabel('number of videos')
+#
+# plt.show()
+#
+# metrics = ["view_count", "like_count", "like_ratio", "comment_count", "comment_ratio", "engagement_ratio"]
+#
+# for m in metrics:
+#     plt.figure(figsize = (10, 6))
+#     ax = sns.barplot(
+#         data = temp_df,
+#         x = "post_oct7",
+#         y = m,
+#         hue = "keyword_video",
+#         palette="muted",
+#         capsize = .1
+#     )
+#
+#     plt.title(f'Videos before and after Oct 7: {m}', fontsize=14)
+#     ax.set_xticklabels(['before Oct 7', 'after Oct 7'])
+#     h, l = ax.get_legend_handles_labels()
+#     ax.legend(h, ['no keyword', 'Keyword'], title="video type")
+#     plt.show()
+#
+# ###
+# # Aggregation
+# ###
+#
+#
+# agg_logic = {m: "mean" for m in metrics}
+# agg_logic["video_id"] = "count"
+#
+# grouped = df.groupby(["channel_id", "channel_title", "post_oct7", "keyword_video"]).agg(agg_logic).unstack(level = [2,3])
+# print(grouped.columns)
+# new_cols = []
+#
+# for col, post, key in grouped.columns:
+#     p_val = int(post)
+#     k_val = int(key)
+#
+#     if col =="video_id":
+#         new_cols.append(f"video_count_post{p_val}_key{k_val}")
+#     else:
+#         new_cols.append(f"{col}_mean_post{p_val}_key{k_val}")
+# print(new_cols)
+#
+# grouped.columns = new_cols
+# df_final = grouped.reset_index().fillna(0)
+# with pd.option_context("display.max_columns", None):
+#     print(df_final.head())
+#df.to_csv("all_videos_metrics.csv", index = False)
+top_engagement = df.nlargest(5, "engagement_ratio")
+top_likes = df.nlargest(5, "like_ratio")
+top_comments = df.nlargest(5, "comment_ratio")
+
+
 
 with pd.option_context("display.max_columns", None):
-    print(df_no_shorts.describe(percentiles=[0.25, 0.5, 0.75, 0.9, 0.95]).round(2))
+    print(df.describe(percentiles=[0.25, 0.5, 0.75, 0.9, 0.95]).round(2))
     print(top_engagement)
     print(top_likes)
     print(top_comments)
+
+
+# get_video_metadata(youtube,
+#                    "../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels.json",
+#                    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl")
