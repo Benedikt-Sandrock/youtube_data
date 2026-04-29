@@ -9,10 +9,10 @@ api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
 df = pd.read_json(
-    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json")
+    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl", lines = True)
 
 df_control = pd.read_json(
-    "../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json")
+    "../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_50k_channels_keywords.json")
 
 
 print(f"Number of keyword videos: {len(df_control)}")
@@ -192,9 +192,9 @@ def get_everything_from_videos(video_ids, output_file, api_keys):
             continue
 
 #get_comments_for_videos(list_of_ids)
-get_everything_from_videos(list_of_ids, "complete_dataset.csv", [api_key, api_key_c])
-df = pd.read_csv("complete_dataset.csv")
-print(len(df))
+#get_everything_from_videos(list_of_ids, "complete_dataset.csv", [api_key, api_key_c])
+#df = pd.read_csv("complete_dataset.csv")
+#print(len(df))
 
 df = pd.read_csv("comment_data.csv")
 print(len(df))

@@ -7,7 +7,7 @@ start_date = datetime(2022, 10, 7)
 final_end_date = datetime(2023, 10, 6)
 #period of analysis
 published_after_analysis = "2022-10-07T00:00:00Z"
-published_before_analysis = "2026-01-31T00:00:00Z"
+published_before_analysis = "2026-04-27T00:00:00Z"
 
 query_list = ["SPD"]
 

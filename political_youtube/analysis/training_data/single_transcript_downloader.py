@@ -20,8 +20,8 @@ def save_to_csv(daten_chunk, file_path):
         encoding="utf-8"
     )
 
-file_path = "../../Transcript files/single_transcripts.csv"
-video_id = "ihtUyR9qjEs"
+file_path = "single_transcripts.csv"
+video_id = "GlHMxXgoY4c"
 daten = []
 
 try:

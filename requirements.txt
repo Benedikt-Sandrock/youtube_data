@@ -8,3 +8,5 @@ openpyxl
 python-dotenv
 matplotlib
 seaborn
+matplotlib-venn
+numpy

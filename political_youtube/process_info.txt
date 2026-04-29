@@ -1,0 +1,7 @@
+What to do when updating video time frame?
+
+- run channel_all_vids in update mode
+- run complete_channel_list to update list of vids etc.
+- get video metadata using descriptives by channel
+- run graphs_descriptives to get updated stats and graphs
+

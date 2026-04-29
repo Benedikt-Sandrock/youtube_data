@@ -495,7 +495,7 @@ print("\nFiltering video_files from all video_files scanned according to relevan
 start_time = time.perf_counter()
 
 all_videos_downloaded = load_json("../video_files/videos_total.json")
-relevant_channels = load_json("large_german_channels/german_channels_100000k.json")
+relevant_channels = load_json("large_german_channels/german_channels_50000k.json")
 
 relevant_channels = {c["channel_id"] for c in relevant_channels}
 print("\nKeeping only video_files from channels on the list...")
@@ -503,7 +503,7 @@ filtered_videos = [v for v in all_videos_downloaded if v["channel_id"] in releva
 
 os.makedirs("large_german_channels/video_files/videos", exist_ok = True
             )
-save_json("large_german_channels/video_files/all_videos_100k_channels.json", filtered_videos,
+save_json("large_german_channels/video_files/all_videos_50k_channels.json", filtered_videos,
           "filtered_videos")
 
 print(f"Total number of video_files uploaded by relevant channels: {len(filtered_videos)}")
@@ -520,10 +520,10 @@ import random
 from collections import defaultdict
 from datetime import datetime
 
-input_file = f"large_german_channels/video_files/all_videos_100k_channels.json"
+input_file = f"large_german_channels/video_files/all_videos_50k_channels.json"
 
-keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
-sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
+keyword_file = f"large_german_channels/video_files/all_videos_50k_channels_keywords.json"
+sampled_file = f"large_german_channels/video_files/all_videos_50k_channels_sampled.json"
 
 keywords = ["nahe osten", "naher osten", "nahen osten", "nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
 
@@ -603,8 +603,8 @@ print("\nGetting already downloaded transcripts...")
 # !!! Specify export file to also be loaded in order not to lose any files !!!
 export_file = "../../Transcript files/political_yt_transcripts_new.csv"
 # create list of video_files from dict
-keyword_file = f"large_german_channels/video_files/all_videos_100k_channels_keywords.json"
-sampled_file = f"large_german_channels/video_files/all_videos_100k_channels_sampled.json"
+keyword_file = f"large_german_channels/video_files/all_videos_50k_channels_keywords.json"
+sampled_file = f"large_german_channels/video_files/all_videos_50k_channels_sampled.json"
 
 keyword_vids = load_json(keyword_file)
 keyword_vids = [v["video_id"] for v in keyword_vids]
@@ -637,12 +637,12 @@ else:
 print("\n")
 
 #keyword file as input
-metadata_keyword_vids = f"large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json"
-
-get_video_metadata(youtube, keyword_file, metadata_keyword_vids)
-
-#inspect data
-video_metadata = pd.read_json(metadata_keyword_vids)
+# metadata_keyword_vids = f"large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json"
+#
+# get_video_metadata(youtube, keyword_file, metadata_keyword_vids)
+#
+# #inspect data
+# video_metadata = pd.read_json(metadata_keyword_vids)
 
 
 

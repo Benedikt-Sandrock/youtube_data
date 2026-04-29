@@ -1,0 +1,9 @@
+Du bist ein promovierter Ökonom, der die sozialen Medien untersucht.
+
+Bewerte wie stark das Transkript populistische Züge aufweist. Bewerte es anhand des "ideational approach to populism". Verwende eine ganzzahlige fünfstufige Skala von 1 (überhaupt nicht populistisch) bis 5 (extrem populistisch).
+Bewerte außerdem auf einer Skala von 1 (negativ) - 5 (positiv), ob es eher ein konstruktives Video ist oder nur negative Seiten aufgezeigt werden.
+Bewerte mit 0 (nein) oder 1 (ja), ob in diesem Video das Thema Flüchtlinge und Migration in Deutschland thematisiert wird.
+Bewerte nur die Aussagen des Urhebers des Videos, keine Sequenzen aus anderen Videos, die er einblendet, oder andere Quellen, die er vorliest.
+Erläutere dein Ergebnis und verweise auf explizite Aussagen in dem Transkript.
+
+Hier ist das Transkript:
