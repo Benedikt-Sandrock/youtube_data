@@ -192,7 +192,7 @@ def get_everything_from_videos(video_ids, output_file, api_keys):
             continue
 
 #get_comments_for_videos(list_of_ids)
-#get_everything_from_videos(list_of_ids, "complete_dataset.csv", [api_key, api_key_c])
+get_everything_from_videos(list_of_ids, "complete_dataset.csv", [api_key, api_key_c])
 #df = pd.read_csv("complete_dataset.csv")
 #print(len(df))
 
