@@ -1,7 +1,7 @@
 from googleapiclient.discovery import build
 import json
 import os
-from polyt_key_variables import ziel_directory, query_list, start_date, final_end_date
+from polyt_key_variables import query_list, target_directory, start_date, final_end_date, month_interval
 from help_functions import is_german_channel, load_set, set_to_json
 from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
@@ -11,21 +11,32 @@ api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
 
-youtube = build('youtube', 'v3', developerKey=api_key_c)
+youtube = build('youtube', 'v3', developerKey=api_key)
 
-ziel_directory = os.path.join(ziel_directory)
-os.makedirs(ziel_directory, exist_ok=True)
 
+print("Configuration:")
+print(f"Query: {query_list}")
+print(f'Target directory: "{target_directory}"')
+print(f"Search from {start_date} to {final_end_date}")
+print(f"Search for every {month_interval} months")
+
+answer = input("Right specification? [y/n]")
+if not answer.lower() == "y":
+    print("Wrong specification. Check 'polyt_key_variables.py'")
+    exit()
+
+print("Directory is created and video search is initiated...")
+os.makedirs(target_directory, exist_ok=True)
 ###
 #Dateipfade definieren
 ###
 
-all_channels_path = os.path.join(ziel_directory, "all_channel_ids_discovered_2.json")
-# german_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_german.json")
-# foreign_channels_path = os.path.join(ziel_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
+all_channels_path = os.path.join(target_directory, "all_channel_ids_discovered.json")
+# german_channels_path = os.path.join(target_directory, "channel_ids_classified", "all_channel_ids_german.json")
+# foreign_channels_path = os.path.join(target_directory, "channel_ids_classified", "all_channel_ids_foreign.json")
 # german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
 # foreign_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_foreign_reference.json"
-identification_vids = "../JSON Files/video_files/identification_vids.json"
+identification_vids = os.path.join(target_directory, "identification_vids.json")
 ###
 #Dateien laden
 ###
@@ -53,15 +64,15 @@ for query in query_list:
     print(f"\nSuchanfrage: {query}")
     print(f"Gesamter Zeitraum: {start_date} bis {final_end_date}")
 
-    # dir_path = f"{ziel_directory}/files_queries/files_{query}"
+    # dir_path = f"{target_directory}/files_queries/files_{query}"
     # os.makedirs(dir_path, exist_ok=True)
 
-    #monatliche Abfrage
+    #3-monatliche Abfrage
     current_start = start_date
     results = []
 
     while current_start < final_end_date:
-        current_end = current_start + relativedelta(months = 3)
+        current_end = current_start + relativedelta(months = month_interval)
         if current_end > final_end_date:
             current_end = final_end_date
 
@@ -111,7 +122,7 @@ for query in query_list:
             ident_vids.append(video)
             existing_video_ids.add(video["video_id"])
     print("Video-Liste aktualisiert.")
-    # with open(f"{ziel_directory}/files_queries/files_{query}/videos_{query}.json", "w", encoding ="utf-8") as f:
+    # with open(f"{target_directory}/files_queries/files_{query}/videos_{query}.json", "w", encoding ="utf-8") as f:
     #     json.dump(video_files, f, indent=2, ensure_ascii=False)
 
     #Extraktion der Channel IDs
@@ -160,8 +171,8 @@ for query in query_list:
     with open(all_channels_path, "w", encoding="utf-8") as f:
         json.dump(sorted(all_channel_ids), f, indent=2, ensure_ascii=False)
 
-    # with open(identification_vids, "w", encoding = "utf-8") as f:
-    #     json.dump(ident_vids, f, indent=2, ensure_ascii=False)
+    with open(identification_vids, "w", encoding = "utf-8") as f:
+        json.dump(ident_vids, f, indent=2, ensure_ascii=False)
 
 
     # with open(german_channels_path, "w", encoding="utf-8") as f:

@@ -1,0 +1,653 @@
+[
+  {
+    "name": "AfD-Fraktion Bundestag",
+    "subscribers": 613000,
+    "views": 501568607,
+    "video_files": 8818,
+    "channel_id": "UC_dZp8bZipnjntBGLVHm6rw"
+  },
+  {
+    "name": "Tichys Einblick",
+    "subscribers": 340000,
+    "views": 145778183,
+    "video_files": 2946,
+    "channel_id": "UCB37CFICVTUlewYdbMSChIA"
+  },
+  {
+    "name": "BlackBros",
+    "subscribers": 230000,
+    "views": 30450518,
+    "video_files": 2480,
+    "channel_id": "UCQwP_vHkV8aVsD1rgByjIrw"
+  },
+  {
+    "name": "hessenschau",
+    "subscribers": 155000,
+    "views": 220763900,
+    "video_files": 7880,
+    "channel_id": "UCPhsnKyNcH3huafz_wNG_5A"
+  },
+  {
+    "name": "Karl Ess",
+    "subscribers": 349000,
+    "views": 166185213,
+    "video_files": 3658,
+    "channel_id": "UCtg17AAUcgsfmTZ7cOojgpA"
+  },
+  {
+    "name": "NIUS",
+    "subscribers": 510000,
+    "views": 470496944,
+    "video_files": 8311,
+    "channel_id": "UCQGqiGhMjc_p4lZEhSTb12g"
+  },
+  {
+    "name": "Russische Welt TV",
+    "subscribers": 104000,
+    "views": 50837951,
+    "video_files": 1353,
+    "channel_id": "UCYA4px5qSUdfh6UgANFc9lQ"
+  },
+  {
+    "name": "ZDF Satire",
+    "subscribers": 691000,
+    "views": 637030473,
+    "video_files": 1843,
+    "channel_id": "UCT8fbPYycfhjYzLbsU1dl3Q"
+  },
+  {
+    "name": "Weltspiegel",
+    "subscribers": 302000,
+    "views": 151646524,
+    "video_files": 1817,
+    "channel_id": "UCFoKXoDoExwtBWdSTCIdEVQ"
+  },
+  {
+    "name": "Tobias Huch",
+    "subscribers": 131000,
+    "views": 55757753,
+    "video_files": 2313,
+    "channel_id": "UCBA2L-XIgGYVn_t_8B0VMMg"
+  },
+  {
+    "name": "euronews (deutsch)",
+    "subscribers": 288000,
+    "views": 356719044,
+    "video_files": 133768,
+    "channel_id": "UCACdxU3VrJIJc7ujxtHWs1w"
+  },
+  {
+    "name": "CHRONOS-MEDIA History",
+    "subscribers": 492000,
+    "views": 189517413,
+    "video_files": 383,
+    "channel_id": "UCFn1ROV1cysLXMkS53Aw6PQ"
+  },
+  {
+    "name": ":newstime",
+    "subscribers": 132000,
+    "views": 184821717,
+    "video_files": 10453,
+    "channel_id": "UC7n_Hml4hw5H4G-HP8QPeKw"
+  },
+  {
+    "name": "Veit Lindau TV",
+    "subscribers": 166000,
+    "views": 27258932,
+    "video_files": 1367,
+    "channel_id": "UCvwNJEbOE1y7Qg6UZ-nrp3g"
+  },
+  {
+    "name": "Clever Camel",
+    "subscribers": 162000,
+    "views": 75219866,
+    "video_files": 409,
+    "channel_id": "UC-5mMIF1gq5l6Nh5BuKX2qw"
+  },
+  {
+    "name": "COMPACT-TV",
+    "subscribers": 574000,
+    "views": 494205109,
+    "video_files": 4983,
+    "channel_id": "UCgvFsn6bRKqND1cW3HpzDrA"
+  },
+  {
+    "name": "Handelsblatt",
+    "subscribers": 164000,
+    "views": 140768762,
+    "video_files": 21750,
+    "channel_id": "UCMpW4tdyZUid2Ka9_FuDDhQ"
+  },
+  {
+    "name": "STRG_F",
+    "subscribers": 1290000,
+    "views": 403739477,
+    "video_files": 398,
+    "channel_id": "UCfa7jJFYnn3P5LdJXsFkrjw"
+  },
+  {
+    "name": "KISSLER KOMPAKT",
+    "subscribers": 146000,
+    "views": 42148543,
+    "video_files": 1109,
+    "channel_id": "UC6RYT0kcxYh_u8OJoAaF1Pg"
+  },
+  {
+    "name": "RTV Privatfernsehen",
+    "subscribers": 121000,
+    "views": 38763796,
+    "video_files": 3114,
+    "channel_id": "UCZiX_brEG6VlfqGjOv78VAw"
+  },
+  {
+    "name": "MrSpherical Deutsch",
+    "subscribers": 130000,
+    "views": 35381925,
+    "video_files": 134,
+    "channel_id": "UCOk6nUw77xu0R1NzwqDsyxQ"
+  },
+  {
+    "name": "Hoss & Hopf",
+    "subscribers": 428000,
+    "views": 45683101,
+    "video_files": 301,
+    "channel_id": "UC8PeBxhbnTqKQ6P161s3_Jw"
+  },
+  {
+    "name": "Oliver Klemm ",
+    "subscribers": 102000,
+    "views": 29107397,
+    "video_files": 1294,
+    "channel_id": "UCNohL6FyY0okQxJQKszfXRg"
+  },
+  {
+    "name": "AUF1",
+    "subscribers": 186000,
+    "views": 37086007,
+    "video_files": 1250,
+    "channel_id": "UChkELlk5GBaUCVx8-94IK_Q"
+  },
+  {
+    "name": "ZAPP - Die Medienredaktion",
+    "subscribers": 114000,
+    "views": 40364295,
+    "video_files": 736,
+    "channel_id": "UCg1-w2x7jwdQ8-3pM9aUQ6g"
+  },
+  {
+    "name": "tvberlin",
+    "subscribers": 245000,
+    "views": 122669819,
+    "video_files": 22215,
+    "channel_id": "UCwtBLZ8VGfchDTJ_cYZ5S1A"
+  },
+  {
+    "name": "OE24.TV",
+    "subscribers": 370000,
+    "views": 524533516,
+    "video_files": 66528,
+    "channel_id": "UCyQpfuhftLvrmjxgEzVH78Q"
+  },
+  {
+    "name": "SRF Kultur Sternstunden",
+    "subscribers": 380000,
+    "views": 126933837,
+    "video_files": 1318,
+    "channel_id": "UCh_GQqobenO55IJ9sYZWndA"
+  },
+  {
+    "name": "ICF Zürich",
+    "subscribers": 105000,
+    "views": 26834566,
+    "video_files": 2387,
+    "channel_id": "UCzNSY1t9NVOWDfBKukMiGGg"
+  },
+  {
+    "name": "acTVism Munich",
+    "subscribers": 173000,
+    "views": 27592870,
+    "video_files": 2116,
+    "channel_id": "UCe5hl70Es-VQ4OWvxssFH4A"
+  },
+  {
+    "name": "BILD",
+    "subscribers": 1770000,
+    "views": 3405945058,
+    "video_files": 35650,
+    "channel_id": "UC4zcMHyrT_xyWlgy5WGpFFQ"
+  },
+  {
+    "name": "explainity ® Erklärvideos",
+    "subscribers": 246000,
+    "views": 49117924,
+    "video_files": 243,
+    "channel_id": "UCYUZr-O3UdDdm_mF4XA_TbA"
+  },
+  {
+    "name": "Dr. Johannes Hartl",
+    "subscribers": 142000,
+    "views": 25271942,
+    "video_files": 475,
+    "channel_id": "UCKPhykk4ZWOcGYNllITceaQ"
+  },
+  {
+    "name": "Terra X History",
+    "subscribers": 1390000,
+    "views": 538854032,
+    "video_files": 842,
+    "channel_id": "UCA3mpqm67CpJ13YfA8qAnow"
+  },
+  {
+    "name": "CoinCheck TV by Furkan Yildirim",
+    "subscribers": 108000,
+    "views": 16116968,
+    "video_files": 1274,
+    "channel_id": "UCI-Non6k9qxq7iA6_LyldyQ"
+  },
+  {
+    "name": "faz",
+    "subscribers": 322000,
+    "views": 395255353,
+    "video_files": 40738,
+    "channel_id": "UCcPcua2PF7hzik2TeOBx3uw"
+  },
+  {
+    "name": "Paul Brandenburg",
+    "subscribers": 133000,
+    "views": 25878573,
+    "video_files": 905,
+    "channel_id": "UCksi8_CDUF0DbnLrgIoRrRg"
+  },
+  {
+    "name": "NZZ",
+    "subscribers": 118000,
+    "views": 41481593,
+    "video_files": 925,
+    "channel_id": "UCK1aTcR0AckQRLTlK0c4fuQ"
+  },
+  {
+    "name": "DW Deutsch",
+    "subscribers": 1120000,
+    "views": 569309507,
+    "video_files": 33973,
+    "channel_id": "UCMIgOXM2JEQ2Pv2d0_PVfcg"
+  },
+  {
+    "name": "MrWissen2go",
+    "subscribers": 2400000,
+    "views": 492584605,
+    "video_files": 967,
+    "channel_id": "UCZHpIFMfoJJ_1QxNGLJTzyA"
+  },
+  {
+    "name": "WELT Netzreporter",
+    "subscribers": 257000,
+    "views": 328482527,
+    "video_files": 6223,
+    "channel_id": "UCanbTgWMvESZy3xhXcxjHcg"
+  },
+  {
+    "name": "SchrangTV",
+    "subscribers": 169000,
+    "views": 13736615,
+    "video_files": 1283,
+    "channel_id": "UCjSkyrjqPeMwubZU0CnScXA"
+  },
+  {
+    "name": "RTL Doku",
+    "subscribers": 161000,
+    "views": 89056184,
+    "video_files": 697,
+    "channel_id": "UCt8HsnMdQAuQUMDNNjSJdnw"
+  },
+  {
+    "name": "Jung & Naiv",
+    "subscribers": 614000,
+    "views": 245040369,
+    "video_files": 4410,
+    "channel_id": "UCv1WDP5EiipMQ__C4Cg6aow"
+  },
+  {
+    "name": "VisualEconomik DE",
+    "subscribers": 125000,
+    "views": 18369321,
+    "video_files": 264,
+    "channel_id": "UCL5ysObh1s_qTYq_37-KffQ"
+  },
+  {
+    "name": "Meinungsmache",
+    "subscribers": 130000,
+    "views": 37050507,
+    "video_files": 867,
+    "channel_id": "UCOOc_k7pKmmjq8qtGLjBW5A"
+  },
+  {
+    "name": "Erfolgskanal - Community für Finanzen & Wirtschaft",
+    "subscribers": 262000,
+    "views": 207410022,
+    "video_files": 9934,
+    "channel_id": "UCJiRXf1Pb0ZkoPD7qcQIvlg"
+  },
+  {
+    "name": "Achtung, Reichelt!",
+    "subscribers": 560000,
+    "views": 271425628,
+    "video_files": 1985,
+    "channel_id": "UCcoQ3WG2J_Xjwwyt-sJqh-w"
+  },
+  {
+    "name": "frontal",
+    "subscribers": 214000,
+    "views": 85626659,
+    "video_files": 227,
+    "channel_id": "UCDw0K7K658-ztRuCn2mn0Kw"
+  },
+  {
+    "name": "BR24",
+    "subscribers": 538000,
+    "views": 537044946,
+    "video_files": 13106,
+    "channel_id": "UCcweJsCV2TUP_kzMX25U-oQ"
+  },
+  {
+    "name": "Thomas Gast - Der Legionär",
+    "subscribers": 246000,
+    "views": 89290303,
+    "video_files": 2480,
+    "channel_id": "UCrb8ENDcdCR54VTQVH6lIVA"
+  },
+  {
+    "name": "phoenix",
+    "subscribers": 507000,
+    "views": 513870573,
+    "video_files": 50412,
+    "channel_id": "UCwyiPnNlT8UABRmGmU0T9jg"
+  },
+  {
+    "name": "Achgut",
+    "subscribers": 139000,
+    "views": 44555847,
+    "video_files": 1745,
+    "channel_id": "UCLkHXX5R9S_qFZuCMGHWMrQ"
+  },
+  {
+    "name": "ntv Nachrichten",
+    "subscribers": 405000,
+    "views": 524039806,
+    "video_files": 12530,
+    "channel_id": "UCSeil5V81-mEGB1-VNR7YEA"
+  },
+  {
+    "name": "AFP Deutsch",
+    "subscribers": 435000,
+    "views": 431799480,
+    "video_files": 43587,
+    "channel_id": "UCCjkK_Qk9BUytDlAzz0iCZw"
+  },
+  {
+    "name": "LEON LOVELOCK | UNCUT",
+    "subscribers": 101000,
+    "views": 35313048,
+    "video_files": 2059,
+    "channel_id": "UC-Weu4-hPc3K-cVusdyQg4g"
+  },
+  {
+    "name": "ProSieben",
+    "subscribers": 126000,
+    "views": 73919691,
+    "video_files": 963,
+    "channel_id": "UCh-Ftqf4si1HFVtDm7Y10yg"
+  },
+  {
+    "name": "Konstantin Flemig - Kriegsreporter ",
+    "subscribers": 271000,
+    "views": 59760161,
+    "video_files": 461,
+    "channel_id": "UChiFVh8U2d6cyJIh0ghNF3w"
+  },
+  {
+    "name": "TRT Deutsch",
+    "subscribers": 136000,
+    "views": 65199897,
+    "video_files": 5884,
+    "channel_id": "UC1lSJPfMswLZcpyfzmkX5HA"
+  },
+  {
+    "name": "ARTEde",
+    "subscribers": 2680000,
+    "views": 495033385,
+    "video_files": 3350,
+    "channel_id": "UCLLibJTCy3sXjHLVaDimnpQ"
+  },
+  {
+    "name": "ZDF MAGAZIN ROYALE",
+    "subscribers": 1450000,
+    "views": 846695255,
+    "video_files": 1655,
+    "channel_id": "UCNNEMxGKV1LsKZRt4vaIbvw"
+  },
+  {
+    "name": "German Ultras",
+    "subscribers": 119000,
+    "views": 44552079,
+    "video_files": 875,
+    "channel_id": "UCQIE75XCMEDvP1ZmZ6Fuudw"
+  },
+  {
+    "name": "MrWissen2go Geschichte | Terra X",
+    "subscribers": 1480000,
+    "views": 289626284,
+    "video_files": 382,
+    "channel_id": "UCsVWpmoRsNAWZb59b6Pt9Kg"
+  },
+  {
+    "name": "CRISIS – Hinter der Front",
+    "subscribers": 216000,
+    "views": 46563613,
+    "video_files": 253,
+    "channel_id": "UCxTx5qfizauBQ-dofWliwhQ"
+  },
+  {
+    "name": "FOCUS online",
+    "subscribers": 352000,
+    "views": 495181246,
+    "video_files": 10375,
+    "channel_id": "UCgAPgHNmQSG_ySHRiOVeF4Q"
+  },
+  {
+    "name": "Gegenpol",
+    "subscribers": 115000,
+    "views": 101474862,
+    "video_files": 5053,
+    "channel_id": "UCs-G8CXCziErSY1459e7U8A"
+  },
+  {
+    "name": "Prof. Dr. Christian Rieck",
+    "subscribers": 553000,
+    "views": 85553542,
+    "video_files": 412,
+    "channel_id": "UCSExr_QUT6h-4sGW5hGjrCA"
+  },
+  {
+    "name": "ZDFheute Nachrichten",
+    "subscribers": 1780000,
+    "views": 1713290698,
+    "video_files": 10399,
+    "channel_id": "UCeqKIgPQfNInOswGRWt48kQ"
+  },
+  {
+    "name": "Der Biograph",
+    "subscribers": 378000,
+    "views": 133751969,
+    "video_files": 558,
+    "channel_id": "UC8V3I7Xy4KjAkwdhHenNLfg"
+  },
+  {
+    "name": "Massengeschmack-TV",
+    "subscribers": 152000,
+    "views": 95923896,
+    "video_files": 3979,
+    "channel_id": "UCj089h5WsDdh1q8t54K3ZCw"
+  },
+  {
+    "name": "WELT Nachrichtensender",
+    "subscribers": 2430000,
+    "views": 5230038249,
+    "video_files": 79268,
+    "channel_id": "UCZMsvbAhhRblVGXmEXW8TSA"
+  },
+  {
+    "name": "GELDDRUCKER",
+    "subscribers": 106000,
+    "views": 143208290,
+    "video_files": 1095,
+    "channel_id": "UCscq7owVpBCr1w3LQO1aGEw"
+  },
+  {
+    "name": "aktienlust",
+    "subscribers": 113000,
+    "views": 20764876,
+    "video_files": 2922,
+    "channel_id": "UCJSlXY7qCCQqpbv_-WspoFQ"
+  },
+  {
+    "name": "Kronen Zeitung",
+    "subscribers": 214000,
+    "views": 233189104,
+    "video_files": 22112,
+    "channel_id": "UC4qhj5cnX0MkbwXQ5vlI1NQ"
+  },
+  {
+    "name": "Mein Reisetagebuch",
+    "subscribers": 164000,
+    "views": 45411572,
+    "video_files": 381,
+    "channel_id": "UC4sWOG7s3VX3JgX8KTZPG7A"
+  },
+  {
+    "name": "ATLAS",
+    "subscribers": 249000,
+    "views": 35209589,
+    "video_files": 181,
+    "channel_id": "UCLtOrGKZ1t_qhHNG14RFZ0Q"
+  },
+  {
+    "name": "HKCM",
+    "subscribers": 817000,
+    "views": 245254342,
+    "video_files": 3595,
+    "channel_id": "UC3AdN1bEmEonuSwXNS8LixQ"
+  },
+  {
+    "name": "Neuste.news",
+    "subscribers": 325000,
+    "views": 481776201,
+    "video_files": 2854,
+    "channel_id": "UC2n9cj1SR8lXPnNjmFl2BBw"
+  },
+  {
+    "name": "Ahmad",
+    "subscribers": 182000,
+    "views": 57287841,
+    "video_files": 1093,
+    "channel_id": "UCBkfxC056lxHJ6QMUCKZHJw"
+  },
+  {
+    "name": "DER SPIEGEL",
+    "subscribers": 2290000,
+    "views": 2518252625,
+    "video_files": 13371,
+    "channel_id": "UC1w6pNGiiLdZgyNpXUnA4Zw"
+  },
+  {
+    "name": "tagesschau",
+    "subscribers": 2120000,
+    "views": 2031088434,
+    "video_files": 33717,
+    "channel_id": "UC5NOEUbkLheQcaaRldYW5GA"
+  },
+  {
+    "name": "DIE ZEIT ",
+    "subscribers": 235000,
+    "views": 148826745,
+    "video_files": 9486,
+    "channel_id": "UC_YnP7DDnKzkkVl3BaHiZoQ"
+  },
+  {
+    "name": "Darius",
+    "subscribers": 247000,
+    "views": 25451809,
+    "video_files": 564,
+    "channel_id": "UCVSMxiK-0TSIOv1c3uRlZiQ"
+  },
+  {
+    "name": "DER STANDARD",
+    "subscribers": 142000,
+    "views": 80099738,
+    "video_files": 11383,
+    "channel_id": "UCgau4awdKG2ni2Ib4jvUqFA"
+  },
+  {
+    "name": "Browser Ballett",
+    "subscribers": 467000,
+    "views": 254533323,
+    "video_files": 718,
+    "channel_id": "UC6zXbTQEujMO-5CzyywlVDQ"
+  },
+  {
+    "name": "Marc Friedrich",
+    "subscribers": 708000,
+    "views": 297466214,
+    "video_files": 3076,
+    "channel_id": "UCSiFC1DCXr3p1YDzyu9rogA"
+  },
+  {
+    "name": "Salim Samatou",
+    "subscribers": 274000,
+    "views": 94275945,
+    "video_files": 670,
+    "channel_id": "UCs05VH8MBAaX_cNXlrYIZkA"
+  },
+  {
+    "name": "JUNGE FREIHEIT",
+    "subscribers": 209000,
+    "views": 58814298,
+    "video_files": 1631,
+    "channel_id": "UCXJBRgiZRZvfilIGQ4wN5CQ"
+  },
+  {
+    "name": "Radio München",
+    "subscribers": 102000,
+    "views": 22006755,
+    "video_files": 1230,
+    "channel_id": "UCCryE9AMaoS-2AlwzmYumCg"
+  },
+  {
+    "name": "MAESTRO",
+    "subscribers": 265000,
+    "views": 28615701,
+    "video_files": 375,
+    "channel_id": "UCinuZeKpeDJRJ2w8n3PZmzg"
+  },
+  {
+    "name": "offen un' ehrlich",
+    "subscribers": 561000,
+    "views": 440545998,
+    "video_files": 785,
+    "channel_id": "UC78qa96bVJpd6xrW-2FTRmw"
+  },
+  {
+    "name": "Timeline Deutschland",
+    "subscribers": 182000,
+    "views": 47958924,
+    "video_files": 476,
+    "channel_id": "UCluIQLAAsgUA-xNq-ZVZU6g"
+  },
+  {
+    "name": "WDR Doku",
+    "subscribers": 1120000,
+    "views": 608349824,
+    "video_files": 695,
+    "channel_id": "UCUuab1dctZzN5ZmRmQnTzkg"
+  }
+]

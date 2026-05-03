@@ -19,8 +19,18 @@ api_key_c = os.getenv("API_KEY_C")
 
 youtube = build('youtube', 'v3', developerKey=api_key_c)
 
+
+# -----------------------------
+# Configuration
+# -----------------------------
+#videos are always saved in the same file to have a collection of all videos ever identified.
+#Only channel_input needs to be adjusted.
 videos_total_file = "../JSON Files/video_files/videos_total.json"
 videos_total_file_2 = "../JSON Files/video_files/videos_total.json"
+
+channel_input = f"../JSON Files/ident_1803/large_german_channels/german_channels_50000k.json"
+
+
 
 newest_video_per_channel = {}
 if os.path.exists(videos_total_file):
@@ -37,19 +47,14 @@ if os.path.exists(videos_total_file):
 else:
     videos_total = []
 
-# processed_channel_ids = {v["channel_id"] for v in videos_total}
-# print(f"Insgesamt bereits verarbeitete Channels: {len(processed_channel_ids)}")
 #
 # Channel IDs
 
-with open(f"../JSON Files/ident_1803/large_german_channels/german_channels_50000k.json", "r", encoding="utf-8") as f:
+with open(channel_input, "r", encoding="utf-8") as f:
     channel_ids_dict = json.load(f)
 
 channel_ids = [c["channel_id"] for c in channel_ids_dict]
-print(f"Neue Channels: {len(channel_ids)}")
-# channel_ids_set = set(channel_ids)
-# new_channel_ids = channel_ids_set - processed_channel_ids
-# print(f"Davon noch nicht überprüft: {len(new_channel_ids)}")
+
 
 # -----------------------------
 # Funktion: Videos aus Uploads-Playlist eines Kanals holen
@@ -161,70 +166,81 @@ def get_new_channel_videos(channel_id, published_after, published_before, last_k
 # -----------------------------
 # Hauptprogramm: nur neue Kanäle abfragen  ## if new channels are requested
 # -----------------------------
-# new_videos = []
-#
-# for cid in channel_ids:
-#     try:
-#         if cid in processed_channel_ids:
-#             #print(f"Channel bereits vorhanden, übersprungen: {cid}")
-#             continue
-#
-#         print(f"Neue Channel ID: {cid}")
-#         channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
-#         print(f"Gefundene Videos: {len(channel_videos)}")
-#         new_videos.extend(channel_videos)
-#         if not channel_videos:
-#             new_videos.append({"video_id": f"no_video_found_{cid}",
-#                                     "channel_id": cid,
-#                                     "published_at": f"no_video_found_{cid}",
-#                                     "title": f"no_video_found_{cid}"})
-#     except Exception as e:
-#        print(e)
-#        break
+
+processed_channel_ids = {v["channel_id"] for v in videos_total}
+print(f"Insgesamt bereits verarbeitete Channels: {len(processed_channel_ids)}")
+print(f"Neue Channels: {len(channel_ids)}")
+channel_ids_set = set(channel_ids)
+new_channel_ids = channel_ids_set - processed_channel_ids
+print(f"Davon noch nicht überprüft: {len(new_channel_ids)}")
+
+new_videos = []
+
+for cid in channel_ids:
+    try:
+        if cid in processed_channel_ids:
+            #print(f"Channel bereits vorhanden, übersprungen: {cid}")
+            continue
+
+        print(f"Neue Channel ID: {cid}")
+        channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
+        print(f"Gefundene Videos: {len(channel_videos)}")
+        new_videos.extend(channel_videos)
+        if not channel_videos:
+            new_videos.append({"video_id": f"no_video_found_{cid}",
+                                    "channel_id": cid,
+                                    "published_at": f"no_video_found_{cid}",
+                                    "title": f"no_video_found_{cid}"})
+    except Exception as e:
+       print(e)
+       break
 
 # -----------------------------
 # Hauptprogramm - update existing channels
 # -----------------------------
 
-new_videos_added = []
-#channel_ids = ["UCZHpIFMfoJJ_1QxNGLJTzyA"]
-for cid in channel_ids:
-    # Wir überspringen den "processed_channel_ids" Check von früher,
-    # da wir jetzt gezielt NACH neuen Inhalten in bekannten Kanälen suchen.
-
-    last_known = newest_video_per_channel.get(cid)
-    print(f"Prüfe Kanal {cid} auf neue Videos seit {last_known if last_known else 'Anfang'}...")
-
-    found = get_new_channel_videos(
-        cid,
-        published_after_analysis,
-        published_before_analysis,
-        last_known
-    )
-
-    if found:
-        print(f"--> {len(found)} neue Videos gefunden!")
-        new_videos_added.extend(found)
-
-# Zusammenführen und Speichern
-all_videos = videos_total + new_videos_added
-unique_videos = {v["video_id"]: v for v in all_videos}  # Sicherung gegen Dubletten
-final_list = list(unique_videos.values())
-
-with open(videos_total_file, "w", encoding="utf-8") as f:
-    json.dump(final_list, f, ensure_ascii=False, indent=2)
-
-print(f"\nUpdate abgeschlossen. {len(new_videos_added)} neue Videos hinzugefügt.")
+# new_videos_added = []
+# #channel_ids = ["UCZHpIFMfoJJ_1QxNGLJTzyA"]
+# for cid in channel_ids:
+#     # Wir überspringen den "processed_channel_ids" Check von früher,
+#     # da wir jetzt gezielt NACH neuen Inhalten in bekannten Kanälen suchen.
+#
+#     last_known = newest_video_per_channel.get(cid)
+#     print(f"Prüfe Kanal {cid} auf neue Videos seit {last_known if last_known else 'Anfang'}...")
+#
+#     found = get_new_channel_videos(
+#         cid,
+#         published_after_analysis,
+#         published_before_analysis,
+#         last_known
+#     )
+#
+#     if found:
+#         print(f"--> {len(found)} neue Videos gefunden!")
+#         new_videos_added.extend(found)
+#
+# # Zusammenführen und Speichern
+# all_videos = videos_total + new_videos_added
+# unique_videos = {v["video_id"]: v for v in all_videos}  # Sicherung gegen Dubletten
+# final_list = list(unique_videos.values())
+#
+# with open(videos_total_file, "w", encoding="utf-8") as f:
+#     json.dump(final_list, f, ensure_ascii=False, indent=2)
+#
+# print(f"\nUpdate abgeschlossen. {len(new_videos_added)} neue Videos hinzugefügt.")
 # -----------------------------
 # Deduplication nach Video-ID
 # -----------------------------
-# all_videos = videos_total + new_videos
-# unique_videos = {v["video_id"]: v for v in all_videos}
-# videos_total = list(unique_videos.values())
-#
-# with open(videos_total_file, "w", encoding = "utf-8") as f:
-#     json.dump(videos_total, f, ensure_ascii = False, indent = 2)
-#
+all_videos = videos_total + new_videos
+unique_videos = {v["video_id"]: v for v in all_videos}
+videos_total = list(unique_videos.values())
+
+with open(videos_total_file, "w", encoding = "utf-8") as f:
+    json.dump(videos_total, f, ensure_ascii = False, indent = 2)
+
+print("\nVerarbeitung abgeschlossen")
+print(f"Gesamtvidoes: {len(videos_total)}")
+print(f"Neu hinzugefügte Videos: {len(new_videos)}")
 
 # -----------------------------
 # End of Deduplication block
@@ -242,6 +258,3 @@ print(f"\nUpdate abgeschlossen. {len(new_videos_added)} neue Videos hinzugefügt
 # with open("json_files/all_channel_ids_processed.json", "w", encoding ="utf-8") as f:
 #     json.dump(all_processed_ids, f, ensure_ascii = False, indent =2)
 
-# print("\nVerarbeitung abgeschlossen")
-# print(f"Gesamtvidoes: {len(videos_total)}")
-# print(f"Neu hinzugefügte Videos: {len(new_videos)}")

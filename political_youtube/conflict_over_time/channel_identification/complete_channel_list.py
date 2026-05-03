@@ -388,7 +388,7 @@ print(f"\nCurrent working directory: {os.getcwd()}")
 
 print("\nAggregating all channel IDs to a combined list:")
 
-result = collect_unique_channel_ids("party_identification", ["all_channel_ids_discovered.json",
+result = collect_unique_channel_ids("keyword", ["all_channel_ids_discovered.json",
                                                              "all_channel_ids_discovered_2.json"])
 print(f"Number of unique IDs found: {len(result)}")
 #print(result)
