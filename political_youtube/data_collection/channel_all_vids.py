@@ -28,7 +28,7 @@ youtube = build('youtube', 'v3', developerKey=api_key_c)
 videos_total_file = "../JSON Files/video_files/videos_total.json"
 videos_total_file_2 = "../JSON Files/video_files/videos_total.json"
 
-channel_input = f"../JSON Files/ident_1803/large_german_channels/german_channels_50000k.json"
+channel_input = f"../conflict_over_time/channel_identification/large_german_channels/german_channels_50000k.json"
 
 
 
