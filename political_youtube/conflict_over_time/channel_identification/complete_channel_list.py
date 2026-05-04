@@ -402,7 +402,7 @@ with open("all_channels/complete_channel_list.json", "w", encoding="utf-8") as f
 """
 print("\n\nGetting metadata:")
 
-get_channel_metadata(youtube, "all_channels/complete_channel_list.json","all_channels/channel_metadata.json")
+#get_channel_metadata(youtube, "all_channels/complete_channel_list.json","all_channels/channel_metadata.json")
 
 print("\n")
 channels = load_json("all_channels/complete_channel_list.json")
@@ -494,7 +494,7 @@ df = df.sort_values(by="name")
 print("\nFiltering video_files from all video_files scanned according to relevant channel list")
 start_time = time.perf_counter()
 
-all_videos_downloaded = load_json("../video_files/videos_total.json")
+all_videos_downloaded = load_json("../../JSON Files/video_files/videos_total.json")
 relevant_channels = load_json("large_german_channels/german_channels_50000k.json")
 
 relevant_channels = {c["channel_id"] for c in relevant_channels}
@@ -601,7 +601,7 @@ print(f"Sampled video_files: {len(sampled_videos)}")
 """
 print("\nGetting already downloaded transcripts...")
 # !!! Specify export file to also be loaded in order not to lose any files !!!
-export_file = "../../Transcript files/political_yt_transcripts_new.csv"
+export_file = "../../Transcript files/transcripts_conflict_over_time.csv"
 # create list of video_files from dict
 keyword_file = f"large_german_channels/video_files/all_videos_50k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_50k_channels_sampled.json"
@@ -615,6 +615,7 @@ sample_vids = [v["video_id"] for v in sample_vids]
 # collect downloaded transcripts
 transcript_files = [
     export_file,
+    "../../Transcript files/political_yt_transcripts_new.csv",
     "../../Transcript files/political_yt_transcripts.csv",
     "../../Transcript files/youtube_transcripts_sampledvideos.csv",
     "../../../project_transcripts/Transcript files/youtube_transkripte_2.csv"

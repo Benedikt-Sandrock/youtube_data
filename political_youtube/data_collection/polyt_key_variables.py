@@ -4,7 +4,7 @@ published_before_ident = "2023-10-07T00:00:00Z"
 
 from datetime import datetime
 import os
-start_date = datetime(2023, 10, 7)
+start_date = datetime(2023, 7, 7)
 final_end_date = datetime(2024, 1, 6)
 #period of analysis
 published_after_analysis = "2022-10-07T00:00:00Z"
@@ -15,14 +15,18 @@ query_list_politics = ["SPD"]
 #query_list = ["Nahostkonflikt", "Gaza-Krieg", "Israel Palästina Konflikt", "Palästina Israel Konflikt"] #schon durchgelaufen monatsweise
 ziel_directory = f"../JSON Files/ident_1803/party_identification/SPD"
 
-query = "7. Oktober"
+query = "Krieg Naher Osten"
 query_list_middle_east = ["Konflikt Israel Palästina", "Konflikt Palästina Israel", "Konflikt Palästina Israel", "Israel Palästina", "Palästina Israel"]
-target_directory_me = f"../conflict_over_time/channel_identification/keyword/monthly/{query}"
+target_directory_me = f"../conflict_over_time/channel_identification/keyword/{query}"
 
 
-target_directory = os.path.join(target_directory_me)
 query_list = [query]
 month_interval = 1
+
+if month_interval == 1:
+    target_directory = f"../conflict_over_time/channel_identification/keyword/monthly/{query}"
+if month_interval == 3: f"../conflict_over_time/channel_identification/keyword/quarterly/{query}"
+
 #query_list = ["Nahostkonflikt", "Gaza-Krieg", "Israel Palästina Konflikt", "Palästina Israel Konflikt"] #schon durchgelaufen monatsweise
 
 # if __name__ == "__main__":

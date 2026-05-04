@@ -4282,5 +4282,1126 @@
     "defaultLanguage": null,
     "country": "DE",
     "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCgDySc6R0Yf-uNIUEk7-y8A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.2
+  },
+  {
+    "channel_id": "UC7pluR6rB5KZIbN2IxamzxQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCn5h0GsB02NbR9ci-8MuEHg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCZ6M059Uu6f-ir-Z0rnS09Q",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCKsgQ74ZmCWqstuhj-eZ-Ug",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCT2FAPpgWOGGXtpheDT6jkQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCmouT0FDMQC8PH8CbQFdHUw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCvPbgVRHKWDbv8U8rdxfbBA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCOmaZviTpaM0F7YB3K6E9-A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCpLB7kBu9O5dbBKhaIOmqcQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCggJmYhtxBk1naIbZN541pw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCliHZoGSQkxUjVU5F57T1JQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCrR45-PQv6TCwUCSPJ1ud2g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCgodvJzJEzzJFaQO3rmqJbA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC_jJotxeohgUKPy9WeQBmXg",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCBzu4YqGiBxBD8pq8NiBuKw",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "NG",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCi-nUi67HVFEtpaFsjRj_NA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCNl2_YRFaTOropYPBUPrDBQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCIVtii63NI21oiIEzKcbmHw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCDg1bjGQOONSRmRSOyTYMdA",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCUOtSbVxqjlWJtePFlmsK1g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCkSllUpc8cedRe85JkqLiBQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCbRUdvewxNC9-10zlctcNMw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCpVrHBJuJhlxSlBYXhNBG9Q",
+    "is_german": false,
+    "defaultLanguage": "ur",
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCnOk3kjev4rLlkC6_jzXUfw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "VN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC2x_qNZXKDxNP1j4jvHATRQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC7IdArS3MibBKFsqckq8GhQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCyZ9Sq0VhcRYC6Yo9kvZiug",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCX80qmC9baw6HXrSjfybdmQ",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCdtcBtMa5IdOk_WFzwZTZWQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCofuIih4XZk11jvY0qUEvRg",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCvAkYZH2y-n8-GLm_01PI2w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCwwRKZboAMYHdNQ3zWE1r2A",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJXXOS1Io4tviz-WTp8mpYA",
+    "is_german": false,
+    "defaultLanguage": "pt-PT",
+    "country": "BR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC5an6ol1hnBRTcXEThHHK3Q",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCrgfzz363mvWpOVPMOa1tMg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCzKFvBRI6VT3jYJq6a820nA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCtAJKGASniccub16l0eJCQQ",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "EG",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC1EasxeXGzoXJb2y3HTMsLA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCWJPKXhkcMGXafdtqGx1mEw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCfzbQR4tudqcpiIgU4yfrgg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC1j180PyGW0MiHECUMCHzOA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "KZ",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCLB3FgLIasAtHEvlxLMludg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IT",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC9cLBl4oAojA7oEMR6T-tpQ",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCtnYSEGViOnb7k8ezUaWUww",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCckMqUWHVwFWJwSVE9FQJaA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCVbOEcs6RMxXXX3WWNtl_Fw",
+    "is_german": false,
+    "defaultLanguage": "es",
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCV2NG8o-D8UJeviySULl4fw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCjkETDTi-OBxrN4z5lvaL5A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "CA",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCIWXkbRlSWmpyKZLyiGWgvg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCIgbxKzg2BpGN_AQ6uarXDw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCPhcmcG3XG54Gg5dmCg23-Q",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJQHpjzgAu9OVgUAMLKmdQA",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCN5qpJ_OZl53SfMbVPjA6sg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UChggWSmyOov2kOozzMQSucQ",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCBQb8HOEe72YLLNeVP0W3CQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC7oQL6bXDLVlfRzeF8_KcGw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCsiEr6SSLq8eJYsDmbPFZwQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCMb4jTwCPdM7I5kPSsZixCw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCWeKyWiFeb4YV8e3EibEqQw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCPG9dHYl2Xd7n8XnN-TKROA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCVjOe4UwNRZx89uBXojoPcw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCFgAEHHtZ67NvYI051jYfwQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "FR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCE2UJ-MRnYK6uBFNpjur8AQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "AU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCkW_LKCpd0PIS-GUeUZ_hww",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCYLJ8hULBTjTTmJZGL-dq-A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCQrG3I_hNIaZTwAfe0hVZ5w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCuoJeqiOM_AtGGU76gmApIw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCdF5Q5QVbYstYrTfpgUl0ZA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCpZBvTbjam0yTrD4HUUWTZw",
+    "is_german": false,
+    "defaultLanguage": "ta",
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC48ipESG1nGIwp18AofJDzQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCFd-ri0bvUX-Fc-yTz7Q_5Q",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC_miR0DhIiRbbXCiNaUbhcQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCIO0R7N49K14bBvWIEXPYFg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "FR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCyzvb3N0ChAnWeQhoD0McRg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCQIycDaLsBpMKjOCeaKUYVg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCyZcPGMCiJwbqpt1KqWJxzA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "MX",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCx3rQ-tcvizFRJ2hY21sIvQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "MY",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCXHz5brnR9qwqvQvF3VJdgQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCC7nQMtxF0wKgtgaLUDaXPw",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC5dCkGDmBfJjSiXTSCWPVUg",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJYSfTvPtSmMSc3yog9yDXg",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCQ3sprrGnTHL6std2197XHw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCUsm-fannqOY02PNN67C0KA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "MX",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC7QxZdogxV1gloaOBO02wiw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "SE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCDmEYQeNZ1T_pb3OXV3bu9A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCgeV3tFiU2Xg0PD1dAQbBHA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCxSeJKYcO_4G_VrOlFykbSA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "FR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCtqvtAVmad5zywaziN6CbfA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BD",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCGLcx_fFZ3GlLXO5anHSm9w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCkJ2bWhX6QDilzK_XqEWe4w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC3Q7MMXxW-e3HZ0lR9oTAGg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCPIMmE-kV_Vde-AbIqP_y1w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCiIuMVs6TrdmCqtthzwns9w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCct38M-8F9JO9Fgb8KZ5ccw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "FR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC5sVjevJfKZdNheKRabSYBQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCeySRXr2UZ9zBssxvtXHsmA",
+    "is_german": false,
+    "defaultLanguage": "es-419",
+    "country": "AR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCmRbHAgG2k2vDUvb3xsEunQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCa53GFyem6cgf6etoIpoIdQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "CA",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCKII0Ml9S5wneKbHswmUrIQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UChzVhAwzGR7hV-4O8ZmBLHg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCABe2FgVNv2hgBeMu2mySVg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC0vn8ISa4LKMunLbzaXLnOQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCeUJFQ0D9qs6aVNyUt9fkeQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UC-dQsCNwV9zsvXMZvKeIx_g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UC-B7Xv56uNRDkj0vC3QW8Cg",
+    "is_german": false,
+    "defaultLanguage": "es-419",
+    "country": "PE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCVu4Ipy-a4wAoronKqiMwog",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCdMtj4CiqlZTgzFT5FdDd7A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCGwO43-vnmkQ2i1v886JjVw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCiJSi6Q9vR4QfLkpwqyVgZg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BR",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCD7zE3QCEk7o2D9_-jkd8hw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCeXasv-OhEJga_7tjOmtbHg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJwwyvIHJvaTjpOw65XE1Tg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCuxH9KBQraX-dbk2ktNFmIQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCoS-mm5bC5eY07AaKntKzgw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCsaViv1SDQy2FcRFHrf_Dkw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCm0yTweyAa0PwEIp0l3N_gA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCCRNUa9EwvRXMYwUmDi3JtA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCyfYnJbsQ20Ee0y_jqDq09A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "CA",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCf_HItERkRB3vnkWt2RSOLg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCNdAXTa9Kl5JQyUcOO9ddwQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCtTSYCBRRUStmL2oQLaqbDQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCylNpQCufmDdAhs8CdLmUXQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCUP6qv-_EIL0hwTsJaKYnvw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "MX",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCIBfM9FGbnxsn19ytTgBQ4w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCcT-Q7UFnIFuRMiAqUnfwNA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "RO",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC04_rUstP7vyLANZ0rJYz_A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "CA",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCiJTi-lum1PHUTH5tDVTyrw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCeZcv8NwuayuVG0rypMCLNQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC4vptswS-qIpvz0NiocrGsA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCuzg2y5b5wcH-T_VZE1S-bQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "BD",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC5N0MlMQopPTGMLUxHISfDg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC4g_aL35xFtzi3ueNgibWVA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IL",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCrJ8MpOD8GLl_6L-iwC35sA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "FI",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCPd-Lf5gQkAJD5XdTmT_GGA",
+    "is_german": false,
+    "defaultLanguage": "es",
+    "country": "ES",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCXKfR4_mJlcpveUxD0Jqz7g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC6LmCGqxXQzFcoNyHtZRZnA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCQwkEQ6EQc4jM2QnrvubBHg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCmMyyOdBmXYl-Y8Mk62i9MQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCTvKE2_wQnvifq6sEskAq2w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCN72FjV-mKjktLiaiV3zzJw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCharyzkSOKgrbqDVg2F2p7g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCwstkq-HSOdk61zBvB4IqXA",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC3vHW2h22WE-pNi5WJtRIjg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCZjKcrTI_oBVK0PBuKt0Csg",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCoUxsWakJucWg46KW5RsvPw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCO3vATnmLHULoZLUpOzrLmw",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCE7b8qctaEGmST38-sfdOsA",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCWUA2W6LueNy9BSovivFVvQ",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCWUA2W6LueNy9BSovivFVvQ&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UC73H5p3GP8b5N1f3hozIXyQ",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/videos?part=snippet&id=tOobNQSKZjw%2CBNqIQg-_6kg%2CWzBvubMtd-Q%2C_YNCoDzrP14%2COBZ1gd8ZaFo%2CW5X-CdnVzyI%2CSji7-uNcgAA%2CBIPMiYKb944%2CzCQgsk3VWbM%2CTeVkvmfTLIA&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UC-J-aDEOVjOjR6iXh7P8mJA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=UU-J-aDEOVjOjR6iXh7P8mJA&maxResults=10&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCytSP0M0Jdnw6qIy3Y-nTig",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCytSP0M0Jdnw6qIy3Y-nTig&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCQNjg0-yEA8LoyCcWI-j8mA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCQNjg0-yEA8LoyCcWI-j8mA&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCHpw8xwDNhU9gdohEcJu4aA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=UUHpw8xwDNhU9gdohEcJu4aA&maxResults=10&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCw1UkYiWQCokhM0HH8OuVdg",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCw1UkYiWQCokhM0HH8OuVdg&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCiTJladOHCMkKndVBsn23VQ",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCiTJladOHCMkKndVBsn23VQ&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCKo80Xa1PYTc23XN_Yjp8pA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=UUKo80Xa1PYTc23XN_Yjp8pA&maxResults=10&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCNAxrHudMfdzNi6NxruKPLw",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCNAxrHudMfdzNi6NxruKPLw&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCDRIjKy6eZOvKtOELtTdeUA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=UUDRIjKy6eZOvKtOELtTdeUA&maxResults=10&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UC9kZ6FlOQfusBV8LS2x2fAA",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UC9kZ6FlOQfusBV8LS2x2fAA&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UClO1l0P58Hi0Al3v8vRWmGw",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UClO1l0P58Hi0Al3v8vRWmGw&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCwnKziETDbHJtx78nIkfYug",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCwnKziETDbHJtx78nIkfYug&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCgrHgV7atBftQk8dXwIDktg",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCgrHgV7atBftQk8dXwIDktg&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCsuG7oBWQ5cZhRu8jufI9lw",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCsuG7oBWQ5cZhRu8jufI9lw&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
+  },
+  {
+    "channel_id": "UCGs-yDFkfHDbeQcApWkTtxg",
+    "is_german": false,
+    "error": "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/channels?part=snippet%2CcontentDetails&id=UCGs-yDFkfHDbeQcApWkTtxg&key=AIzaSyBUg0XIryem2_WtenRUKDA1bwLsiDzMLYE&alt=json returned \"The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.\". Details: \"[{'message': 'The request cannot be completed because you have exceeded your <a href=\"/youtube/v3/getting-started#quota\">quota</a>.', 'domain': 'youtube.quota', 'reason': 'quotaExceeded'}]\">"
   }
 ]

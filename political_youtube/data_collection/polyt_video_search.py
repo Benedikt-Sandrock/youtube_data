@@ -11,20 +11,30 @@ api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
 
-youtube = build('youtube', 'v3', developerKey=api_key)
+youtube = build('youtube', 'v3', developerKey=api_key_c)
 
 
-print("Configuration:")
-print(f"Query: {query_list}")
-print(f'Target directory: "{target_directory}"')
-print(f"Search from {start_date} to {final_end_date}")
-print(f"Search for every {month_interval} months")
+config_text = (
+    "Configuration:\n"
+    f"Query: {query_list}\n"
+    f'Target directory: "{target_directory}"\n'
+    f"Search from {start_date} to {final_end_date}\n"
+    f"Search interval: {month_interval} month(s)")
+
+print(config_text)
 
 answer = input("Right specification? [y/n]")
 if not answer.lower() == "y":
     print("Wrong specification. Check 'polyt_key_variables.py'")
     exit()
 
+file_path = os.path.join(target_directory, "configuration.txt")
+os.makedirs(target_directory, exist_ok=True)
+
+with open(file_path, "w", encoding = "utf-8") as f:
+    f.write(config_text)
+
+print(f"Configuration saved to {file_path}")
 print("Directory is created and video search is initiated...")
 os.makedirs(target_directory, exist_ok=True)
 ###
@@ -93,7 +103,8 @@ for query in query_list:
                 order="date",
                 maxResults=50,
                 pageToken=next_page_token,
-                relevanceLanguage = "de"
+                relevanceLanguage = "de",
+                regionCode ="DE"
             )
 
             response = request.execute()
