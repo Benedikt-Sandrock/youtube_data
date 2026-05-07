@@ -34,6 +34,8 @@ from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
 import time
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 
 # measuring duration of the whole script
@@ -381,6 +383,27 @@ def classify_channels_from_json(
     print(f"{counter}/{len(channel_ids)} were already classified.")
     save_json(output_all_channels_path, all_channels)
 
+
+def assign_month_category(target_date_str, reference_date):
+    target_date = datetime.fromisoformat(target_date_str.replace("Z", "+00:00")).replace(tzinfo = None)
+    if reference_date.tzinfo is not None:
+        reference_date = reference_date.replace(tzinfo=None)
+    diff = relativedelta(reference_date, target_date)
+
+    total_diff = diff.years *12 +diff.months
+
+    if target_date < reference_date:
+        if total_diff == 0:
+            return -1
+        return -(total_diff+1)
+    else:
+        if total_diff == 0:
+            return 0
+        return -total_diff
+
+
+
+
 """
 1. aggregate all lists to one list
 """
@@ -519,7 +542,7 @@ print(f"\nFiltering video_files took {execution_time:.2f} seconds to run.")
 import random
 from collections import defaultdict
 from datetime import datetime
-
+metadata_file = "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl"
 input_file = f"large_german_channels/video_files/all_videos_50k_channels.json"
 
 keyword_file = f"large_german_channels/video_files/all_videos_50k_channels_keywords.json"
@@ -527,17 +550,25 @@ sampled_file = f"large_german_channels/video_files/all_videos_50k_channels_sampl
 
 keywords = ["nahe osten", "naher osten", "nahen osten", "nahost", "israel", "palästina", "gaza", "hamas", "IDF", "Jerusalem", "netanjahu", "netanyahu"]
 
-cutoff_day = "2023-10-07T00:00:00Z"
-cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
+cutoff_day = datetime(2023, 10, 7)
+#cutoff_day_dt = datetime.fromisoformat(cutoff_day.replace("Z", "+00:00"))
 
-sample_size = 100
+sample_size = 20
 
 random.seed(42)
+
+
+metadata = pd.read_json(metadata_file, lines = True)
+metadata["duration"] = pd.to_timedelta(metadata["duration"])
+metadata["duration"] = (metadata["duration"].dt.total_seconds()) /60
+metadata = metadata[metadata["duration"] > 1]
+videos_wo_shorts = set(metadata["video_id"])
 
 # load JSON
 with open(input_file, "r", encoding="utf-8") as f:
     data = json.load(f)
 
+data = [v for v in data if v["video_id"] in videos_wo_shorts]
 data = [v for v in data if not v["title"].startswith("no_video_found")]
 
 # group by channel
@@ -545,51 +576,51 @@ channels = defaultdict(list)
 for v in data:
     channels[v["channel_id"]].append(v)
 
+
 keyword_videos = []
 sampled_videos = []
 
 for channel_id, videos in channels.items():
 
     with_keywords = []
-    without_keywords = []
+    buckets = {-1: [], -2: [], -3: []}
 
     for v in videos:
         title = v.get("title", "").lower()
 
+        date_string = v["published_at"]
+        category = assign_month_category(date_string, cutoff_day)
+        v["time_delta"] = category
+
         if any(k.lower() in title for k in keywords):
             with_keywords.append(v)
         else:
-            without_keywords.append(v)
+            delta = v["time_delta"]
+            if delta in buckets:
+                buckets[delta].append(v)
 
     keyword_videos.extend(with_keywords)
 
-    before = []
-    after = []
+    for delta in buckets:
+        category_videos = buckets[delta]
+        if len(category_videos) > sample_size:
+            category_videos = random.sample(category_videos, sample_size)
 
-    for v in without_keywords:
-        published = datetime.fromisoformat(
-            v["published_at"].replace("Z", "+00:00")
-        )
+        sampled_videos.extend(category_videos)
 
-        if published < cutoff_day_dt:
-            before.append(v)
-        else:
-            after.append(v)
 
-    if len(before) > sample_size:
-        before = random.sample(before, sample_size)
-
-    if len(after) > sample_size:
-        after = random.sample(after, sample_size)
-
-    sampled_videos.extend(before + after)
-
-# save files
 with open(keyword_file, "w", encoding="utf-8") as f:
     json.dump(keyword_videos, f, ensure_ascii=False, indent=2)
 
 with open(sampled_file, "w", encoding="utf-8") as f:
     json.dump(sampled_videos, f, ensure_ascii=False, indent=2)
+
+
+
+    before = []
+    after = []
+
+print(f"Videos without keywords: {len(sampled_videos)}\n")
 
 
 print(f"\nKeyword video_files: {len(keyword_videos)}")

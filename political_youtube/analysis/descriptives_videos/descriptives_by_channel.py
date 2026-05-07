@@ -696,9 +696,9 @@ with pd.option_context("display.max_columns", None):
 
 
 
-# get_video_metadata(youtube,
-#                    "../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_50k_channels.json",
-#                    "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl")
+get_video_metadata(youtube,
+                   "../../conflict_over_time/channel_identification/large_german_channels/video_files/all_videos_50k_channels.json",
+                   "../../JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos.jsonl")
 
 #get_channel_metadata_2(youtube, "../../JSON Files/ident_1803/large_german_channels/german_channels_100000k.json",
                        #"complete_metadata.json")
