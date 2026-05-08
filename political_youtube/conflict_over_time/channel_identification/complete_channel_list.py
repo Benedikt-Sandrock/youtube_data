@@ -25,7 +25,7 @@ subscriber thresholds (10k, 20k, 30k, 50k, 100k). Generates Excel file with all 
 (including their metadata) with more than 10k subscribers.
 
 """
-
+import operator
 import os
 import json
 import pandas as pd
@@ -603,22 +603,31 @@ for channel_id, videos in channels.items():
 
     for delta in buckets:
         category_videos = buckets[delta]
-        if len(category_videos) > sample_size:
-            category_videos = random.sample(category_videos, sample_size)
+        flag_value = 1 if len(category_videos) > sample_size else 0
+
+        for v in category_videos:
+            v["selection"] = flag_value
 
         sampled_videos.extend(category_videos)
+
+
+        # if len(category_videos) > sample_size:
+        #     v["selection"] = 1 if v["channel_id"] == channel_id
+        # else:
+        #     v["selection"] = 0 if v["channel_id"] == channel_id
+        #category_videos = random.sample(category_videos, sample_size)
+
+
 
 
 with open(keyword_file, "w", encoding="utf-8") as f:
     json.dump(keyword_videos, f, ensure_ascii=False, indent=2)
 
+sampled_videos.sort(key = operator.itemgetter("time_delta"), reverse = True)
 with open(sampled_file, "w", encoding="utf-8") as f:
     json.dump(sampled_videos, f, ensure_ascii=False, indent=2)
 
 
-
-    before = []
-    after = []
 
 print(f"Videos without keywords: {len(sampled_videos)}\n")
 
@@ -626,6 +635,11 @@ print(f"Videos without keywords: {len(sampled_videos)}\n")
 print(f"\nKeyword video_files: {len(keyword_videos)}")
 print(f"Sampled video_files: {len(sampled_videos)}")
 
+# print("sorting videos...")
+# df = pd.read_json("large_german_channels/video_files/all_videos_50k_channels_sampled.json")
+# df = df.sort_values(by="time_delta", ascending = False)
+# df.to_json("large_german_channels/video_files/all_videos_50k_channels_sampled.json")
+# print("sorting complete")
 
 """
 7. create a list of keyword/sampled video_files and compare this list to all downloaded transcripts
