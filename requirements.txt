@@ -11,4 +11,5 @@ seaborn
 matplotlib-venn
 numpy
 transformers
+sklearn
 #torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
