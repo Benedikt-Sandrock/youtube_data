@@ -3,83 +3,119 @@ import pandas as pd
 import torch
 from transformers import pipeline
 from tqdm import tqdm
-import random
+import time
+
 
 # ========================================
-# 1. GPU and model setup
+# 1. Loading and preparing data
+# ========================================
+seed_number = 41
+#test set:
+#df = pd.read_excel(f"video_titles_sample_{seed_number}.xlsx")
+
+#complete dateset:
+df = pd.read_json(f"../channel_identification/large_german_channels/video_files/all_videos_50k_channels_sampled.json")
+print(len(df))
+
+titles_clean = df["title"].tolist()
+
+# print("Loading JSON file...")
+# df = pd.read_json("../channel_identification/large_german_channels/video_files/all_videos_50k_channels_sampled.json")
+# titles = df["title"].tolist()
+#
+# def clean_text(text):
+#     return str(text).strip()
+#
+# titles_clean = [clean_text(t) for t in titles]
+# seed_number = 41
+# random.seed(seed_number)
+#
+# titles_clean = random.sample(titles_clean, 100)
+# df_titles = pd.DataFrame(titles_clean, columns=["title"])
+#df_titles.to_excel(f"video_titles_sample_{seed_number}.xlsx", engine = "openpyxl")
+
+# ========================================
+# 2. GPU and model setup
 # ========================================
 
 device = 0 if torch.cuda.is_available() else -1
 print(f"Using {'GPU' if device == 0 else 'CPU'}")
 
-print("Loading model (mDeBERTa-v3)...")
 
-classifier = pipeline(
-    "zero-shot-classification",
-    model = "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
-    device = device,
-    model_kwargs ={"torch_dtype": torch.float16} if device == 0 else {}
-)
+# models_to_test = [
+#     "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+#     "Sahajtomar/German_Zeroshot_Model",
+#     "facebook/bart-large-mnli"
+# ]
 
+model_label = {
+    "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli": "mDeBERTa-v3",
+    # "sahajtomar/German_Zeroshot": "German_Zeroshot",
+    # "facebook/bart-large-mnli": "bart_large",
+    # "vicgalle/xlm-roberta-large-xnli-anli": "XLM_RoBERTa_Large"
+}
 
-# ========================================
-# 2. Loading and preparing data
-# ========================================
+for model, label in model_label.items():
+    print(f"Loading model {label}...")
 
-print("Loading JSON file...")
-df = pd.read_json("../channel_identification/large_german_channels/video_files/all_videos_50k_channels_sampled.json")
-titles = df["title"].tolist()
+    start_time = time.time()
 
-def clean_text(text):
-    return str(text).strip()
+    classifier = pipeline(
+        "zero-shot-classification",
+        model = model,
+        device = device,
+        model_kwargs ={"torch_dtype": torch.float16} if device == 0 else {}
+    )
 
-titles_clean = [clean_text(t) for t in titles]
-seed_number = 41
-random.seed(seed_number)
-
-titles_clean = random.sample(titles_clean, 100)
-df_titles = pd.DataFrame(titles_clean, columns=["title"])
-df_titles.to_excel(f"video_titles_sample_{seed_number}.xlsx", engine = "openpyxl")
 
 # ========================================
 # 3. Classification
 # ========================================
 
-results = []
-batch_size = 32
+    results = []
+    checkpoint_interval = 1000
+    last_checkpoint_at = 0
+    batch_size = 32
+    if model == "facebook/bart-large-mnli":
+        batch_size = 16
 
-print(f"Starting classification of {len(titles_clean)} titles...")
+    print(f"Starting classification of {len(titles_clean)} titles...")
 
-for i in tqdm(range(0, len(titles_clean), batch_size)):
-    batch_texts = titles_clean[i : i + batch_size]
-    batch_raw_texts = titles[i : i + batch_size]
-    first_pass_results = classifier(
-        batch_texts,
-        candidate_labels =["Politik", "Nicht-Politik"],
-        hypothesis_template = "Dieses Video behandelt das Thema {}."
-    )
+    for i in tqdm(range(0, len(titles_clean), batch_size)):
+        batch_texts = titles_clean[i : i + batch_size]
+        #batch_raw_texts = titles[i : i + batch_size]
+        first_pass_results = classifier(
+            batch_texts,
+            candidate_labels =["Politik", "Nicht-Politik"],
+            hypothesis_template = "In diesem Video geht es um {}."
+            #hypothesis_template = "Dieses Video behandelt das Thema {}."
+        )
 
-    if not isinstance(first_pass_results, list):
-        first_pass_results = [first_pass_results]
-
+        if not isinstance(first_pass_results, list):
+            first_pass_results = [first_pass_results]
 
 
 # ========================================
 # Use this block if only political/non-political must be classified
 # ========================================
 
-    for res in first_pass_results:
-        pol_index = res['labels'].index("Politik")
-        politik_confidence = res['scores'][pol_index]
+        for res in first_pass_results:
+            pol_index = res['labels'].index("Politik")
+            politik_confidence = res['scores'][pol_index]
 
-        results.append({
-            "title": res["sequence"],
-            "category": res["labels"][0],
-            "politik_confidence": politik_confidence,
-            "is_politics": 1 if res["labels"][0] == "Politik" else 0
-        })
+            results.append({
+                "title": res["sequence"],
+                #"category": res["labels"][0],
+                f"{label}_politik_confidence": politik_confidence,
+                f"{label}_is_politics": 1 if res["labels"][0] == "Politik" else 0
+            })
 
-
+        if i - last_checkpoint_at >= checkpoint_interval:
+            temp_df = pd.DataFrame(results)
+            # Wir speichern mit dem aktuellen Index im Namen, um nichts zu überschreiben
+            temp_df.to_csv(f"checkpoint_progress_{label}.csv", index=False)
+            last_checkpoint_at = i  # Update den Tracker
+            print(f"\nCheckpoint saved at title {i}.")
 # ========================================
 # Block is only needed when leaning must be classified
 # ========================================
@@ -127,10 +163,15 @@ for i in tqdm(range(0, len(titles_clean), batch_size)):
     #         "confidence": top_score,
     #         "orientation": orientation
     #     })
+    duration = time.time() - start_time
+    print(f"Classification using {label} took {duration:.2f} seconds to run.")
 
-output_df = pd.DataFrame(results)
-output_df.to_json(f"classified_videos_{seed_number}.json", orient = "records", indent = 4, force_ascii= False)
-print("Done. Results saved.")
+    output_df = pd.DataFrame(results)
+    df = pd.merge(df, output_df, on ="title")
+    #output_df.to_json(f"classified_videos_{seed_number}.json", orient = "records", indent = 4, force_ascii= False)
+    print(f"Results for model {model} saved.")
+
+df.to_csv(f"results_all_models_{seed_number}.csv", index = False)
 
 
 
