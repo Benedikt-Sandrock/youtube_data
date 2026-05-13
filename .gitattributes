@@ -9,3 +9,4 @@ political_youtube/JSON[[:space:]]Files/ident_1803/large_german_channels/video_fi
 political_youtube/analysis/comment_analysis/comment_data.csv filter=lfs diff=lfs merge=lfs -text
 political_youtube/analysis/comment_analysis/complete_dataset.csv filter=lfs diff=lfs merge=lfs -text
 political_youtube/Transcript[[:space:]]files/transcripts_conflict_over_time.csv filter=lfs diff=lfs merge=lfs -text
+political_youtube/Transcript[[:space:]]files/transcripts_conflict_over_time_sampled.csv filter=lfs diff=lfs merge=lfs -text
