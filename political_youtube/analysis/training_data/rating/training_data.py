@@ -54,25 +54,30 @@ extreme_channels = ["UCT0wo1uc6G3UTuM_MiacA9g", "UCXJBRgiZRZvfilIGQ4wN5CQ", "UCB
                     "UCw-SjGVT0HK7czJkLgdv3Fw", "UCUuab1dctZzN5ZmRmQnTzkg", "UChkELlk5GBaUCVx8-94IK_Q",
                     "UCbanHTRuGv2Fi7flpO735yw", "UCgvFsn6bRKqND1cW3HpzDrA","UCAsMARoXqla-WJpclxZjABg",
                     "UC1RJJZSO2GYBrPQuiLUp1dA", "UCK78LteBgoyE1XlSwBZWd0A", "UCICWTMc7Jni_u5ORVXBOnLQ"]
-with open("../../JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json", "r", encoding ="utf-8") as f:
+with open("../../../conflict_over_time/classification/sampled_per_channel.json", "r", encoding ="utf-8") as f:
     data = json.load(f)
-
 random.seed(42)
-channel_vids = defaultdict(list)
-for v in data:
-    c_id = v["channel_id"]
-    v_id = v["video_id"]
-    channel_vids[c_id].append(v_id)
+# channel_vids = defaultdict(list)
+# for v in data:
+#     c_id = v["channel_id"]
+#     v_id = v["video_id"]
+#     channel_vids[c_id].append(v_id)
+#
+# print(channel_vids)
+#
+# video_list = []
+# for c_id, video_ids in channel_vids.items():
+#     video = random.choice(video_ids)
+#     video_list.append(video)
+#
+# print(video_list)
+video_ids = [c["video_id"] for c in data ]
+video_list = random.sample(video_ids,50)
 
-video_list = []
-for c_id, video_ids in channel_vids.items():
-    video = random.choice(video_ids)
-    video_list.append(video)
 
-print(video_list)
-
-export_file = "training_data.csv"
-transcript_files = ["../Transcript files/political_yt_transcripts.csv"]
+export_file = "training_data_sample_vids.csv"
+transcript_files = ["../../../Transcript files/transcripts_conflict_over_time_sampled.csv"]
 
 downloaded_transcripts = collect_downloaded_transcripts(transcript_files, video_list)
+print(len(downloaded_transcripts))
 downloaded_transcripts.to_csv(export_file, index = False)
