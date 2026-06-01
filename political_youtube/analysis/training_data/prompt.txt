@@ -8,3 +8,15 @@ Bewerte nur die Aussagen des Urhebers des Videos, keine Sequenzen aus anderen Vi
 Erläutere dein Ergebnis und verweise auf explizite Aussagen in dem Transkript.
 
 Hier ist das Transkript:
+
+
+
+You will be provided with a transcript of a German YouTube video.
+Score the text along three dimensions on a scale of 1 to 10:
+1. Sociopolitical: 1 (extremely left) - 10 (extremely right)
+2. Establishment: 1 (pro-establishment) - 10 (anti-establishment)
+3. Economic policy: 1 (extremely left) - 10 (extremely right)
+If the text does not have sufficient content to evaluate a particular dimension, set the score to -1.
+Explain your answer.
+Here is the transcript:
+

@@ -16,17 +16,19 @@ client = genai.Client(api_key = api_key_gem)
 
 def analyze_transcript(video_id, transcript):
     prompt = f"""
-    Bewerte die politische Ideologie des Videos (Video ID = {video_id}) auf einer Skala von 1 (linksaußen) bis 5 (rechtsaußen).
-    Achte dabei auf die Absicht, mit der der Urheber des Videos spricht. Achte auf Satire und Ironie.
-    Bewerte nur die Aussagen des Urhebers des Videos, keine Sequenzen aus anderen Videos, die er einblendet, oder andere Quellen, die er zitiert.
+    You will be provided with a transcript of a YouTube video.
+    Where does this text stand on the ‘left’ to ‘right’ wing scale in terms of political ideology? 
+    Provide your response as a score between 0 and 100 where 0 means ‘Extremely left’ and 100 means ‘Extremely right’.
+    Ideology is here defined in the context of the German political system. 
+    If the text does not have political content, set the score to -1. 
+    You will only respond with a JSON object with the following structure:
     
-    Gib die Antwort streng in folgender Struktur aus:
     {{
       "video_id": "{video_id}",
       "ideology_score": Integer
     }}
     
-    Hier ist das Transkript: {transcript}
+    Here is the transcript: {transcript}
     """
 
     try:
@@ -57,6 +59,6 @@ for index, row in df.iterrows():
     time.sleep(5)
 
     output_df = pd.DataFrame(all_results)
-    output_df.to_csv("transcripts_ideology.csv", index = False)
+    output_df.to_csv("transcripts_ideology_en_.csv", index = False)
 
 
