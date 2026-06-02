@@ -14,3 +14,10 @@ __pycache__
 /political_youtube/JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json
 /political_youtube/conflict_over_time/channel_identification/keyword/
 /political_youtube/analysis/sample_description/graphs/
+/political_youtube/analysis/descriptives_videos/videos_after_treatment.csv
+/political_youtube/analysis/descriptives_videos/videos_nov22.csv
+/political_youtube/analysis/descriptives_videos/filtered.csv
+/political_youtube/analysis/descriptives_videos/all_videos.csv
+/political_youtube/analysis/descriptives_videos/all_videos_metrics.csv
+/political_youtube/analysis/descriptives_videos/df_lenght.csv
+/political_youtube/analysis/descriptives_videos/complete_metadata.json
