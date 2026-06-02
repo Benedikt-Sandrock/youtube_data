@@ -73,7 +73,7 @@ random.seed(42)
 # print(video_list)
 video_ids = [c["video_id"] for c in data ]
 video_list = random.sample(video_ids,50)
-
+print(video_list)
 
 export_file = "training_data_sample_vids.csv"
 transcript_files = ["../../../Transcript files/transcripts_conflict_over_time_sampled.csv"]
