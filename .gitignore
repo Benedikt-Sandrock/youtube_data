@@ -21,3 +21,10 @@ __pycache__
 /political_youtube/analysis/descriptives_videos/all_videos_metrics.csv
 /political_youtube/analysis/descriptives_videos/df_lenght.csv
 /political_youtube/analysis/descriptives_videos/complete_metadata.json
+/political_youtube/conflict_over_time/classification/model_performance_41.xlsx
+/political_youtube/conflict_over_time/classification/model_performance_42.xlsx
+/political_youtube/conflict_over_time/classification/results_all_models_41.xlsx
+/political_youtube/conflict_over_time/classification/results_all_models_42.xlsx
+/political_youtube/conflict_over_time/classification/results_all_models_41.csv
+/political_youtube/conflict_over_time/classification/sampled_per_channel.csv
+/political_youtube/conflict_over_time/classification/sampled_videos_classified.csv
