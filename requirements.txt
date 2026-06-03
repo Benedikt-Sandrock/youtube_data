@@ -12,6 +12,6 @@ matplotlib-venn
 numpy
 transformers
 sklearn
-google.genai
+google-genai
 
 #torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
