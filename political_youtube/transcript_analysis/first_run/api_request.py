@@ -3,31 +3,68 @@ import os
 import json
 import pandas as pd
 from google import genai
-
+from google.cloud import storage
 from google.genai import types
-
-"""
-1. Defines function to convert transcript file to the needed jsonl file for Gemini
-2. Defines function
-3. Defines function
-4. Starts the api request
-"""
 
 
 load_dotenv()
+PROJECT_ID = os.getenv("GCP_PROJECT_ID")
+LOCATION = "us-central1"
+BUCKET_NAME = os.getenv("GCP_BUCKET_NAME")
 API_KEY = os.getenv("API_KEY_GEMINI")
 
-
-client = genai.Client(api_key = API_KEY)
+client = genai.Client(
+    vertexai = True,
+    project=PROJECT_ID,
+    location = LOCATION
+)
 
 MODEL_NAME = "gemini-2.5-flash"  #cheapest model
-INPUT_CSV = "../../Transcript files/transcripts_conflict_over_time_sampled.csv"
+INPUT_CSV = "test_transcripts.csv"
+#INPUT_CSV = "../../Transcript files/transcripts_conflict_over_time_sampled.csv"
 BATCH_INPUT_JSONL = "gemini_batch_input.jsonl"
-OUTPUT_EXCEL = "classification_results.xlsx"
 
 
 SYSTEM_PROMPT = """
-!!! INSERT PROMPT !!!
+Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
+
+1. VIDEO-TYP:
+Bestimme, ob es sich um ein Video handelt, in dem der Creator aktiv auf ein anderes Video oder einen Medienbeitrag reagiert (Reaction-Video). Achte auf Indikatoren im Text wie "Wir schauen uns an", "Ich pausiere mal" oder direkte Kommentare zu eingespielten Fremdinhalten. Erlaubte Werte: "Reaction" oder "Standard".
+
+2. SOZIO-KULTURELLE IDEOLOGIE (Skala 0 bis 10):
+Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
+- Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
+- Wenn das Video vollständig unpolitisch/ideologiefrei ist (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0.
+
+!!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
+Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+- Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+- Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte:
+  -> LINKS (0.0-4.9): Fokus auf soziale Gerechtigkeit, staatliche Regulierung, Umverteilung, Antikapitalismus, progressive Gesellschaftspolitik, Klimaschutz durch Ge- und Verbote.
+  -> RECHTS (5.1-10.0): Fokus auf individuelle Freiheit (Wirtschaftsliberalismus), Marktmechanismen, private Sachwerte/Selbstvorsorge, traditionelle Werte, Nationalstaat, explizite Ablehnung staatlicher Eingriffe.
+
+3. POPULISMUS (Skala 0 bis 10):
+Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" (ideationeller Ansatz) auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
+- Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
+- Wenn das Video vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
+- Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+
+4. EVALUATIONS-REGEL:
+Bewerte ausschließlich Aussagen des Creators/Kanalinhabers. Ignoriere Aussagen von gezeigten Dritten (z. B. in Reaction-Ausschnitten oder Interviewgästen), es sei denn, der Creator stimmt ihnen explizit und nachweisbar zu.
+
+5. BEGRÜNDUNGEN (Maximal 2 Sätze pro Begründung):
+Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
+
+Ausgabeformat:
+Gib ausschließlich ein valides JSON-Objekt zurück. Kein Markdown-Codeblock, kein Text davor oder danach. 
+Die Struktur MUSS exakt so aussehen:
+{
+  "video_type": "Reaction",
+  "ideology_score": 5.0,
+  "ideology_reason": "Kurzer Grund.",
+  "populism_score": 0.0,
+  "populism_reason": "Kurzer Grund."
+}
 """
 
 
@@ -49,31 +86,22 @@ def csv_to_jsonl(csv_path, jsonl_path):
 
             api_request = {
                 "custom_id": v_id,
-                "model": MODEL_NAME,
                 "request": {
-                    "contents": [{"parts": [{"text": f"Hier ist das Transkript:\n\n{transcript}"}]}],
-                    "config": {
-                        "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-                        "response_mime_type": "application/json",
-                        "response_schema": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "video_type": {"type": "STRING", "enum": ["Reaction", "Standard"]},
-                                "ideology_score": {"type": "NUMBER"},
-                                "ideology_reason": {"type": "STRING", "description": "MUSS exakt 1 oder maximal 2 kurze, präzise Sätze lang sein."},
-                                "populism_score": {"type": "NUMBER"},
-                                "populism_reason": {"type": "STRING", "description": "MUSS exakt 1 oder maximal 2 kurze, präzise Sätze lang sein."}
-                            },
-                            "required": ["video_type", "ideology_score", "ideology_reason", "populism_score", "populism_reason"]
-                        },
-                        "temperature": 0.0
+                    "contents": [
+                        {
+                            "role": "user",
+                            "parts": [{"text": f"{SYSTEM_PROMPT}\n\nHier ist das Transkript:\n\n{transcript}"}]}],
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "temperature": 0
                     }
                 }
             }
 
             #wirte as row in jsonl file
             f.write(json.dumps(api_request, ensure_ascii=False) + "\n")
-        print(f"File {jsonl_path} was successfully created.")
+    print(f"File {jsonl_path} was successfully created.")
+    return True
 
 
 # ==================================
@@ -82,27 +110,39 @@ def csv_to_jsonl(csv_path, jsonl_path):
 
 def start_batch_job(jsonl_path):
     print("Uploading JSONL-file to Google...")
-    uploaded_file = client.files.upload(file = jsonl_path)
+    #uploaded_file = client.files.upload(file = jsonl_path)
+    storage_client = storage.Client(project = PROJECT_ID)
+    bucket = storage_client.bucket(BUCKET_NAME)
+
+    blob_name = f"batch_inputs/{jsonl_path}"
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename(jsonl_path)
+
+    gcs_uri = f"gs://{BUCKET_NAME}/{blob_name}"
+    print("File successfully uploaded.")
 
     print("Starting batch job...")
     job = client.batches.create(
         model = MODEL_NAME,
-        src = uploaded_file.uri,
+        src = gcs_uri,
     )
 
     job_id = job.name
     print(f"Job successfully transmitted. Job-ID: {job_id}")
-
-
-
-
-
-
-
-
-
+    return job_id
 
 
 # ==================================
-# 4. Main program
+# 3. Executing the request
 # ==================================
+
+if __name__ == "__main__":
+    try:
+        csv_to_jsonl(INPUT_CSV, BATCH_INPUT_JSONL)
+        job_id = start_batch_job(BATCH_INPUT_JSONL)
+
+        with open("job_id.txt", "w") as f:
+            f.write(job_id)
+
+    except Exception as e:
+        print(f"Error: {e}")
