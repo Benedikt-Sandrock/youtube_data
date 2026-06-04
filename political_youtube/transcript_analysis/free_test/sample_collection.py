@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv("../../Transcript files/transcripts_conflict_over_time_sampled.csv")
+df = pd.read_csv("../../Transcript files/conflict_over_time/transcripts_conflict_over_time_sampled.csv")
 print(len(df))
 
 df2 = pd.read_csv("../conflict_over_time/classification/sampled_per_channel.csv")

@@ -19,13 +19,14 @@ client = genai.Client(
     location = LOCATION
 )
 
-MODEL_NAME = "gemini-2.5-flash"  #cheapest model
 INPUT_CSV = "test_transcripts.csv"
 #INPUT_CSV = "../../Transcript files/transcripts_conflict_over_time_sampled.csv"
 BATCH_INPUT_JSONL = "gemini_batch_input.jsonl"
 
+gemini_25_flash = "gemini-2.5-flash"  #cheapest model
+gemini_25_flash_lite = "gemini-2.5-flash-lite"
 
-SYSTEM_PROMPT = """
+PROMPT_1 = """
 Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
 
 1. VIDEO-TYP:
@@ -66,6 +67,13 @@ Die Struktur MUSS exakt so aussehen:
   "populism_reason": "Kurzer Grund."
 }
 """
+
+
+### Choose the needed prompt ###
+
+SYSTEM_PROMPT = PROMPT_1
+MODEL_NAME = gemini_25_flash_lite
+
 
 
 # ==================================
@@ -138,11 +146,33 @@ def start_batch_job(jsonl_path):
 
 if __name__ == "__main__":
     try:
+        answer = input("Is the previous request already done?"
+                       "\nOnly start if the last request is already downloaded."
+                       "\nContinue? [Y/n]")
+        if not answer.lower() == "y":
+            print("Execution stopped. Download old results first.")
+            exit()
+
         csv_to_jsonl(INPUT_CSV, BATCH_INPUT_JSONL)
         job_id = start_batch_job(BATCH_INPUT_JSONL)
 
+        if SYSTEM_PROMPT == PROMPT_1:
+            prompt_number = "1"
+        else:
+            prompt_number = "0"
+
+
+        if MODEL_NAME == gemini_25_flash:
+            model_number = "1"
+        elif MODEL_NAME == gemini_25_flash_lite:
+            model_number = "2"
+        else:
+            model_number = "0"
+
+
         with open("job_id.txt", "w") as f:
-            f.write(job_id)
+            f.write(f"{job_id}\n{prompt_number}\n{model_number}")
+
 
     except Exception as e:
         print(f"Error: {e}")

@@ -601,7 +601,7 @@ print(f"Sampled video_files: {len(sampled_videos)}")
 """
 print("\nGetting already downloaded transcripts...")
 # !!! Specify export file to also be loaded in order not to lose any files !!!
-export_file = "../../Transcript files/political_yt_transcripts_new.csv"
+export_file = "../../Transcript files/polyt/political_yt_transcripts_new.csv"
 # create list of video_files from dict
 keyword_file = f"large_german_channels/video_files/all_videos_50k_channels_keywords.json"
 sampled_file = f"large_german_channels/video_files/all_videos_50k_channels_sampled.json"

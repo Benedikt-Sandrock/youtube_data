@@ -5,7 +5,7 @@ import pandas as pd
 import json
 from google.cloud import storage
 
-OUTPUT_EXCEL = "classification_results.xlsx"
+OUTPUT_EXCEL = "classification_results"
 
 load_dotenv()
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -17,6 +17,7 @@ client = genai.Client(
     location=LOCATION
 )
 
+storage_client = storage.Client(project=PROJECT_ID)
 
 def saving_results(output_uri, excel_path):
     print("Downloading and formatting results from Cloud Storage...")
@@ -25,13 +26,12 @@ def saving_results(output_uri, excel_path):
     bucket_name = uri_parts[0]
     blob_name = uri_parts[1]
 
-    storage_client = storage.Client(project=PROJECT_ID)
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
     content = blob.download_as_text()
 
     results = []
-    # enumerate gibt uns einen Zähler (i) für die Zeilen mit
+    # use of enumerate to get a counter for lines
     for i, line in enumerate(content.strip().split("\n")):
         if not line:
             continue
@@ -39,70 +39,75 @@ def saving_results(output_uri, excel_path):
         try:
             data = json.loads(line)
 
-            # 1. KORREKTUR: Die Video-ID liegt direkt auf der Hauptebene!
-            v_id = data.get("custom_id", "Unbekannt")
+            v_id = data.get("custom_id", "unknown")
 
-            # --- DEBUG-INFO FÜR DAS ERSTE VIDEO ---
+            # --- DEBUG INFO (ONLY FOR THE FIRST VIDEO) ---
             if i == 0:
-                print(f"\n--- DEBUG INFO FÜR VIDEO: {v_id} ---")
-                print("Hauptebenen im JSON:", list(data.keys()))
+                print(f"\n--- DEBUG INFO FOR VIDEO: {v_id} ---")
+                print("Main levels in JSON:", list(data.keys()))
                 if "response" in data and isinstance(data["response"], dict):
-                    print("Ebenen unter 'response':", list(data["response"].keys()))
+                    print("Levels below 'response':", list(data["response"].keys()))
                 print("--------------------------------------\n")
 
             if "error" in data:
-                print(f"Fehler bei Video {v_id}: {data['error']}")
+                print(f"Error for video {v_id}: {data['error']}")
                 results.append({"video_id": v_id, "error": str(data["error"])})
                 continue
 
-            # 2. Die Modellantwort auslesen (mit Absicherung)
+            # Reading the model answer
             try:
                 response_obj = data.get("response", {})
 
-                # Möglichkeit A: Normales Format
+                # Case A: Normal format
                 if "candidates" in response_obj:
+                    print("Normal format detected.")
                     response_text = response_obj["candidates"][0]["content"]["parts"][0]["text"]
 
-                # Möglichkeit B: Verschachteltes Format von Vertex AI
+                # Case B: Nested format by Vertex AI
                 elif "generateContentResponse" in response_obj:
+                    print("Nested format by Vertex AI detected")
                     response_text = response_obj["generateContentResponse"]["candidates"][0]["content"]["parts"][0][
                         "text"]
 
-                # Möglichkeit C: Wahrscheinlich ein Safety-Filter-Block!
+                # Case C: Safety-Filter-Block
                 else:
+                    # Print everything we get from Google
+                    print(f"DEBUG-INFO for {v_id}: Complete content of 'data': {json.dumps(data, indent=2)}")
 
-                    # HIER DRUCKEN WIR ALLES AUS, WAS WIR VON GOOGLE BEKOMMEN
-                    print(f"DEBUG-INFO für {v_id}: Kompletter Inhalt von 'data': {json.dumps(data, indent=2)}")
-
-                    results.append({"video_id": v_id, "error": "Keine Antwort erhalten (ggf. Safety Filter)"})
+                    results.append({"video_id": v_id, "error": "No answer (Safety Filter)"})
                     continue
 
                 parsed_response = json.loads(response_text)
 
             except (KeyError, IndexError, json.JSONDecodeError) as e:
-                print(f"Konnte Antwort für {v_id} nicht verarbeiten: {e}")
-                parsed_response = {"error": "Formatierungsfehler"}
+                print(f"Couldn't process answer for {v_id}: {e}")
+                parsed_response = {"error": "Formatting error"}
 
             row_data = {"video_id": v_id}
             row_data.update(parsed_response)
             results.append(row_data)
 
         except Exception as e:
-            print(f"Allgemeiner Fehler beim Lesen einer Zeile: {e}")
+            print(f"Error when reading a row: {e}")
 
-    print("Speichere Daten in Excel-Datei...")
+    print("Saving data in excel file...")
     df = pd.DataFrame(results)
     df.to_excel(excel_path, index=False)
-    print(f"Erfolg! Die Ergebnisse wurden gespeichert unter: {excel_path}")
+    print(f"Success! Results saved under: {excel_path}")
 
 
 
 if __name__ == "__main__":
 
     with open("job_id.txt", "r") as f:
-        job_id = f.read().strip()
+        lines = f.read().splitlines()
+
+    job_id = lines[0]
+    prompt_number = lines[1]
+    model_number = lines[2]
 
     status_job = client.batches.get(name = job_id)
+    OUTPUT_EXCEL = f"{OUTPUT_EXCEL}_{prompt_number}_{model_number}.xlsx"
 
     current_state = status_job.state.name if hasattr(status_job.state, "name") else str(status_job.state)
     print(f"Current status: {current_state}")
@@ -112,11 +117,11 @@ if __name__ == "__main__":
 
         if hasattr(status_job, "error") and status_job.error:
             print(f"Original error: {status_job.error}")
+
     elif current_state == "JOB_STATE_SUCCEEDED":
         print("Analysis ready. Downloading results.")
 
         output_folder = status_job.output_info.gcs_output_directory
-        storage_client = storage.Client(project = PROJECT_ID)
 
         path_parts = output_folder.replace("gs://", "").split("/", 1)
         bucket_name = path_parts[0]
@@ -132,16 +137,18 @@ if __name__ == "__main__":
                 break
 
         if output_url:
-            answer = input(f"Is this the correct path?"
-                           f"\n'{OUTPUT_EXCEL}'"
-                           f"\nMake sure that no file is overwritten."
-                           f"\nContinue? [Y/n]")
-            if answer.lower() == "y":
+            if os.path.exists(OUTPUT_EXCEL):
+                answer = input(f"Warning: File in output path ('{OUTPUT_EXCEL}') already exsits."
+                               f"\nMake sure that no important file is overwritten."
+                               f"\nContinue? [Y/n]")
+                if answer.lower() == "y":
+                    saving_results(output_url, OUTPUT_EXCEL)
+                    print("Output saved to excel.")
+                else:
+                    print("Stopping Script. No file is saved. Make sure to use the right output path.")
+            else:
                 saving_results(output_url, OUTPUT_EXCEL)
                 print("Output saved to excel.")
-            else:
-                print("No file is saved. Make sure to use the right output path.")
-
 
 
     else:

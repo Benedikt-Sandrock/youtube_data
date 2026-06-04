@@ -16,8 +16,8 @@ stop_word = "blocking"
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 video_list = f"../conflict_over_time/classification/sampled_per_channel.json"
-file_path = f"../Transcript files/transcripts_conflict_over_time_sampled.csv"
-file_path_backup = f"../Transcript files/transcripts_conflict_over_time_sampled_backup.csv"
+file_path = f"../Transcript files/transcripts_conflict_over_time_all_controls.csv"
+file_path_backup = f"../Transcript files/transcripts_conflict_over_time_all_controls_backup.csv"
 
 os.makedirs(("../Transcript files"), exist_ok=True)
 
