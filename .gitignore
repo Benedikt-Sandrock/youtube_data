@@ -9,8 +9,8 @@ __pycache__
 /political_youtube/analysis/comment_analysis/comment_data_backup.csv
 /political_youtube/JSON Files/video_files/videos_total.json
 /political_youtube/JSON Files/video_files/
-/political_youtube/Transcript files/political_yt_transcripts_backup.csv
-/political_youtube/Transcript files/political_yt_transcripts_sample_vids_backup.csv
+/political_youtube/Transcript files/polyt/political_yt_transcripts_backup.csv
+/political_youtube/Transcript files/polyt/political_yt_transcripts_sample_vids_backup.csv
 /political_youtube/JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json
 /political_youtube/conflict_over_time/channel_identification/keyword/
 /political_youtube/analysis/sample_description/graphs/
