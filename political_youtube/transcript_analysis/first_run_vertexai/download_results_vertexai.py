@@ -5,7 +5,7 @@ import pandas as pd
 import json
 from google.cloud import storage
 
-OUTPUT_EXCEL = "classification_results"
+OUTPUT_EXCEL = "downloaded_results/classification_results"
 
 load_dotenv()
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -60,12 +60,10 @@ def saving_results(output_uri, excel_path):
 
                 # Case A: Normal format
                 if "candidates" in response_obj:
-                    print("Normal format detected.")
                     response_text = response_obj["candidates"][0]["content"]["parts"][0]["text"]
 
                 # Case B: Nested format by Vertex AI
                 elif "generateContentResponse" in response_obj:
-                    print("Nested format by Vertex AI detected")
                     response_text = response_obj["generateContentResponse"]["candidates"][0]["content"]["parts"][0][
                         "text"]
 
