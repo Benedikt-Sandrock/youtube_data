@@ -416,6 +416,7 @@ result = collect_unique_channel_ids("keyword", ["all_channel_ids_discovered.json
 print(f"Number of unique IDs found: {len(result)}")
 #print(result)
 
+os.makedirs("all_channels")
 with open("all_channels/complete_channel_list.json", "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False)
 
