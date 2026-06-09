@@ -15,9 +15,9 @@ stop_word = "blocking"
 # Muss konfiguriert werden
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
-video_list = f"../conflict_over_time/classification/sampled_per_channel.json"
-file_path = f"../Transcript files/transcripts_conflict_over_time_all_controls.csv"
-file_path_backup = f"../Transcript files/transcripts_conflict_over_time_all_controls_backup.csv"
+video_list = f"../conflict_over_time/channel_identification/large_german_channels/video_files/all_videos_50k_channels.json"
+file_path = f"../Transcript files/all_transcripts.csv"
+file_path_backup = f"../Transcript files/all_transcripts_backup.csv"
 
 os.makedirs(("../Transcript files"), exist_ok=True)
 
@@ -64,7 +64,7 @@ else:
 
 daten = []
 
-batch_size = 5              # API-Batches
+batch_size = 5             # API-Batches
 save_every = 25             # Zwischenspeichern nach 25 Videos
 api_request_count = 0
 last_skipped_id = None

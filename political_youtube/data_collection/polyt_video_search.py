@@ -11,7 +11,7 @@ api_key = os.getenv("API_KEY")
 api_key_c = os.getenv("API_KEY_C")
 
 
-youtube = build('youtube', 'v3', developerKey=api_key_c)
+youtube = build('youtube', 'v3', developerKey=api_key)
 
 
 config_text = (

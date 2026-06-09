@@ -3,7 +3,7 @@
 "political_youtube/JSON[[:space:]]Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json" filter=lfs diff=lfs merge=lfs -text
 "political_youtube/conflict_over_time/channel_identification/large_german_channels/video_files/all_videos_50k_channels.json" filter=lfs diff=lfs merge=lfs -text
 
-# Erfasst alle CSV-Dateien in allen Unterordnern von "Transcript files"
+# Captures all csv files in all subfolders of "Transcript files"
 "political_youtube/Transcript[[:space:]]files/**/*.csv" filter=lfs diff=lfs merge=lfs -text
 "project_transcripts/Transcript[[:space:]]files/**/*.csv" filter=lfs diff=lfs merge=lfs -text
 
