@@ -56,7 +56,7 @@ extreme_channels = ["UCT0wo1uc6G3UTuM_MiacA9g", "UCXJBRgiZRZvfilIGQ4wN5CQ", "UCB
                     "UC1RJJZSO2GYBrPQuiLUp1dA", "UCK78LteBgoyE1XlSwBZWd0A", "UCICWTMc7Jni_u5ORVXBOnLQ"]
 with open("../../../conflict_over_time/classification/sampled_per_channel.json", "r", encoding ="utf-8") as f:
     data = json.load(f)
-random.seed(42)
+random.seed(41)
 # channel_vids = defaultdict(list)
 # for v in data:
 #     c_id = v["channel_id"]
@@ -73,11 +73,14 @@ random.seed(42)
 # print(video_list)
 video_ids = [c["video_id"] for c in data ]
 video_list = random.sample(video_ids,50)
-print(video_list)
+#print(video_list)
 
-export_file = "training_data_sample_vids.csv"
-transcript_files = ["../../../Transcript files/conflict_over_time/transcripts_conflict_over_time_sampled.csv"]
+export_file = "training_data_2_sample_vids.csv"
 
-downloaded_transcripts = collect_downloaded_transcripts(transcript_files, video_list)
-print(len(downloaded_transcripts))
-downloaded_transcripts.to_csv(export_file, index = False)
+transcript_file = "../../../Transcript files/all_transcripts.csv"
+
+df = pd.read_csv(transcript_file)
+df = df[df["video_id"].isin(video_list)]
+df = df[df["status"] == "OK"]
+print(len(df))
+df.to_csv(export_file, index = False)

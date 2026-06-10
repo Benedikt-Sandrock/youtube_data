@@ -14,6 +14,6 @@ transformers
 sklearn
 google-genai
 google-cloud-storage
-
+scipy
 
 #torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130

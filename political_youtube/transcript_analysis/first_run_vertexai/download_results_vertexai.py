@@ -4,8 +4,11 @@ from google import genai
 import pandas as pd
 import json
 from google.cloud import storage
+from api_request_vertexai import prompt_number, model_name
 
 OUTPUT_EXCEL = "downloaded_results/classification_results"
+
+id_file = f"job_id_{prompt_number}_{model_name}.txt"
 
 load_dotenv()
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -97,7 +100,14 @@ def saving_results(output_uri, excel_path):
 
 if __name__ == "__main__":
 
-    with open("job_id.txt", "r") as f:
+    print(f"ID file: '{id_file}'")
+    answer = input("ID file correct? [y/n]")
+
+    if not answer.lower() == "y":
+        print("Wrong ID file.")
+        exit()
+
+    with open(id_file, "r") as f:
         lines = f.read().splitlines()
 
     job_id = lines[0]
