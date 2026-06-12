@@ -19,7 +19,7 @@ client = genai.Client(
     location = LOCATION
 )
 
-INPUT_CSV = "test_transcripts.csv"
+INPUT_CSV = "training_data_test_compact.csv"
 #INPUT_CSV = "../../Transcript files/transcripts_conflict_over_time_sampled.csv"
 BATCH_INPUT_JSONL = "gemini_batch_input.jsonl"
 
@@ -261,73 +261,54 @@ prompts = {
     }
     """,
 
-    ### NEXT THREE PROMPTS ARE A THREE-STEP PROCESS OF RATING SUGGESTED BY CHAT-GPT
-    "GPT_1": """Du erhältst das Transkript eines deutschen YouTube-Videos.
+    # PROMPT 10 increases the threshold of rating a video as non-political
+    "PROMPT_10": """
+Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
 
-    Deine Aufgabe ist ausschließlich die Extraktion politisch relevanter Signale. Führe keine Bewertung der politischen Position oder des Populismus durch.
-    
-    WICHTIG:
-    - Beschreibe nur Aussagen des Creators.
-    - Bei Reaction-Videos dürfen Aussagen Dritter nur berücksichtigt werden, wenn der Creator ihnen ausdrücklich zustimmt, sie verteidigt oder positiv paraphrasiert.
-    - Verwende möglichst kurze Stichpunkte.
-    - Wenn etwas nicht vorkommt, schreibe "Keine erkennbaren Aussagen".
-    
-    Gib ausschließlich folgendes JSON zurück:
-    
-    {
-      "video_type": "Reaction oder Standard",
-    
-      "political_topics": [
-        "..."
-      ],
-    
-      "positive_targets": [
-        "Personen, Gruppen, Institutionen oder Ideen, die positiv dargestellt werden"
-      ],
-    
-      "negative_targets": [
-        "Personen, Gruppen, Institutionen oder Ideen, die negativ dargestellt werden"
-      ],
-    
-      "problem_descriptions": [
-        "Welche gesellschaftlichen Probleme beschreibt der Creator?"
-      ],
-    
-      "proposed_solutions": [
-        "Welche Lösungen schlägt der Creator vor?"
-      ],
-    
-      "economic_signals": [
-        "Marktwirtschaft, Umverteilung, Sozialstaat, Regulierung, Steuern usw."
-      ],
-    
-      "cultural_signals": [
-        "Migration, Identität, Diversität, Tradition, Familie, Nation usw."
-      ],
-    
-      "state_signals": [
-        "Aussagen über Staat, Behörden, Regulierung oder Eingriffe"
-      ],
-    
-      "media_signals": [
-        "Aussagen über Medien, Journalisten oder Berichterstattung"
-      ],
-    
-      "elite_signals": [
-        "Aussagen über politische Eliten, Establishment oder Machtgruppen"
-      ],
-    
-      "institution_trust": [
-        "Vertrauen oder Misstrauen gegenüber Institutionen"
-      ]
-    }"""
+1. VIDEO-TYP:
+Bestimme, ob es sich um ein Video handelt, in dem der Creator aktiv auf ein anderes Video oder einen Medienbeitrag reagiert (Reaction-Video). Achte auf Indikatoren im Text wie "Wir schauen uns an", "Ich pausiere mal" oder direkte Kommentare zu eingespielten Fremdinhalten. Erlaubte Werte: "Reaction" oder "Standard".
 
-    #"GPT_2":
+2. SOZIO-KULTURELLE IDEOLOGIE (Skala 0 bis 10):
+Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
+- Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
+- Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+
+!!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
+Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+- Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+- Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte:
+  -> LINKS (0.0-4.9): Fokus auf soziale Gerechtigkeit, staatliche Regulierung, Umverteilung, Antikapitalismus, progressive Gesellschaftspolitik, Klimaschutz durch Ge- und Verbote.
+  -> RECHTS (5.1-10.0): Fokus auf individuelle Freiheit (Wirtschaftsliberalismus), Marktmechanismen, private Sachwerte/Selbstvorsorge, traditionelle Werte, Nationalstaat, explizite Ablehnung staatlicher Eingriffe.
+
+3. POPULISMUS (Skala 0 bis 10):
+Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" (ideationeller Ansatz) auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
+- Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
+- Wenn das Video vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
+- Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+
+4. EVALUATIONS-REGEL:
+Bewerte ausschließlich Aussagen des Creators/Kanalinhabers. Ignoriere Aussagen von gezeigten Dritten (z. B. in Reaction-Ausschnitten oder Interviewgästen), es sei denn, der Creator stimmt ihnen explizit und nachweisbar zu.
+
+5. BEGRÜNDUNGEN (Maximal 2 Sätze pro Begründung):
+Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
+
+Ausgabeformat:
+Gib ausschließlich ein valides JSON-Objekt zurück. Kein Markdown-Codeblock, kein Text davor oder danach. 
+Die Struktur MUSS exakt so aussehen:
+{
+  "video_type": "Reaction",
+  "ideology_score": 5.0,
+  "ideology_reason": "Kurzer Grund.",
+  "populism_score": 0.0,
+  "populism_reason": "Kurzer Grund."
+}
+""",
+
 }
 
 ### Choose prompt and model ###
 
-PROMPT_KEY = "GPT_1"
+PROMPT_KEY = "PROMPT_10"
 SYSTEM_PROMPT = prompts[PROMPT_KEY]
 
 MODEL_NAME = gemini_25_flash

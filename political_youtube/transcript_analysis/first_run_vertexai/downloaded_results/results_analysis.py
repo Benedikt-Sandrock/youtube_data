@@ -7,7 +7,11 @@ from scipy.stats import spearmanr
 
 df = pd.read_excel("classification_results_9_g25_f.xlsx")
 df = df[["video_id", "ideology_score", "populism_score"]]
-df.to_excel("classification_results_9_g25_f.xlsx")
+df.to_excel("classification_results_9_g25_f.xlsx", index = False)
+
+df = pd.read_excel("classification_results_8_g25_f.xlsx")
+df = df[["video_id", "ideology_score"]]
+df.to_excel("classification_results_8_g25_f.xlsx", index = False)
 
 main_file = "complete_classification.xlsx"
 output_path = "all_results_merged.xlsx"
@@ -19,7 +23,9 @@ pattern_configuration = {
     ),
     "ideology_manual_vs_all_models": (
         "ideology_score_manual",
-        lambda col: ("_1_" in col or "_3_" in col or "_4_" in col or "_9_" in col) and "ideology_score" in col
+        lambda col: ("_1_" in col or "_3_" in col or "_4_" in col or "_9_" in col
+                    or "_8_" in col or "_10_" in col)
+                    and "ideology_score" in col
     ),
     "ideology_all_statements_vs_all_models": (
         "ideology_score_all_statements",
@@ -27,7 +33,8 @@ pattern_configuration = {
     ),
     "populism_manual_vs_all_models": (
         "populism_score_manual",
-        lambda col: ("_1_" in col or "_3_" in col or "_5_" in col or "_9_" in col) and "populism_score" in col
+        lambda col: ("_1_" in col or "_3_" in col or "_5_" in col or "_9_" in col or "_10_" in col)
+                    and "populism_score" in col
     ),
     "populism_all_statements_vs_all_models": (
         "populism_score_all_statements",
@@ -113,6 +120,8 @@ df_political_results = pd.DataFrame(political_results)
 
 all_pattern_results = []
 
+large_differences = []
+
 for pattern_name, (gold_col, filter_function) in pattern_configuration.items():
     if gold_col not in df.columns:
         print(f"Column {gold_col} not in df.")
@@ -135,6 +144,12 @@ for pattern_name, (gold_col, filter_function) in pattern_configuration.items():
         filtered = df.loc[mask]
         y_true = filtered[gold_col]
         y_pred = filtered[col]
+
+
+        filtered[f"error_{prompt_number}_{model_name}"] = abs(y_true - y_pred)
+        filtered = filtered.sort_values(by= f"error_{prompt_number}_{model_name}", ascending =False)
+        print(filtered[["video_id", gold_col, col, f"error_{prompt_number}_{model_name}"]].head())
+        
 
         mae = mean_absolute_error(y_true, y_pred)
         rmse = root_mean_squared_error(y_true, y_pred)

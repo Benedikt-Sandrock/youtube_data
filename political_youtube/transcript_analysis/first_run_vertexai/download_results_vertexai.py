@@ -80,9 +80,27 @@ def saving_results(output_uri, excel_path):
 
                 parsed_response = json.loads(response_text)
 
-            except (KeyError, IndexError, json.JSONDecodeError) as e:
+            except json.JSONDecodeError as e:
+                from json_repair import repair_json
+
+                try:
+                    repaired_string = repair_json(response_text)
+                    parsed_response = json.loads(repaired_string)
+                    print(f"Successfully repaired JSON for video {v_id} using json_repair.")
+                except json.JSONDecodeError as inner_e:
+                    print(f"CRITICAL: Couldn't process answer for {v_id} even after robust repair: {inner_e}")
+                    parsed_response = {"error": "Formatting error", "raw_text": response_text}
+
+            except (KeyError, IndexError) as e:
                 print(f"Couldn't process answer for {v_id}: {e}")
                 parsed_response = {"error": "Formatting error"}
+
+                print(f"\n--- DEBUG INFO FOR VIDEO: {v_id} ---")
+                print("Main levels in JSON:", list(data.keys()))
+                if "response" in data and isinstance(data["response"], dict):
+                    print("Levels below 'response':", list(data["response"].keys()))
+                print(f"Raw Model Response text:\n{response_text}")
+                print("--------------------------------------\n")
 
             row_data = {"video_id": v_id}
             row_data.update(parsed_response)

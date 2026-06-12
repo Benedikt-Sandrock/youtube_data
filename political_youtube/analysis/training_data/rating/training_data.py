@@ -4,6 +4,7 @@ import random
 import os
 from collections import defaultdict
 
+
 def collect_downloaded_transcripts(list_of_files: list[str], list_of_ids: list[str]):
     """
     Takes a list of files and a list of IDs as Input. Searches existing transcript files for transcripts
@@ -54,6 +55,15 @@ extreme_channels = ["UCT0wo1uc6G3UTuM_MiacA9g", "UCXJBRgiZRZvfilIGQ4wN5CQ", "UCB
                     "UCw-SjGVT0HK7czJkLgdv3Fw", "UCUuab1dctZzN5ZmRmQnTzkg", "UChkELlk5GBaUCVx8-94IK_Q",
                     "UCbanHTRuGv2Fi7flpO735yw", "UCgvFsn6bRKqND1cW3HpzDrA","UCAsMARoXqla-WJpclxZjABg",
                     "UC1RJJZSO2GYBrPQuiLUp1dA", "UCK78LteBgoyE1XlSwBZWd0A", "UCICWTMc7Jni_u5ORVXBOnLQ"]
+
+channels_to_test = [
+    "UCjSkyrjqPeMwubZU0CnScXA", # SchrangTV
+    "UCE7b8qctaEGmST38-sfdOsA", # NachDenkSeiten
+    "UCQGqiGhMjc_p4lZEhSTb12g", # NIUS
+    "UCs-G8CXCziErSY1459e7U8A", # Gegenpol
+    "UC5NOEUbkLheQcaaRldYW5GA", # tagesschau
+]
+compact_id = "UCgvFsn6bRKqND1cW3HpzDrA"
 with open("../../../conflict_over_time/classification/sampled_per_channel.json", "r", encoding ="utf-8") as f:
     data = json.load(f)
 random.seed(41)
@@ -73,14 +83,18 @@ random.seed(41)
 # print(video_list)
 video_ids = [c["video_id"] for c in data ]
 video_list = random.sample(video_ids,50)
+
+video_ids_test_channels = [c["video_id"] for c in data if c["channel_id"] == compact_id]
+
 #print(video_list)
 
-export_file = "training_data_2_sample_vids.csv"
+export_file = "training_data_test_compact.csv"
 
 transcript_file = "../../../Transcript files/all_transcripts.csv"
 
 df = pd.read_csv(transcript_file)
-df = df[df["video_id"].isin(video_list)]
+df = df[df["video_id"].isin(video_ids_test_channels)]
+print(len(df))
 df = df[df["status"] == "OK"]
 print(len(df))
 df.to_csv(export_file, index = False)
