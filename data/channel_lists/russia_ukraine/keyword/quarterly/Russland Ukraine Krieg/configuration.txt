@@ -1,5 +1,0 @@
-Configuration:
-Query: ['Russland Ukraine Krieg']
-Target directory: "../russia_ukraine/channel_identification/keyword/quarterly/Russland Ukraine Krieg"
-Search from 2022-02-24 00:00:00 to 2023-02-24 00:00:00
-Search interval: 3 month(s)
