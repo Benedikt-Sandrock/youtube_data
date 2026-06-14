@@ -1,0 +1,5 @@
+Configuration:
+Query: ['Konflikt Palästina Israel']
+Target directory: "../conflict_over_time/channel_identification/keyword/monthly/Konflikt Palästina Israel"
+Search from 2023-07-07 00:00:00 to 2024-01-06 00:00:00
+Search interval: 1 month(s)

@@ -28,3 +28,7 @@ __pycache__
 /political_youtube/conflict_over_time/classification/results_all_models_41.csv
 /political_youtube/conflict_over_time/classification/sampled_per_channel.csv
 /political_youtube/conflict_over_time/classification/sampled_videos_classified.csv
+/data/raw/channel_metadata.json
+/data/raw/complete_channel_list_classified.json
+/data/raw/metadata_all_videos.jsonl
+/data/samples/all_videos_50k_channels.json
