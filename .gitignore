@@ -32,3 +32,5 @@ __pycache__
 /data/raw/complete_channel_list_classified.json
 /data/raw/metadata_all_videos.jsonl
 /data/samples/all_videos_50k_channels.json
+/outputs/sample_description/graphs/
+/outputs/sample_description/
