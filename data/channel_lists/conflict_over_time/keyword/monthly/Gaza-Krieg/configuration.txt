@@ -1,5 +1,0 @@
-Configuration:
-Query: ['Gaza-Krieg']
-Target directory: "../conflict_over_time/channel_identification/keyword/monthly/Gaza-Krieg"
-Search from 2023-07-07 00:00:00 to 2024-01-06 00:00:00
-Search interval: 1 month(s)
