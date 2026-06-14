@@ -2,7 +2,8 @@ from googleapiclient.discovery import build
 import json
 import os
 from polyt_key_variables import published_before_analysis, published_after_analysis
-from dotenv import load_dotenv
+from src.config.settings import API_KEY, API_KEY_C
+
 """
 To change from updating to checking new channels, comment out updating block and activate new channels block
 and deduplication block
@@ -12,12 +13,12 @@ Otherwise, only updating block needs to be activated
 # -----------------------------
 # API-Key und Einstellungen
 # -----------------------------
-load_dotenv()
-api_key = os.getenv("API_KEY")
-api_key_c = os.getenv("API_KEY_C")
+# load_dotenv()
+# api_key = os.getenv("API_KEY")
+# api_key_c = os.getenv("API_KEY_C")
 
 
-youtube = build('youtube', 'v3', developerKey=api_key_c)
+youtube = build('youtube', 'v3', developerKey=API_KEY_C)
 
 
 # -----------------------------
