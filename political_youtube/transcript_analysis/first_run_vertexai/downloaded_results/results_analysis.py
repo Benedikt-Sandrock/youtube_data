@@ -29,16 +29,17 @@ pattern_configuration = {
     ),
     "ideology_all_statements_vs_all_models": (
         "ideology_score_all_statements",
-        lambda col: ("_2_" in col or "6" in col) and "ideology_score" in col
+        lambda col: ("_2_" in col or "6" in col or "_11_" in col or "_12_" in col) and "ideology_score" in col
     ),
     "populism_manual_vs_all_models": (
         "populism_score_manual",
-        lambda col: ("_1_" in col or "_3_" in col or "_5_" in col or "_9_" in col or "_10_" in col)
+        lambda col: ("_1_" in col or "_3_" in col or "_5_" in col or "_9_" in col or
+                     "_10_" in col)
                     and "populism_score" in col
     ),
     "populism_all_statements_vs_all_models": (
         "populism_score_all_statements",
-        lambda col: ("_2_" in col or "_7_" in col) and "populism_score" in col
+        lambda col: ("_2_" in col or "_7_" in col or "_11_" in col or "_12_" in col) and "populism_score" in col
     ),
 }
 

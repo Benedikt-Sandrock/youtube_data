@@ -19,7 +19,7 @@ client = genai.Client(
     location = LOCATION
 )
 
-INPUT_CSV = "training_data_test_compact.csv"
+INPUT_CSV = "test_transcripts.csv"
 #INPUT_CSV = "../../Transcript files/transcripts_conflict_over_time_sampled.csv"
 BATCH_INPUT_JSONL = "gemini_batch_input.jsonl"
 
@@ -263,52 +263,153 @@ prompts = {
 
     # PROMPT 10 increases the threshold of rating a video as non-political
     "PROMPT_10": """
-Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
+    Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
+    
+    1. VIDEO-TYP:
+    Bestimme, ob es sich um ein Video handelt, in dem der Creator aktiv auf ein anderes Video oder einen Medienbeitrag reagiert (Reaction-Video). Achte auf Indikatoren im Text wie "Wir schauen uns an", "Ich pausiere mal" oder direkte Kommentare zu eingespielten Fremdinhalten. Erlaubte Werte: "Reaction" oder "Standard".
+    
+    2. SOZIO-KULTURELLE IDEOLOGIE (Skala 0 bis 10):
+    Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
+    - Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
+    - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+    
+    !!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
+    Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+    - Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+    - Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte:
+      -> LINKS (0.0-4.9): Fokus auf soziale Gerechtigkeit, staatliche Regulierung, Umverteilung, Antikapitalismus, progressive Gesellschaftspolitik, Klimaschutz durch Ge- und Verbote.
+      -> RECHTS (5.1-10.0): Fokus auf individuelle Freiheit (Wirtschaftsliberalismus), Marktmechanismen, private Sachwerte/Selbstvorsorge, traditionelle Werte, Nationalstaat, explizite Ablehnung staatlicher Eingriffe.
+    
+    3. POPULISMUS (Skala 0 bis 10):
+    Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" (ideationeller Ansatz) auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
+    - Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
+    - Wenn das Video vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
+    - Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+    
+    4. EVALUATIONS-REGEL:
+    Bewerte ausschließlich Aussagen des Creators/Kanalinhabers. Ignoriere Aussagen von gezeigten Dritten (z. B. in Reaction-Ausschnitten oder Interviewgästen), es sei denn, der Creator stimmt ihnen explizit und nachweisbar zu.
+    
+    5. BEGRÜNDUNGEN (Maximal 2 Sätze pro Begründung):
+    Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
+    
+    Ausgabeformat:
+    Gib ausschließlich ein valides JSON-Objekt zurück. Kein Markdown-Codeblock, kein Text davor oder danach. 
+    Die Struktur MUSS exakt so aussehen:
+    {
+      "video_type": "Reaction",
+      "ideology_score": 5.0,
+      "ideology_reason": "Kurzer Grund.",
+      "populism_score": 0.0,
+      "populism_reason": "Kurzer Grund."
+    }
+    """,
 
-1. VIDEO-TYP:
-Bestimme, ob es sich um ein Video handelt, in dem der Creator aktiv auf ein anderes Video oder einen Medienbeitrag reagiert (Reaction-Video). Achte auf Indikatoren im Text wie "Wir schauen uns an", "Ich pausiere mal" oder direkte Kommentare zu eingespielten Fremdinhalten. Erlaubte Werte: "Reaction" oder "Standard".
+    # PROMPT 11 uses a different scale description
+    "PROMPT_11": """Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
 
-2. SOZIO-KULTURELLE IDEOLOGIE (Skala 0 bis 10):
-Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
-- Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
-- Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+    1. VIDEO-TYP:
+    Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" oder "Standard".
+    
+    2. POLITISCHE IDEOLOGIE (Skala 0 bis 10):
+    Bewerte die Position des Creators auf einer Skala von 0 (extrem links) bis 10 (extrem rechts).
+    - Neutral/ausgewogen = 5.0. Unpolitisches Video = -1.0.
+    
+    WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus)
+    Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+    - Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+    - Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte
+       
+    Skala (Orientierungspunkte):
+    0.0–2.0 = klar links bis extrem links
+    3.0–4.0 = moderat bis leicht links
+    5.0     = neutral, ausgewogen oder nicht eindeutig einordenbar
+    6.0–7.0 = leicht bis moderat rechts
+    8.0–10.0 = klar bis extrem rechts
+    
+    - Bei gemischten Signalen: folge dem dominierenden Bereich, setze NICHT automatisch 5.0.
+    - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0.
+    - Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
 
-!!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
-Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
-- Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
-- Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte:
-  -> LINKS (0.0-4.9): Fokus auf soziale Gerechtigkeit, staatliche Regulierung, Umverteilung, Antikapitalismus, progressive Gesellschaftspolitik, Klimaschutz durch Ge- und Verbote.
-  -> RECHTS (5.1-10.0): Fokus auf individuelle Freiheit (Wirtschaftsliberalismus), Marktmechanismen, private Sachwerte/Selbstvorsorge, traditionelle Werte, Nationalstaat, explizite Ablehnung staatlicher Eingriffe.
+    
+    3. POPULISMUS (Skala 0 bis 10):
+    Bewerte den Populismusgrad basierend auf dem ideationellen Ansatz.
+    Skala:
+    0.0 = keinerlei populistische Kommunikation
+    2.0 = gelegentliche Kritik an Institutionen
+    4.0 = wiederkehrende Systemkritik
+    6.0 = deutliches Establishment-vs-Bürger-Framing
+    8.0 = starkes Volk-vs-Elite-Narrativ
+    10.0 = nahezu vollständiges Weltbild basiert auf korrupten Eliten gegen das Volk
+    
+    - Berücksichtige: Volk-vs-Elite-Framing, Anti-Establishment-Rhetorik, Misstrauen gegenüber Institutionen/Medien.
+    - Nicht berücksichtigen: wirtschaftspolitische Positionen, reine Sachkritik ohne Volk-vs-Elite-Element.
+    
+    4. BEGRÜNDUNGEN: Maximal 2 Sätze pro Begründung.
+    Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
 
-3. POPULISMUS (Skala 0 bis 10):
-Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" (ideationeller Ansatz) auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
-- Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
-- Wenn das Video vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
-- Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+    Gib ausschließlich folgendes JSON zurück:
+    
+    {
+      "video_type": "Reaction",
+      "ideology_score": 5.0,
+      "ideology_reason": "Kurzer Grund.",
+      "populism_score": 0.0,
+      "populism_reason": "Kurzer Grund."
+    }
+    """,
 
-4. EVALUATIONS-REGEL:
-Bewerte ausschließlich Aussagen des Creators/Kanalinhabers. Ignoriere Aussagen von gezeigten Dritten (z. B. in Reaction-Ausschnitten oder Interviewgästen), es sei denn, der Creator stimmt ihnen explizit und nachweisbar zu.
+    # PROMPT 12 uses PROMPT 11 and removes the rule to rate only the creator's statements
+    "PROMPT_12": """Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
 
-5. BEGRÜNDUNGEN (Maximal 2 Sätze pro Begründung):
-Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
+    1. VIDEO-TYP:
+    Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" oder "Standard".
 
-Ausgabeformat:
-Gib ausschließlich ein valides JSON-Objekt zurück. Kein Markdown-Codeblock, kein Text davor oder danach. 
-Die Struktur MUSS exakt so aussehen:
-{
-  "video_type": "Reaction",
-  "ideology_score": 5.0,
-  "ideology_reason": "Kurzer Grund.",
-  "populism_score": 0.0,
-  "populism_reason": "Kurzer Grund."
-}
-""",
+    2. POLITISCHE IDEOLOGIE (Skala 0 bis 10):
+    Bewerte die Position des Creators auf einer Skala von 0 (extrem links) bis 10 (extrem rechts).
+    - Neutral/ausgewogen = 5.0. Unpolitisches Video = -1.0.
 
+    WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus)
+    Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+    - Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+    - Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte
+
+    Skala (Orientierungspunkte):
+    0.0–2.0 = klar links bis extrem links
+    3.0–4.0 = moderat bis leicht links
+    5.0     = neutral, ausgewogen oder nicht eindeutig einordenbar
+    6.0–7.0 = leicht bis moderat rechts
+    8.0–10.0 = klar bis extrem rechts
+
+    - Bei gemischten Signalen: folge dem dominierenden Bereich, setze NICHT automatisch 5.0.
+    - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+
+
+    3. POPULISMUS (Skala 0 bis 10):
+    Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" (ideationeller Ansatz) auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
+    - Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
+    - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
+    - Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+    - Nicht berücksichtigen: wirtschaftspolitische Positionen, reine Sachkritik ohne Volk-vs-Elite-Element.
+
+
+    4. BEGRÜNDUNGEN: Maximal 2 Sätze pro Begründung.
+    Erkläre deine Punktebewertungen extrem kurz und präzise anhand konkreter Argumentationsmuster oder Themen aus dem Transkript.
+
+    Gib ausschließlich folgendes JSON zurück:
+
+    {
+      "video_type": "Reaction",
+      "ideology_score": 5.0,
+      "ideology_reason": "Kurzer Grund.",
+      "populism_score": 0.0,
+      "populism_reason": "Kurzer Grund."
+    }
+    """
 }
 
 ### Choose prompt and model ###
 
-PROMPT_KEY = "PROMPT_10"
+PROMPT_KEY = "PROMPT_12"
 SYSTEM_PROMPT = prompts[PROMPT_KEY]
 
 MODEL_NAME = gemini_25_flash

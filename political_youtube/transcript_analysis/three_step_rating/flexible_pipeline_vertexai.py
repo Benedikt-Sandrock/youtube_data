@@ -170,11 +170,14 @@ Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" o
 
 2. SOZIO-KULTURELLE IDEOLOGIE (Skala 0 bis 10):
 Bewerte die Position des Creators auf einer Skala von 0 (extrem links) bis 10 (extrem rechts).
-- Neutral/ausgewogen = 5.0. Unpolitisches Video = -1.0.
+- Neutral/ausgewogen = 5.0.
 - Populismus ist KEINE Ideologie. Elitenkritik allein verschiebt den Wert nicht.
 - LINKS (0.0–4.9): soziale Gerechtigkeit, Umverteilung, staatliche Regulierung, progressive Gesellschaftspolitik.
 - RECHTS (5.1–10.0): individuelle Freiheit, Marktmechanismen, traditionelle Werte, Nationalstaat.
 - Zwischenwerte sind ausdrücklich erwünscht. Bei gemischten Signalen: folge dem dominierenden Bereich, setze NICHT automatisch 5.0.
+- Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0.
+- Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+
 
 3. POPULISMUS (Skala 0 bis 10):
 Bewerte den Populismusgrad basierend auf dem ideationellen Ansatz.
