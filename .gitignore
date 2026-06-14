@@ -34,3 +34,4 @@ __pycache__
 /data/samples/all_videos_50k_channels.json
 /outputs/sample_description/graphs/
 /outputs/sample_description/
+/youtube_data.egg-info/
