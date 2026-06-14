@@ -3,31 +3,6 @@
 __pycache__
 /project_videos/code/downloads/
 .env
-/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels.json
-/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_keywords.json
-/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/all_videos_100k_channels_sampled.json
-/political_youtube/analysis/comment_analysis/comment_data_backup.csv
-/political_youtube/JSON Files/video_files/videos_total.json
-/political_youtube/JSON Files/video_files/
-/political_youtube/Transcript files/polyt/political_yt_transcripts_backup.csv
-/political_youtube/Transcript files/polyt/political_yt_transcripts_sample_vids_backup.csv
-/political_youtube/JSON Files/ident_1803/large_german_channels/video_files/metadata_all_videos_100k_channels_keywords.json
-/political_youtube/conflict_over_time/channel_identification/keyword/
-/political_youtube/analysis/sample_description/graphs/
-/political_youtube/analysis/descriptives_videos/videos_after_treatment.csv
-/political_youtube/analysis/descriptives_videos/videos_nov22.csv
-/political_youtube/analysis/descriptives_videos/filtered.csv
-/political_youtube/analysis/descriptives_videos/all_videos.csv
-/political_youtube/analysis/descriptives_videos/all_videos_metrics.csv
-/political_youtube/analysis/descriptives_videos/df_lenght.csv
-/political_youtube/analysis/descriptives_videos/complete_metadata.json
-/political_youtube/conflict_over_time/classification/model_performance_41.xlsx
-/political_youtube/conflict_over_time/classification/model_performance_42.xlsx
-/political_youtube/conflict_over_time/classification/results_all_models_41.xlsx
-/political_youtube/conflict_over_time/classification/results_all_models_42.xlsx
-/political_youtube/conflict_over_time/classification/results_all_models_41.csv
-/political_youtube/conflict_over_time/classification/sampled_per_channel.csv
-/political_youtube/conflict_over_time/classification/sampled_videos_classified.csv
 /data/raw/channel_metadata.json
 /data/raw/complete_channel_list_classified.json
 /data/raw/metadata_all_videos.jsonl
