@@ -4,6 +4,8 @@ import numpy as np
 import seaborn as sns
 
 """
+Exploratory analysis of the distribution of the classification results.
+
 Comment out files that are not supposed to be in the graph
 
 *Legend*

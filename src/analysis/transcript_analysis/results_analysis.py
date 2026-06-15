@@ -4,17 +4,22 @@ import re
 from sklearn.metrics import (mean_absolute_error, root_mean_squared_error,
     accuracy_score, precision_score, recall_score, f1_score)
 from scipy.stats import spearmanr
+from src.config.paths import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 
-df = pd.read_excel("classification_results_9_g25_f.xlsx")
+
+main_file = EXTERNAL / "complete_classification.xlsx"
+output_path = OUTPUT_GEMINI / "all_results_merged.xlsx"
+validation_path = VALIDATION / "comparison_manual_model.xlsx"
+results_directory = OUTPUT_GEMINI
+
+df = pd.read_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx")
 df = df[["video_id", "ideology_score", "populism_score"]]
-df.to_excel("classification_results_9_g25_f.xlsx", index = False)
+df.to_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx", index = False)
 
-df = pd.read_excel("classification_results_8_g25_f.xlsx")
+df = pd.read_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx")
 df = df[["video_id", "ideology_score"]]
-df.to_excel("classification_results_8_g25_f.xlsx", index = False)
+df.to_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx", index = False)
 
-main_file = "../../../outputs/llm/gemini/complete_classification.xlsx"
-output_path = "all_results_merged.xlsx"
 
 pattern_configuration = {
     "video_type_vs_all_models": (
@@ -51,7 +56,7 @@ df["populism_score_all_statements"] = df["populism_score_all_statements"].fillna
 
 search_scheme = "classification_results_*.xlsx"
 
-all_files = glob.glob(search_scheme)
+all_files = glob.glob(search_scheme, root_dir = OUTPUT_GEMINI)
 
 print(f"{len(all_files)} files found.")
 
@@ -67,7 +72,8 @@ for file_name in all_files:
     else:
         suffix = "_pattern_not_found"
 
-    df_model = pd.read_excel(file_name)
+    df_model = pd.read_excel(OUTPUT_GEMINI / file_name)
+
     cols = df_model.columns
     if "video_type" in cols:
         df_model["video_type"] = (df_model["video_type"] == "Reaction").astype(int)
@@ -173,6 +179,7 @@ for pattern_name, (gold_col, filter_function) in pattern_configuration.items():
 
 df_results = pd.DataFrame(all_pattern_results)
 df_results = pd.merge(df_results, df_political_results, on =["Comparison model", "Prompt"])
-df_results.to_excel("comparison_manual_model.xlsx", index = False)
+df_results.to_excel(validation_path, index = False)
+print(f"Results saved to '{validation_path}'.")
 
 

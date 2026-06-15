@@ -11,13 +11,14 @@ CHANNEL_LISTS = DATA / "channel_lists"
 TRANSCRIPTS = DATA / "transcripts"
 SAMPLES = DATA / "samples"
 EXPLORATION = DATA/ "exploration"
+EXTERNAL = DATA / "external"
 
 # Outputs
 
 OUTPUTS = ROOT / "outputs"
 LLM = OUTPUTS / "llm"
 
-GEMINI = LLM / "gemini"
+OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
 REPORTS = OUTPUTS / "reports"
 
