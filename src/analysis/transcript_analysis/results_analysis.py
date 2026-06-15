@@ -6,19 +6,27 @@ from sklearn.metrics import (mean_absolute_error, root_mean_squared_error,
 from scipy.stats import spearmanr
 from src.config.paths import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 
+seed_number = "42"
 
-main_file = EXTERNAL / "complete_classification.xlsx"
-output_path = OUTPUT_GEMINI / "all_results_merged.xlsx"
-validation_path = VALIDATION / "comparison_manual_model.xlsx"
+main_file = EXTERNAL / f"complete_classification_{seed_number}.xlsx"
+output_path = OUTPUT_GEMINI / f"all_results_merged_{seed_number}.xlsx"
+validation_path = VALIDATION / f"comparison_manual_model_{seed_number}.xlsx"
 results_directory = OUTPUT_GEMINI
 
-df = pd.read_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx")
-df = df[["video_id", "ideology_score", "populism_score"]]
-df.to_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx", index = False)
+answer = input(f"Paths indicate that test sample {seed_number} is processed."
+               f"\nCorrect? [Y/n] ")
 
-df = pd.read_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx")
-df = df[["video_id", "ideology_score"]]
-df.to_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx", index = False)
+if not answer.strip().lower() == "y":
+    print("Aborted.")
+    exit()
+
+# df = pd.read_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx")
+# df = df[["video_id", "ideology_score", "populism_score"]]
+# df.to_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx", index = False)
+#
+# df = pd.read_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx")
+# df = df[["video_id", "ideology_score"]]
+# df.to_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx", index = False)
 
 
 pattern_configuration = {
@@ -28,23 +36,21 @@ pattern_configuration = {
     ),
     "ideology_manual_vs_all_models": (
         "ideology_score_manual",
-        lambda col: ("_1_" in col or "_3_" in col or "_4_" in col or "_9_" in col
-                    or "_8_" in col or "_10_" in col)
+        lambda col: ("1_" in col or "3_" in col or "4_" in col or "7_" in col)
                     and "ideology_score" in col
     ),
     "ideology_all_statements_vs_all_models": (
         "ideology_score_all_statements",
-        lambda col: ("_2_" in col or "6" in col or "_11_" in col or "_12_" in col) and "ideology_score" in col
+        lambda col: ("2_" in col or "5_" in col or "6_" in col or "8_" in col) and "ideology_score" in col
     ),
     "populism_manual_vs_all_models": (
         "populism_score_manual",
-        lambda col: ("_1_" in col or "_3_" in col or "_5_" in col or "_9_" in col or
-                     "_10_" in col)
+        lambda col: ("1_" in col or "3_" in col or "4_" in col or "7_" in col)
                     and "populism_score" in col
     ),
     "populism_all_statements_vs_all_models": (
         "populism_score_all_statements",
-        lambda col: ("_2_" in col or "_7_" in col or "_11_" in col or "_12_" in col) and "populism_score" in col
+        lambda col: ("2_" in col or "5_" in col or "6_" in col or "8_" in col) and "populism_score" in col
     ),
 }
 

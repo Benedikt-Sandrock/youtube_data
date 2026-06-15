@@ -12,7 +12,9 @@ client = genai.Client(
     location = LOCATION
 )
 
-INPUT_CSV = EXPLORATION / "training_data" / "sample_vids_42.csv"
+seed_number = "42"
+
+INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
 MODEL_ALIASES = {
@@ -524,7 +526,6 @@ prompts_ideology = {
     {
       "video_type": "Reaction",
       "ideology_score": 5.0,
-      "populism_score": 0.0,
     }
     """,
 
@@ -858,8 +859,7 @@ prompts_populism = {
 
 ### Choose prompts ###
 
-prompts = prompts_ideology      # [prompts_both, prompts_ideology, prompts_populism]
-model_name = "gemini_25_flash"
+prompts = prompts_ideology    # [prompts_both, prompts_ideology, prompts_populism]
 
 
 def get_prompt_number(prompt_key: str) -> str:
@@ -925,16 +925,19 @@ def start_batch_job(jsonl_path, model):
 
 
 def run_all_prompts(
-        prompt_keys: list[str],
+        prompt_keys,
         model_name: str = "gemini_25_flash",
         dry_run: bool = False
 ):
     model_alias = MODEL_ALIASES.get(model_name, "unknown_model")
+    if isinstance(prompt_keys, str):
+        prompt_keys = [prompt_keys]
 
     print(f"\n{'=' * 60}")
     print(f"Model: {model_alias}")
     print(f"Prompts to run: {len(prompt_keys)}")
     print(f"Prompts: {prompt_keys}")
+    print(f"Dry run: {dry_run}")
     print(f"{'=' * 60}\n")
 
     answer = input("Start all jobs? [Y/n]")
@@ -956,6 +959,16 @@ def run_all_prompts(
         print(f"\n[{i}/{len(prompt_keys)}] Processing {prompt_key}")
 
         try:
+            id_file_path = f"id_files/job_id_{prompt_number}_{model_alias}.txt"
+            #answer = "y"
+            if os.path.exists(id_file_path):
+                answer = input(f"ID file '{id_file_path}' still in 'id_files'."
+                               f"\nOverwrite? [y/N] ")
+
+                if not answer.strip().lower() == "y":
+                    print(f"Prompt {prompt_number} skipped. Continuing with next request.")
+                    continue
+
             if not dry_run:
                 csv_to_jsonl(INPUT_CSV, jsonl_path, system_prompt)
                 job_id = start_batch_job(jsonl_path, model_alias)
@@ -964,12 +977,12 @@ def run_all_prompts(
                 print(f"[DRY RUN] Would create {jsonl_path} and submit job.")
                 job_id = f"dry-run-job-{prompt_number}"
 
-            id_file_path = f"id_files/job_id_{prompt_number}_{model_alias}.txt"
             with open(id_file_path, "w") as f:
                 f.write(f"{job_id}\n{prompt_number}\n{model_alias}")
 
-            results[prompt_key] = {"job_id": job_id, "status": "submitted"}
-            print(f"ID file saved: {id_file_path}")
+                results[prompt_key] = {"job_id": job_id, "status": "submitted"}
+                print(f"ID file saved: {id_file_path}")
+
 
         except Exception as e:
             print(f"Error for {prompt_key}: {e}")
@@ -990,9 +1003,9 @@ def run_all_prompts(
 
 if __name__ == "__main__":
     PROMPTS_TO_RUN = list(prompts.keys())
-
+    PROMPTS_TO_RUN = PROMPTS_TO_RUN[4:6]
     run_all_prompts(
         prompt_keys = PROMPTS_TO_RUN,
         model_name = "gemini_25_flash",
-        dry_run = False
+        dry_run = True
     )

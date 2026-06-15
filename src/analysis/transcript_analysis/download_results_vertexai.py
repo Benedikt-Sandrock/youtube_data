@@ -12,7 +12,7 @@ from src.config.settings import PROJECT_ID, LOCATION
 # CONFIG
 # ============================================================
 
-OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / "classification_results"
+OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / "classification_42" / "classification_results"
 ID_FILES_DIR = Path("id_files")
 ID_FILES_DONE_DIR = Path("id_files_done")
 
