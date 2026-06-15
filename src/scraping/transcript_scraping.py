@@ -7,8 +7,7 @@ import os
 import json
 from datetime import datetime, timezone
 
-# import paths
-from src.config.paths import TRANSCRIPTS, DATA_RAW
+from src.config.paths import TRANSCRIPTS, SAMPLES
 
 
 stop_word = "blocking"
@@ -18,7 +17,7 @@ stop_word = "blocking"
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 
-video_list = DATA_RAW / "all_videos_50k_channels.json"
+video_list = SAMPLES / "all_videos_50k_channels.json"
 file_path = TRANSCRIPTS / "all_transcripts.csv"
 file_path_backup = TRANSCRIPTS / "all_transcripts_backup.csv"
 

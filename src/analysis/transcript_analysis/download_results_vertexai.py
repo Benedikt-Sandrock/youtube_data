@@ -1,29 +1,32 @@
-from dotenv import load_dotenv
 import os
-from google import genai
-import pandas as pd
+import shutil
 import json
+import pandas as pd
+from pathlib import Path
+from google import genai
 from google.cloud import storage
-from api_request_vertexai import prompt_number, model_name
+from src.config.paths import OUTPUT_GEMINI
+from src.config.settings import PROJECT_ID, LOCATION
 
-OUTPUT_EXCEL = "downloaded_results/classification_results"
+# ============================================================
+# CONFIG
+# ============================================================
 
-id_file = f"job_id_{prompt_number}_{model_name}.txt"
+OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / "classification_results"
+ID_FILES_DIR = Path("id_files")
+ID_FILES_DONE_DIR = Path("id_files_done")
 
-load_dotenv()
-PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = "us-central1"
-
-client = genai.Client(
-    vertexai=True,
-    project=PROJECT_ID,
-    location=LOCATION
-)
-
+client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
 storage_client = storage.Client(project=PROJECT_ID)
 
-def saving_results(output_uri, excel_path):
-    print("Downloading and formatting results from Cloud Storage...")
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def saving_results(output_uri: str, excel_path: str):
+    """Download JSONL from GCS and save as Excel."""
+    print(f"  Downloading results from {output_uri}...")
 
     uri_parts = output_uri.replace("gs://", "").split("/", 1)
     bucket_name = uri_parts[0]
@@ -34,150 +37,179 @@ def saving_results(output_uri, excel_path):
     content = blob.download_as_text()
 
     results = []
-    # use of enumerate to get a counter for lines
     for i, line in enumerate(content.strip().split("\n")):
         if not line:
             continue
-
         try:
             data = json.loads(line)
-
             v_id = data.get("custom_id", "unknown")
 
-            # --- DEBUG INFO (ONLY FOR THE FIRST VIDEO) ---
             if i == 0:
-                print(f"\n--- DEBUG INFO FOR VIDEO: {v_id} ---")
-                print("Main levels in JSON:", list(data.keys()))
+                print(f"\n  --- DEBUG INFO FOR VIDEO: {v_id} ---")
+                print("  Main levels in JSON:", list(data.keys()))
                 if "response" in data and isinstance(data["response"], dict):
-                    print("Levels below 'response':", list(data["response"].keys()))
-                print("--------------------------------------\n")
+                    print("  Levels below 'response':", list(data["response"].keys()))
+                print("  ------------------------------------\n")
 
             if "error" in data:
-                print(f"Error for video {v_id}: {data['error']}")
+                print(f"  Error for video {v_id}: {data['error']}")
                 results.append({"video_id": v_id, "error": str(data["error"])})
                 continue
 
-            # Reading the model answer
             try:
                 response_obj = data.get("response", {})
-
-                # Case A: Normal format
                 if "candidates" in response_obj:
                     response_text = response_obj["candidates"][0]["content"]["parts"][0]["text"]
-
-                # Case B: Nested format by Vertex AI
                 elif "generateContentResponse" in response_obj:
-                    response_text = response_obj["generateContentResponse"]["candidates"][0]["content"]["parts"][0][
-                        "text"]
-
-                # Case C: Safety-Filter-Block
+                    response_text = response_obj["generateContentResponse"]["candidates"][0]["content"]["parts"][0]["text"]
                 else:
-                    # Print everything we get from Google
-                    print(f"DEBUG-INFO for {v_id}: Complete content of 'data': {json.dumps(data, indent=2)}")
-
+                    print(f"  Safety filter or unknown format for {v_id}.")
                     results.append({"video_id": v_id, "error": "No answer (Safety Filter)"})
                     continue
 
                 parsed_response = json.loads(response_text)
 
-            except json.JSONDecodeError as e:
+            except json.JSONDecodeError:
                 from json_repair import repair_json
-
                 try:
                     repaired_string = repair_json(response_text)
                     parsed_response = json.loads(repaired_string)
-                    print(f"Successfully repaired JSON for video {v_id} using json_repair.")
+                    print(f"  Repaired JSON for video {v_id}.")
                 except json.JSONDecodeError as inner_e:
-                    print(f"CRITICAL: Couldn't process answer for {v_id} even after robust repair: {inner_e}")
+                    print(f"  CRITICAL: Could not repair JSON for {v_id}: {inner_e}")
                     parsed_response = {"error": "Formatting error", "raw_text": response_text}
 
             except (KeyError, IndexError) as e:
-                print(f"Couldn't process answer for {v_id}: {e}")
+                print(f"  Could not process answer for {v_id}: {e}")
                 parsed_response = {"error": "Formatting error"}
-
-                print(f"\n--- DEBUG INFO FOR VIDEO: {v_id} ---")
-                print("Main levels in JSON:", list(data.keys()))
-                if "response" in data and isinstance(data["response"], dict):
-                    print("Levels below 'response':", list(data["response"].keys()))
-                print(f"Raw Model Response text:\n{response_text}")
-                print("--------------------------------------\n")
 
             row_data = {"video_id": v_id}
             row_data.update(parsed_response)
             results.append(row_data)
 
         except Exception as e:
-            print(f"Error when reading a row: {e}")
+            print(f"  Error reading row: {e}")
 
-    print("Saving data in excel file...")
     df = pd.DataFrame(results)
     df.to_excel(excel_path, index=False)
-    print(f"Success! Results saved under: {excel_path}")
+    print(f"  ✓ Saved: {excel_path}")
 
+
+def find_output_url(status_job) -> str | None:
+    """Find the prediction JSONL output file in GCS."""
+    output_folder = status_job.output_info.gcs_output_directory
+    path_parts = output_folder.replace("gs://", "").split("/", 1)
+    bucket_name = path_parts[0]
+    prefix = path_parts[1]
+
+    bucket = storage_client.bucket(bucket_name)
+    blobs = list(bucket.list_blobs(prefix=prefix))
+
+    for blob in blobs:
+        if blob.name.endswith(".jsonl") and "prediction" in blob.name.lower():
+            return f"gs://{bucket_name}/{blob.name}"
+    return None
+
+
+def process_id_file(id_file_path: Path) -> str:
+    """
+    Check job status and download results if ready.
+    Returns: 'downloaded', 'pending', 'failed', 'skipped', 'error'
+    """
+    try:
+        lines = id_file_path.read_text().splitlines()
+        job_id = lines[0]
+        prompt_number = lines[1]
+        model_alias = lines[2]
+    except (IndexError, FileNotFoundError) as e:
+        print(f"  Could not read ID file {id_file_path.name}: {e}")
+        return "error"
+
+    excel_path = f"{OUTPUT_EXCEL_BASE}_{prompt_number}_{model_alias}.xlsx"
+
+    print(f"\n[{id_file_path.name}]  Prompt: {prompt_number} | Model: {model_alias}")
+
+    try:
+        status_job = client.batches.get(name=job_id)
+        current_state = status_job.state.name if hasattr(status_job.state, "name") else str(status_job.state)
+        print(f"  Status: {current_state}")
+    except Exception as e:
+        print(f"  Could not fetch job status: {e}")
+        return "error"
+
+    if current_state in ["JOB_STATE_FAILED", "JOB_STATE_CANCELLED"]:
+        print(f"  ✗ Job failed/cancelled.")
+        if hasattr(status_job, "error") and status_job.error:
+            print(f"  Original error: {status_job.error}")
+        return "failed"
+
+    elif current_state == "JOB_STATE_SUCCEEDED":
+        if os.path.exists(excel_path):
+            print(f"  Output file already exists: {excel_path}")
+            answer = input("  Overwrite? [y/N] ")
+            if answer.lower() != "y":
+                print("  Skipping.")
+                return "skipped"
+
+        output_url = find_output_url(status_job)
+        if not output_url:
+            print("  ✗ No prediction JSONL found in GCS output folder.")
+            return "error"
+
+        saving_results(output_url, excel_path)
+
+        # Move ID file to done folder
+        ID_FILES_DONE_DIR.mkdir(exist_ok=True)
+        dest = ID_FILES_DONE_DIR / id_file_path.name
+        shutil.move(str(id_file_path), str(dest))
+        print(f"  ✓ ID file moved to: {dest}")
+        return "downloaded"
+
+    else:
+        print(f"  Still running – skipping.")
+        return "pending"
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    ID_FILES_DIR.mkdir(exist_ok=True)
+
+    id_files = sorted(ID_FILES_DIR.glob("job_id_*.txt"))
+
+    if not id_files:
+        print(f"No ID files found in '{ID_FILES_DIR}/'.")
+        return
+
+    print(f"\n{'='*60}")
+    print(f"Found {len(id_files)} ID file(s) to check:")
+    for f in id_files:
+        print(f"  {f.name}")
+    print(f"{'='*60}")
+
+    answer = input("\nCheck all and download finished results? [Y/n] ")
+    if answer.strip().lower() != "y":
+        print("Aborted.")
+        return
+
+    summary = {"downloaded": [], "pending": [], "failed": [], "skipped": [], "error": []}
+
+    for id_file_path in id_files:
+        result = process_id_file(id_file_path)
+        summary[result].append(id_file_path.name)
+
+    # Summary
+    print(f"\n{'='*60}")
+    print("Summary:")
+    print(f"  ✓ Downloaded : {len(summary['downloaded'])}  {summary['downloaded']}")
+    print(f"  ⏳ Pending   : {len(summary['pending'])}  {summary['pending']}")
+    print(f"  ✗ Failed     : {len(summary['failed'])}  {summary['failed']}")
+    print(f"  ⊘ Skipped    : {len(summary['skipped'])}  {summary['skipped']}")
+    print(f"  ! Errors     : {len(summary['error'])}  {summary['error']}")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":
-
-    print(f"ID file: '{id_file}'")
-    answer = input("ID file correct? [y/n]")
-
-    if not answer.lower() == "y":
-        print("Wrong ID file.")
-        exit()
-
-    with open(id_file, "r") as f:
-        lines = f.read().splitlines()
-
-    job_id = lines[0]
-    prompt_number = lines[1]
-    model_number = lines[2]
-
-    status_job = client.batches.get(name = job_id)
-    OUTPUT_EXCEL = f"{OUTPUT_EXCEL}_{prompt_number}_{model_number}.xlsx"
-
-    current_state = status_job.state.name if hasattr(status_job.state, "name") else str(status_job.state)
-    print(f"Current status: {current_state}")
-
-    if current_state in ["JOB_STATE_FAILED", "JOB_STATE_CANCELLED"]:
-        print(f"Error. Status: {current_state}")
-
-        if hasattr(status_job, "error") and status_job.error:
-            print(f"Original error: {status_job.error}")
-
-    elif current_state == "JOB_STATE_SUCCEEDED":
-        print("Analysis ready. Downloading results.")
-
-        output_folder = status_job.output_info.gcs_output_directory
-
-        path_parts = output_folder.replace("gs://", "").split("/", 1)
-        bucket_name = path_parts[0]
-        prefix = path_parts[1]
-
-        bucket = storage_client.bucket(bucket_name)
-        blobs = list(bucket.list_blobs(prefix = prefix))
-
-        output_url = None
-        for blob in blobs:
-            if blob.name.endswith(".jsonl") and "prediction" in blob.name.lower():
-                output_url = f"gs://{bucket_name}/{blob.name}"
-                break
-
-        if output_url:
-            if os.path.exists(OUTPUT_EXCEL):
-                answer = input(f"Warning: File in output path ('{OUTPUT_EXCEL}') already exsits."
-                               f"\nMake sure that no important file is overwritten."
-                               f"\nContinue? [Y/n]")
-                if answer.lower() == "y":
-                    saving_results(output_url, OUTPUT_EXCEL)
-                    print("Output saved to excel.")
-                else:
-                    print("Stopping Script. No file is saved. Make sure to use the right output path.")
-            else:
-                saving_results(output_url, OUTPUT_EXCEL)
-                print("Output saved to excel.")
-
-
-    else:
-        print(f"Analysis not done yet. Status: {current_state}")
-        if hasattr(status_job, "error") and status_job.error:
-            print(f"Original error: {status_job.error}")
+    main()
