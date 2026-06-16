@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+from src.utils.io import get_video_metadata
+
 
 published_after_analysis = "2022-10-07T00:00:00Z"
 published_before_analysis = "2026-01-31T00:00:00Z"
@@ -116,72 +118,6 @@ def get_channel_metadata_2(youtube_client, input_path, output_path):
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, indent=2, ensure_ascii=False)
-
-
-def get_video_metadata(youtube_client, input_path, output_path):
-    """
-    Takes YouTube client and list of video IDs as input and returns a dictionary with metadata for the respective
-    video_files.
-    """
-    print("Getting video metadata...")
-
-    print(f"\nLoading input file: {input_path}")
-    with open(input_path, "r", encoding = "utf-8") as f:
-        video_ids = json.load(f)
-
-    if isinstance(video_ids[0], dict): #if a list of dicts is imported, only video ids are extracted
-        print("Dict imported is transferred to list.")
-        video_ids = [v["video_id"] for v in video_ids]
-
-    already_requested = set()
-    if os.path.exists(output_path):
-        with open(output_path, "r", encoding="utf-8") as f:
-            for line in f:
-                try:
-                    data = json.loads(line)
-                    already_requested.add(data["video_id"])
-                except json.JSONDecodeError:
-                    continue
-
-    video_ids_filtered = [v for v in video_ids if v not in already_requested]
-    y = len(video_ids) - len(video_ids_filtered)
-
-    print(f"Total number ideo IDs: {len(video_ids)}"
-          f"\nFor {y} video IDs, metadata already exists.")
-
-    print(f"Requesting metadata for {len(video_ids_filtered)} video_files...")
-    chunk = 1
-    with open(output_path, "a", encoding = "utf-8") as f_out:
-        for batch in chunk_list(video_ids_filtered, 50):
-            all_videos = []
-            request = youtube_client.videos().list(
-                part="snippet,statistics,contentDetails",
-                id=",".join(batch)
-            )
-            response = request.execute()
-
-            for item in response.get("items", []):
-                video_data = {
-                    "video_id": item["id"],
-                    "title": item["snippet"]["title"],
-                    "channel_title": item["snippet"]["channelTitle"],
-                    "channel_id": item["snippet"]["channelId"],
-                    "published_at": item["snippet"]["publishedAt"],
-                    "duration": item["contentDetails"].get("duration"),
-                    "view_count": item["statistics"].get("viewCount"),
-                    "like_count": item["statistics"].get("likeCount"),
-                    "comment_count": item["statistics"].get("commentCount"),
-                }
-                f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
-            f_out.flush()
-
-            if chunk % 10 ==0:
-                print(f"Processed {chunk*50} videos.")
-            time.sleep(0.1)
-            chunk += 1
-    # print(f"Saving metadata file to: {output_path}")
-    # with open(output_path, "w", encoding = "utf-8") as f:
-    #     json.dump(all_videos, f, indent = 2, ensure_ascii=False)
 
 
 def get_channel_videos(channel_id, published_after, published_before):

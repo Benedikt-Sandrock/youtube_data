@@ -14,3 +14,5 @@ __pycache__
 /data/raw/channel_metadata_total.json
 /data/samples/sampled_50k_channels.json
 /data/samples/all_videos_50k_channels.json
+/data/raw/video_metadata_total.jsonl
+/data/raw/video_metadata_detailed_total.json
