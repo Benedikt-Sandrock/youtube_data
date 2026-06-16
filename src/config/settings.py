@@ -15,4 +15,9 @@ PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 LOCATION = "us-central1"
 
 
+KEYWORDS = ["nahe osten", "naher osten", "nahen osten", "nahost", "shani louk", "israël",
+            "israel", "palästina", "palästin", "gaza", "hamas", "IDF", "Jerusalem",
+            "netanjahu", "netanyahu", "hisbollah", "mossad"]
+
+
 
