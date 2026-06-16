@@ -11,7 +11,7 @@ from src.utils.io import collect_unique_channel_ids, save_json, load_json
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
 FIRST_STEP = False
-SECOND_STEP = True
+SECOND_STEP = False
 SAMPLE_NAME = "all_videos_50k_channels.json"
 DIR_NAME = "conflict_over_time"
 
@@ -52,3 +52,10 @@ if SECOND_STEP:
 
     print(f"Number of videos in sample: {len(sample_data)}")
     print(f"Number of unique channels in sample: {len(channel_length)}")
+
+
+data = load_json(SAMPLES / "sampled_50k_channels.json")
+print(len(data))
+
+data = load_json(SAMPLES / "sampled_per_channel.json")
+print(len(data))

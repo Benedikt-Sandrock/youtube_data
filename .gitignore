@@ -12,3 +12,5 @@ __pycache__
 /data/transcripts/all_transcripts_backup.csv
 /src/analysis/transcript_analysis/id_files_done/
 /data/raw/channel_metadata_total.json
+/data/samples/sampled_50k_channels.json
+/data/samples/all_videos_50k_channels.json
