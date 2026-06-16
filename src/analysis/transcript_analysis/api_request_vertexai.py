@@ -1003,7 +1003,7 @@ def run_all_prompts(
 
 if __name__ == "__main__":
     PROMPTS_TO_RUN = list(prompts.keys())
-    PROMPTS_TO_RUN = PROMPTS_TO_RUN[4:6]
+
     run_all_prompts(
         prompt_keys = PROMPTS_TO_RUN,
         model_name = "gemini_25_flash",

@@ -11,3 +11,4 @@ __pycache__
 /youtube_data.egg-info/
 /data/transcripts/all_transcripts_backup.csv
 /src/analysis/transcript_analysis/id_files_done/
+/data/raw/channel_metadata_total.json
