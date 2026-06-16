@@ -115,33 +115,103 @@ def get_channel_metadata(channel_ids, output_path, youtube):
         json.dump(all_data, f, indent = 2, ensure_ascii= False)
 
 
-def get_video_metadata(video_ids, youtube):
-    all_videos = []
+def get_video_metadata(video_ids, output_path, youtube_client, detailed = False):
+    """
+    Takes YouTube client and list of video IDs as input and returns a dictionary with metadata for the respective
+    video_files.
+    """
+    print("Getting video metadata...")
 
-    for batch in chunk_list(video_ids, 50):
-        request = youtube.videos().list(
-            part="snippet,statistics,contentDetails",
-            id=",".join(batch)
-        )
-        response = request.execute()
+    if isinstance(video_ids[0], dict): #if a list of dicts is imported, only video IDs are extracted
+        print("Dict imported is transferred to list.")
+        video_ids = [v["video_id"] for v in video_ids]
 
-        for item in response.get("items", []):
-            video_data = {
-                "video_id": item["id"],
-                "title": item["snippet"]["title"],
-                "channel_title": item["snippet"]["channelTitle"],
-                "channel_id": item["snippet"]["channelId"],
-                "published_at": item["snippet"]["publishedAt"],
-                "duration": item["contentDetails"]["duration"],
-                "view_count": item["statistics"].get("viewCount"),
-                "like_count": item["statistics"].get("likeCount"),
-                "comment_count": item["statistics"].get("commentCount"),
-            }
-            all_videos.append(video_data)
+    already_requested = set()
+    if os.path.exists(output_path):
+        with open(output_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                    already_requested.add(data["video_id"])
+                except json.JSONDecodeError:
+                    continue
 
-        time.sleep(0.1)
+    video_ids_filtered = [v for v in video_ids if v not in already_requested]
+    y = len(video_ids) - len(video_ids_filtered)
 
-    return all_videos
+    print(f"Total number ideo IDs: {len(video_ids)}"
+          f"\nFor {y} video IDs, metadata already exists.")
+
+    print(f"Requesting metadata for {len(video_ids_filtered)} video_files...")
+    api_parts = "snippet,statistics,contentDetails"
+    if detailed:
+        api_parts += ",status,topicDetails,recordingDetails"
+
+    chunk = 1
+    try:
+        with open(output_path, "a", encoding = "utf-8") as f_out:
+            for batch in chunk_list(video_ids_filtered, 50):
+                request = youtube_client.videos().list(
+                    part=api_parts,
+                    id=",".join(batch)
+                )
+                response = request.execute()
+
+                for item in response.get("items", []):
+                    snippet = item.get("snippet", {})
+                    content_details = item.get("contentDetails", {})
+                    statistics = item.get("statistics", {})
+
+                    video_data = {
+                        "video_id": item["id"],
+                        "title": snippet.get("title"),
+                        "channel_title": snippet.get("channelTitle"),
+                        "channel_id": snippet.get("channelId"),
+                        "published_at": snippet.get("publishedAt"),
+                        "duration": content_details.get("duration"),
+                        "view_count": statistics.get("viewCount"),
+                        "like_count": statistics.get("likeCount"),
+                        "comment_count": statistics.get("commentCount"),
+                    }
+
+                    if detailed:
+                        status = item.get("status", {})
+                        topic_details = item.get("topicDetails", {})
+                        recording_details = item.get("recordingDetails", {})
+
+                        video_data.update({
+                            "description": snippet.get("description"),
+                            "tags": snippet.get("tags", []),  # list of strings
+                            "category_id": snippet.get("categoryId"),
+                            "default_language": snippet.get("defaultLanguage"),
+                            "default_audio_language": snippet.get("defaultAudioLanguage"),
+                            "live_broadcast_content": snippet.get("liveBroadcastContent"),
+
+                            # Status information (text-labels)
+                            "privacy_status": status.get("privacyStatus"),  # public, private, unlisted
+                            "upload_status": status.get("uploadStatus"),
+                            "license": status.get("license"),  # YouTube, creativeCommon
+
+                            # Topic-metadata (Wikipedia-links / entities)
+                            "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
+                            "topic_categories": topic_details.get("topicCategories", []),  # Wikipedia-URLs
+
+                            "location_description": recording_details.get("locationDescription"),
+                        })
+
+                    f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
+                f_out.flush()
+
+                if chunk % 10 ==0:
+                    print(f"Processed {chunk*50} videos.")
+                time.sleep(0.1)
+                chunk += 1
+    except Exception as e:
+        print(f"Error: {e}")
+    print("Metadata saved.")
+
 
 
 def load_json(path):
