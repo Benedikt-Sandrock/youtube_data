@@ -1,10 +1,8 @@
-from googleapiclient.discovery import build
 from langdetect import detect, LangDetectException
 from collections import Counter
 from typing import Tuple
 import os
 import time
-import pandas as pd
 import json
 
 
@@ -41,27 +39,80 @@ def set_to_json(path, data):
         json.dump(sorted(data), f, indent=2, ensure_ascii=False)
 
 
-def get_channel_metadata(youtube, channel_ids):
+def get_channel_metadata(channel_ids, output_path, youtube):
+    """
+    Takes YouTube-Client and channel IDs as input and returns a json file with channel-metadata.
+    """
+    if os.path.exists(output_path):
+        with open(output_path, "r", encoding="utf-8") as f:
+            try:
+                all_data = json.load(f)
+            except json.JSONDecodeError:
+                all_data = []
+    else:
+        all_data = []
 
-    all_data = []
-    for batch in chunk_list(channel_ids, 50):
+
+    already_requested = {c["channel_id"] for c in all_data}
+    channel_ids_filtered = [c for c in channel_ids if c not in already_requested]
+    y = len(channel_ids) - len(channel_ids_filtered)
+
+    print(f"Channel IDs: {len(channel_ids)}"
+          f"\nOf which already classfied: {y}")
+
+    print(f"Requesting metadata for {len(channel_ids_filtered)} channels...")
+
+    for batch in chunk_list(channel_ids_filtered, 50):
         request = youtube.channels().list(
-            part="snippet,statistics",
+            part="snippet,statistics,contentDetails,brandingSettings,status",
             id=",".join(batch)
         )
         response = request.execute()
 
         for item in response.get('items', []):
+            # Sicherstellen, dass Unter-Dictionaries existieren (Verhindert KeyErrors)
+            snippet = item.get('snippet', {})
+            stats = item.get('statistics', {})
+            content_details = item.get('contentDetails', {})
+            branding = item.get('brandingSettings', {})
+            branding_channel = branding.get('channel', {})
+            status = item.get('status', {})
+
             data = {
-                'name': item['snippet']['title'],
-                'subscribers': int(item['statistics'].get('subscriberCount', 0)),
-                'views': int(item['statistics'].get('viewCount', 0)),
-                'video_files': int(item['statistics'].get('videoCount', 0)),
-                'channel_id': item['id']
+                # Basic Infos & IDs
+                'channel_id': item.get('id'),
+                'title': snippet.get('title'),
+                'subscribers': int(stats.get('subscriberCount', 0)),
+                'views': int(stats.get('viewCount', 0)),
+                'video_count': int(stats.get('videoCount', 0)),
+                'hidden_subscriber_count': stats.get('hiddenSubscriberCount', False),
+                'handle': snippet.get('customUrl'),
+                'published_at': snippet.get('publishedAt'),
+                'country': snippet.get('country', 'Nicht angegeben'),
+                'default_language': snippet.get('defaultLanguage', 'Nicht angegeben'),
+
+                # Text-Beschreibungen & SEO (Säuberung von Whitespaces)
+                'description': snippet.get('description', '').strip(),
+                'profile_keywords': branding_channel.get('keywords', 'Keine Keywords vergeben'),
+                'tracking_analytics_id': branding_channel.get('trackingAnalyticsAccountId', 'Keine'),
+
+                # Status & Richtlinien
+                'privacy_status': status.get('privacyStatus'),
+                'is_linked_to_google': status.get('isLinked'),
+                'made_for_kids': status.get('madeForKids'),
+                'long_uploads_status': status.get('longUploadsStatus', 'Nicht angegeben'),
+
+                # Wichtige System-Playlists
+                'uploads_playlist_id': content_details.get('relatedPlaylists', {}).get('uploads'),
+
+                # Visuelle Links (Falls benötigt)
+                'thumbnail_url': snippet.get('thumbnails', {}).get('high', {}).get('url'),
+                'banner_url': branding.get('image', {}).get('bannerExternalUrl', 'Kein Banner')
             }
             all_data.append(data)
 
-    return all_data
+    with open(output_path, "w", encoding = "utf-8") as f:
+        json.dump(all_data, f, indent = 2, ensure_ascii= False)
 
 
 def get_video_metadata(video_ids, youtube):
@@ -100,9 +151,9 @@ def load_json(path):
         return data
 
 
-def save_json(path, data, name = "data"):
-    print(f"Saving {name} to '{path}'")
-    with open(path, "w", encoding = "utf-8") as f:
+def save_json(output_path, data, name: str= "data"):
+    print(f"Saving {name} to '{output_path}'")
+    with open(output_path, "w", encoding = "utf-8") as f:
         json.dump(data, f, indent = 2, ensure_ascii=False)
 
 
@@ -112,6 +163,10 @@ def chunk_list(lst, chunk_size):
 
 
 def collect_unique_channel_ids(directory, filenames):
+    """
+    Takes a directory and a filename or a list of filenames as input and collects all channel IDs
+    within the corresponding files in the specified directory.
+    """
     if isinstance(filenames, str):
         filenames = [filenames]
 
@@ -219,6 +274,9 @@ def classify_channels_from_json(youtube, input_json_path: str, output_all_channe
     print("Classifying channels...")
     with open(input_json_path, "r", encoding="utf-8") as f:
         channel_ids = json.load(f)
+
+    channel_ids = {c["channel_id"] for c in channel_ids}
+    channel_ids = list(channel_ids)
 
     if os.path.exists(output_all_channels_path):
         with open(output_all_channels_path, "r", encoding="utf-8") as f:
