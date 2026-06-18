@@ -6,6 +6,7 @@ import random
 import os
 import json
 from datetime import datetime, timezone
+
 from src.config.paths import TRANSCRIPTS, SAMPLES
 
 
@@ -57,6 +58,10 @@ if os.path.exists(file_path):
     existing_df = pd.read_csv(file_path, usecols=["video_id"])
     processed_video_ids = set(existing_df["video_id"].astype(str))
     print(f"➡️ {len(processed_video_ids)} Video-IDs bereits vorhanden")
+
+    already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
+    print(f"{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
+
 else:
     print("Keine bestehende CSV gefunden")
 

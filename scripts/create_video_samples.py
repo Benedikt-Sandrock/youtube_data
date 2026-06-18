@@ -1,7 +1,7 @@
 """
 sample_videos.py
 ----------------
-Draws e weighted random sample for a JSON file.
+Draws a weighted random sample for a JSON file.
 
 Arguments:
     --input             Path to input JSON file
@@ -16,7 +16,7 @@ import json
 import random
 from datetime import datetime, timezone
 from collections import defaultdict
-from src.config.paths import SAMPLES
+from src.config.paths import SAMPLES, RAW
 from src.config.settings import KEYWORDS
 
 
@@ -28,6 +28,7 @@ output_file_name = "sampled_50k_channels.json"
 
 REFERENCE_DATE = datetime(2023, 10, 7, tzinfo=timezone.utc)
 INPUT_FILE = SAMPLES / input_file_name
+METADATA_PATH = RAW / "video_metadata_total.jsonl"
 OUTPUT_FILE = SAMPLES / output_file_name
 TIME_DELTAS = [-1, -2, -3,]
 MAX_PER_GROUP = 20
@@ -102,6 +103,53 @@ def filter_by_keywords(data: list[dict], keywords: list[str]) -> list[dict]:
     return filtered
 
 
+def parse_iso_duration_greater_than_1m(duration_str: str) -> bool:
+    """
+    Checks whether an ISO-8601 duration is greater than one minute.
+    """
+
+    if "H" in duration_str:
+        return True
+    if "M" not in duration_str:
+        return False
+
+    try:
+        minutes_part = duration_str.split("M")[0]
+        minutes = int(minutes_part.replace("PT", ""))
+
+        if minutes == 1:
+            seconds_part = duration_str.split("M")[1]
+            return len(seconds_part) > 1 and "S" in seconds_part
+
+        return minutes > 1
+    except ValueError:
+        return False
+
+
+def filter_by_length(data: list[dict], metadata_path):
+    """
+    Reads metadata file and removes videos with a duration below one minute from data.
+
+    Args:
+        data:           List of video dicts.
+        metadata_path:  Path to metadata file.
+
+    Returns:
+        Filtered list without videos below one minute.
+    """
+    valid_video_ids = set()
+
+    with open(metadata_path, "r", encoding = "utf-8") as f:
+        for line in f:
+            meta = json.loads(line)
+            duration_str = meta.get("duration")
+            if duration_str and parse_iso_duration_greater_than_1m(duration_str):
+                valid_video_ids.add(meta["video_id"])
+    return [video for video in data if video.get("video_id") in valid_video_ids]
+
+
+
+
 def sample_videos(data: list[dict], time_deltas: list[int], max_per_group: int,
     prioritize_politics: bool, seed: int | None = None,) -> list[dict]:
     """
@@ -160,6 +208,12 @@ def main(input_file, output_file, exclude_keywords, time_deltas, max_per_group, 
     before = len(data)
     data = filter_by_keywords(data, exclude_keywords)
     print(f"  → {before - len(data)} videos removed by keyword filter.")
+    print(f"  → {len(data)} videos remaining.")
+
+    # Excluding videos with duration < 1 minute
+    before = len(data)
+    data = filter_by_length(data, METADATA_PATH)
+    print(f"  → {before - len(data)} videos removed by length filter.")
     print(f"  → {len(data)} videos remaining.")
 
     # Sampling

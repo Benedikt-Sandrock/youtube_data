@@ -16,14 +16,16 @@ DETAILED = True
 
 VIDEOS_INPUT_PATH = RAW / "videos_total.json"
 CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
+
 if DETAILED:
     VIDEOS_METADATA_PATH = RAW / "video_metadata_detailed_total.json"
 else:
     VIDEOS_METADATA_PATH = RAW / "video_metadata_total.jsonl"
 
 
-YOUTUBE = build("youtube", "v3", developerKey=API_KEY_C)
+YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
+# ─────────────────────────────────────────────
 
 data = load_json(VIDEOS_INPUT_PATH)
 

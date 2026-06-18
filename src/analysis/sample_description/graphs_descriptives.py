@@ -12,8 +12,8 @@ import matplotlib.dates as mdates
 from src.config.settings import API_KEY, API_KEY_C, API_KEY_GEMINI, KEYWORDS
 from src.config.paths import SAMPLES, RAW
 
-all_metadata_path = DATA_RAW / "metadata_all_videos.jsonl"
-channel_metadata_path = DATA_RAW / "channel_metadata.json"
+all_metadata_path = RAW / "metadata_all_videos.jsonl"
+channel_metadata_path = RAW / "channel_metadata.json"
 
 published_after_analysis = "2022-10-07T00:00:00Z"
 published_before_analysis = "2026-01-31T00:00:00Z"
