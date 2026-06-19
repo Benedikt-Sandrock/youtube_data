@@ -16,8 +16,8 @@ import json
 import random
 from datetime import datetime, timezone
 from collections import defaultdict
-from src.config.paths import SAMPLES, RAW
-from src.config.settings import KEYWORDS
+from src.youtube_code.config.paths import SAMPLES, RAW
+from src.youtube_code.config.settings import KEYWORDS
 
 
 # ─────────────────────────────────────────────

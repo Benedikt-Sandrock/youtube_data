@@ -1,5 +1,5 @@
 import pandas as pd
-from src.config.paths import EXPLORATION, SAMPLES
+from youtube_code.config import EXPLORATION, SAMPLES
 
 # ===================================================
 # CONFIGURATION AND PATHS

@@ -17,10 +17,8 @@ import json
 import os
 
 from settings_variables import published_before_analysis, published_after_analysis
-from src.config.settings import API_KEY, API_KEY_C
-from src.config.paths import RAW, CHANNEL_LISTS
-from src.utils.io import save_json
-
+from youtube_code.config import API_KEY, RAW, CHANNEL_LISTS
+from youtube_code.utils import save_json
 
 # ─────────────────────────────────────────────
 # MODE SWITCH  ←  change this line to switch

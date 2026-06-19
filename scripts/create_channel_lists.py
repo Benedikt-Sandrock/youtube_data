@@ -3,15 +3,15 @@ First step: Creates a list (saved as json) of all unique channel ids within a di
 Second step: Gets all videos for channels of a given list and saves them in "SAMPLES"
 """
 
-from src.config.paths import CHANNEL_LISTS, RAW, SAMPLES
-from src.utils.io import collect_unique_channel_ids, save_json, load_json
+from src.youtube_code.config.paths import CHANNEL_LISTS, RAW, SAMPLES
+from src.youtube_code.utils.io import collect_unique_channel_ids, save_json, load_json
 
 
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
 FIRST_STEP = False
-SECOND_STEP = False
+SECOND_STEP = True
 SAMPLE_NAME = "all_videos_50k_channels.json"
 DIR_NAME = "conflict_over_time"
 
@@ -48,14 +48,14 @@ if SECOND_STEP:
 
     save_json(SAMPLE_FILE, sample_data)
 
-    channel_length = [c["channel_id"] for c in sample_data]
+    channel_length = {c["channel_id"] for c in sample_data}
 
     print(f"Number of videos in sample: {len(sample_data)}")
     print(f"Number of unique channels in sample: {len(channel_length)}")
 
 
-data = load_json(SAMPLES / "sampled_50k_channels.json")
-print(len(data))
-
-data = load_json(SAMPLES / "sampled_per_channel.json")
-print(len(data))
+# data = load_json(SAMPLES / "sampled_50k_channels.json")
+# print(len(data))
+#
+# data = load_json(SAMPLES / "sampled_per_channel.json")
+# print(len(data))

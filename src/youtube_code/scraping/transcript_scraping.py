@@ -7,7 +7,7 @@ import os
 import json
 from datetime import datetime, timezone
 
-from src.config.paths import TRANSCRIPTS, SAMPLES
+from youtube_code.config import TRANSCRIPTS, SAMPLES
 
 
 stop_word = "blocking"

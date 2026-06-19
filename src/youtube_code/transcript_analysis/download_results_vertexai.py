@@ -6,8 +6,7 @@ from pathlib import Path
 from google import genai
 from google.cloud import storage
 
-from src.config.paths import OUTPUT_GEMINI
-from src.config.settings import PROJECT_ID, LOCATION
+from youtube_code.config import OUTPUT_GEMINI, PROJECT_ID, LOCATION
 
 # ============================================================
 # CONFIG

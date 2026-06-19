@@ -1,5 +1,5 @@
-from src.config.paths import TRANSCRIPTS
-from src.utils.io import load_json
+from src.youtube_code.config.paths import TRANSCRIPTS
+from src.youtube_code.utils.io import load_json
 import pandas as pd
 
 data = load_json("sampled_50k_channels.json")

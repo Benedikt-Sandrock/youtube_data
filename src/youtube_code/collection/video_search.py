@@ -2,8 +2,8 @@ from googleapiclient.discovery import build
 import json
 import os
 from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
-from src.utils.io import load_set
-from src.config.settings import API_KEY, API_KEY_C
+from src.youtube_code.utils.io import load_set
+from src.youtube_code.config.settings import API_KEY
 from dateutil.relativedelta import relativedelta
 
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
