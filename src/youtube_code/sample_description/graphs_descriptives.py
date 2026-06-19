@@ -1,5 +1,4 @@
 import json
-import os
 from googleapiclient.discovery import build
 import pandas as pd
 import seaborn as sns
@@ -9,8 +8,7 @@ from matplotlib_venn import venn2, venn2_circles
 import numpy as np
 import matplotlib.dates as mdates
 
-from src.config.settings import API_KEY, API_KEY_C, API_KEY_GEMINI, KEYWORDS
-from src.config.paths import SAMPLES, RAW
+from youtube_code.config import API_KEY, RAW
 
 all_metadata_path = RAW / "metadata_all_videos.jsonl"
 channel_metadata_path = RAW / "channel_metadata.json"

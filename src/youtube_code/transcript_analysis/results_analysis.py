@@ -4,7 +4,7 @@ import re
 from sklearn.metrics import (mean_absolute_error, root_mean_squared_error,
     accuracy_score, precision_score, recall_score, f1_score)
 from scipy.stats import spearmanr
-from src.config.paths import OUTPUT_GEMINI, EXTERNAL, VALIDATION
+from youtube_code.config import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 
 # =========================================
 # PATHS AND CONFIGURATION

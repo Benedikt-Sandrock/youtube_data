@@ -10,7 +10,7 @@ __pycache__
 /outputs/sample_description/
 /youtube_data.egg-info/
 /data/transcripts/all_transcripts_backup.csv
-/src/transcript_analysis/id_files_done/
+/src/youtube_code/transcript_analysis/id_files_done/
 /data/raw/channel_metadata_total.json
 /data/samples/cot_50k_channels/sampled_50k_channels.json
 /data/samples/cot_50k_channels/all_videos_50k_channels.json

@@ -1,12 +1,8 @@
-import time
-import json
 import os
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from src.utils.io import get_video_metadata
+from youtube_code.utils import get_video_metadata
 
 
 published_after_analysis = "2022-10-07T00:00:00Z"

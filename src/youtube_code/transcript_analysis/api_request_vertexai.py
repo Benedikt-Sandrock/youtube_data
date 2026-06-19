@@ -3,8 +3,7 @@ import json
 import pandas as pd
 from google import genai
 from google.cloud import storage
-from src.config.paths import EXPLORATION
-from src.config.settings import BUCKET_NAME, PROJECT_ID, LOCATION
+from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION
 
 # ===============================================
 # CONFIGURATION

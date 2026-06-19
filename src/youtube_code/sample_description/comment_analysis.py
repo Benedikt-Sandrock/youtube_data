@@ -1,7 +1,6 @@
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from src.config.paths import OUTPUTS
+from youtube_code.config import OUTPUTS
 
 
 df_videos = pd.read_json(
