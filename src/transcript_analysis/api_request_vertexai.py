@@ -856,14 +856,14 @@ prompts_populism = {
 }
 
 prompt_5_adjusted = {
-"PROMPT_05": """
+"PROMPT_051": """
     Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
 
     1. VIDEO-TYP:
     Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" oder "Standard".
 
     2. POLITISCHE IDEOLOGIE (Skala 0 bis 10):
-    Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
+    Bewerte im Video zum Ausdruck gebrachte Position zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
     - Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
     - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
 
@@ -892,7 +892,7 @@ prompt_5_adjusted = {
 }
 ### Choose prompts ###
 
-prompts = prompts_populism    # [prompts_both, prompts_ideology, prompts_populism]
+prompts = prompt_5_adjusted    # [prompts_both, prompts_ideology, prompts_populism]
 
 client = genai.Client(
     vertexai = True,

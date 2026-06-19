@@ -10,8 +10,8 @@ from src.config.paths import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 # PATHS AND CONFIGURATION
 # =========================================
 # If CONVERT is true the numerical classification is mapped to a 5- (ideology) and  a 6-point-scale (populism):
-CONVERT = True
-ONLY_VALIDATION = True  # If combined file already exists
+CONVERT = False
+ONLY_VALIDATION = False  # If combined file already exists
 seed_number = "0"       # ["0", "41", "42"] -> 0 combines other test sets
 
 MAIN_FILE = EXTERNAL / f"complete_classification_{seed_number}.xlsx"
@@ -43,7 +43,7 @@ pattern_configuration = {
     ),
     "ideology_all_statements_vs_all_models": (
         "ideology_score_all_statements",
-        lambda col: ("2_" in col or "5_" in col or "6_" in col or "8_" in col) and "ideology_score" in col
+        lambda col: ("2_" in col or "5_" in col or "51_" in col or "6_" in col or "8_" in col) and "ideology_score" in col
     ),
     "populism_manual_vs_all_models": (
         "populism_score_manual",
@@ -52,7 +52,7 @@ pattern_configuration = {
     ),
     "populism_all_statements_vs_all_models": (
         "populism_score_all_statements",
-        lambda col: ("2_" in col or "5_" in col or "6_" in col or "8_" in col) and "populism_score" in col
+        lambda col: ("2_" in col or "5_" or "51_" in col in col or "6_" in col or "8_" in col) and "populism_score" in col
     ),
 }
 
