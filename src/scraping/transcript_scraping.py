@@ -17,19 +17,19 @@ stop_word = "blocking"
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 
-video_list = SAMPLES / "sampled_50k_channels.json"
+video_list = SAMPLES / "cot_50k_channels" / "sampled_50k_channels.json"
 file_path = TRANSCRIPTS / "all_transcripts.csv"
 file_path_backup = TRANSCRIPTS / "all_transcripts_backup.csv"
 
 #os.makedirs((file_path), exist_ok=True)
 
-print("Lese Sample Videos ein...")
+print("Reading sample videos...")
 with open(video_list, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 video_ids_sorted = [item["video_id"] for item in data]
 
-print(f"Anzahl Video-IDs: {len(video_ids_sorted)}")
+print(f"Number of video-IDs: {len(video_ids_sorted)}")
 
 # Funktionen
 
@@ -54,16 +54,26 @@ def save_to_csv(daten_chunk, file_path):
 processed_video_ids = set()
 
 if os.path.exists(file_path):
-    print("Bestehende CSV gefunden – lade bereits verarbeitete Video-IDs …")
-    existing_df = pd.read_csv(file_path, usecols=["video_id"])
+    print("Existing CSV found – Loading already processed video IDs…")
+    existing_df = pd.read_csv(file_path)
+    len_before = len(existing_df)
+    existing_df = existing_df[~existing_df["status"].str.contains("Max retries", na = False)]
+    len_after = len(existing_df)
+    removed = len_before - len_after
+    print(f"Removed {removed} videos for which download failed.")
+    # existing_df = existing_df.drop_duplicates(subset = ["video_id"], keep = "last")
+    # len_duplicates = len(existing_df)
+    # duplicates = len_after - len_duplicates
+    # print(f"Removed {duplicates} duplicates.")
+    existing_df.to_csv(file_path, index = False)
     processed_video_ids = set(existing_df["video_id"].astype(str))
-    print(f"➡️ {len(processed_video_ids)} Video-IDs bereits vorhanden")
+    print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
 
     already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
-    print(f"{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
+    print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
 
 else:
-    print("Keine bestehende CSV gefunden")
+    print("No existing CSV found")
 
 
 # Download
@@ -83,10 +93,10 @@ for video_id in video_ids_sorted:
         continue
 
     if last_skipped_id is not None:
-        print(f"Letzte übersprungene ID: {last_skipped_id}")
+        print(f"Last skipped ID: {last_skipped_id}")
         last_skipped_id = None
 
-    print(f"Verarbeite Video-ID: {video_id}")
+    print(f"Processing video-ID: {video_id}")
 
     try:
         segments = get_transcript(video_id)
@@ -99,7 +109,7 @@ for video_id in video_ids_sorted:
         })
 
     except NoTranscriptFound:
-        print(f"   -> Kein Transkript für {video_id}")
+        print(f"   -> No transcript for {video_id}")
         daten.append({
             "video_id": video_id,
             "transcript": None,
@@ -110,12 +120,12 @@ for video_id in video_ids_sorted:
         error_msg = str(e).lower()
         if stop_word in error_msg:
             timestamp = (datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"))
-            print(f"{timestamp}: IP geblockt – Schleife wird abgebrochen\n"
-                  f"Abgebrochen nach {api_request_count} Requests")
+            print(f"{timestamp}: IP blocked – Loop is terminated\n"
+                  f"Terminated after {api_request_count} requests")
             print(error_msg)
             break
         else:
-            print(f"   -> Fehler bei {video_id}: {e}")
+            print(f"   -> Error at {video_id}: {e}")
             daten.append({
                 "video_id": video_id,
                 "transcript": None,
@@ -129,33 +139,33 @@ for video_id in video_ids_sorted:
 
     # Pause nach jedem API-Request
     pause = random.uniform(26, 36)
-    print(f"→ Pause: {pause:.2f} Sekunden")
+    print(f"→ Break: {pause:.2f} seconds")
     time.sleep(pause)
 
     # Batch-Pause nach 5 Requests
     if api_request_count % batch_size == 0:
-        print(f"\n Speichern …")
+        print(f"\n Saving …")
         save_to_csv(daten, file_path)
         daten.clear()
         batch_pause = random.uniform(45, 85)
-        print(f"Batch Pause nach {api_request_count} Requests: {batch_pause:.2f} Sekunden")
+        print(f"Batch break after {api_request_count} requests: {batch_pause:.2f} seconds")
         time.sleep(batch_pause)
 
     if api_request_count % 100 == 0:
         lange_pause = random.uniform(290, 310)
-        print(f"lange Pause: {lange_pause:.2f} Sekunden")
+        print(f"Long break: {lange_pause:.2f} seconds")
         time.sleep(lange_pause)
 
     if api_request_count % 500 == 0:
         transcripts = pd.read_csv(file_path)
         num_transcripts = len(transcripts)
-        print(f"Back up nach {num_transcripts} Transcripts")
+        print(f"Back up after {num_transcripts} transcripts")
         transcripts.to_csv(file_path_backup, index = False)
 
 # Restdaten speichern
 
 if daten:
-    print("\n💾 Speichere verbleibende Daten …")
+    print("\n💾 Saving remaining data …")
     save_to_csv(daten, file_path)
 
-print("\n✅ Fertig!")
+print("\n✅ Done!")
