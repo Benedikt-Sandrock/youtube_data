@@ -1,2 +1,2 @@
-from paths import *
-from settings import *
+from .paths import *
+from .settings import *
