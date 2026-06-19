@@ -2,16 +2,11 @@ from googleapiclient.discovery import build
 import json
 import os
 from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
-from help_functions import is_german_channel, load_set, set_to_json
+from src.utils.io import load_set
+from src.config.settings import API_KEY, API_KEY_C
 from dateutil.relativedelta import relativedelta
-from dotenv import load_dotenv
 
-load_dotenv()
-api_key = os.getenv("API_KEY")
-api_key_c = os.getenv("API_KEY_C")
-
-
-youtube = build('youtube', 'v3', developerKey=api_key)
+YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
 
 
 config_text = (
@@ -94,7 +89,7 @@ for query in query_list:
         next_page_token = None
 
         while True:
-            request = youtube.search().list(
+            request = YOUTUBE.search().list(
                 part="id,snippet",
                 q=query,
                 type="video",

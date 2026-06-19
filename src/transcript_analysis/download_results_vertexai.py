@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 from google import genai
 from google.cloud import storage
+
 from src.config.paths import OUTPUT_GEMINI
 from src.config.settings import PROJECT_ID, LOCATION
 
@@ -12,7 +13,9 @@ from src.config.settings import PROJECT_ID, LOCATION
 # CONFIG
 # ============================================================
 
-OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / "classification_42" / "classification_results"
+seed_number = "41"
+
+OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / f"classification_{seed_number}" / "classification_results"
 ID_FILES_DIR = Path("id_files")
 ID_FILES_DONE_DIR = Path("id_files_done")
 

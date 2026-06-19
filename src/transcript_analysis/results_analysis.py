@@ -9,42 +9,27 @@ from src.config.paths import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 # =========================================
 # PATHS AND CONFIGURATION
 # =========================================
-# If CONVERT is true the numerical classification is mapped to 5/6-point-scale:
-# Ideology: extremely left - moderately left - neutral - moderately right - extremely right
-# Populism: no populism at all - very little populism - latent populism - manifested populism - strong populism - total populism
-
+# If CONVERT is true the numerical classification is mapped to a 5- (ideology) and  a 6-point-scale (populism):
 CONVERT = True
-seed_number = "42"
+ONLY_VALIDATION = True  # If combined file already exists
+seed_number = "0"       # ["0", "41", "42"] -> 0 combines other test sets
 
 MAIN_FILE = EXTERNAL / f"complete_classification_{seed_number}.xlsx"
-OUTPUT_PATH = OUTPUT_GEMINI / f"all_results_merged_{seed_number}.xlsx"
-VALIDATION_PATH = VALIDATION / f"comparison_manual_model_{seed_number}.xlsx"
-RESULTS_DIRECTORY = OUTPUT_GEMINI
+OUTPUT_PATH = OUTPUT_GEMINI / "results_merged" / f"all_results_merged_{seed_number}.xlsx" if not CONVERT else OUTPUT_GEMINI / "results_merged" / f"all_results_merged_{seed_number}_converted.xlsx"
+VALIDATION_PATH = VALIDATION / f"comparison_manual_model_{seed_number}.xlsx" if not CONVERT else VALIDATION / f"comparison_manual_model_{seed_number}_converted.xlsx"
+RESULTS_DIRECTORY = OUTPUT_GEMINI / f"classification_{seed_number}"
 
-ideology_bins = [-0.1, 2, 4, 6, 8, 10]
-ideology_labels = ["extremely left", "moderately left", "center", "moderately right", "extremely right"]
+ideology_bins = [-2, -0.1, 2, 4, 6, 8, 10]
+ideology_labels = ["unpolitical", "extremely left", "moderately left", "center", "moderately right", "extremely right"]
+ideology_labels_numeric = [-1, 1, 2, 3, 4, 5]
 
-populism_bins = [-0.1, 1, 3, 5, 7, 8, 10]
-populism_labels = ["no populism", "little populism", "latent populism", "manifested populism", "strong populism", "total populism"]
+populism_bins = [-2, -0.1, 1, 3, 5, 7, 8, 10]
+populism_labels = ["unpolitical", "no populism", "little populism", "latent populism", "manifested populism", "strong populism", "total populism"]
+populism_labels_numeric = [-1, 1, 2, 3, 4, 5, 6]
 
 # =========================================
 # MAIN CODE
 # =========================================
-answer = input(f"Paths indicate that test sample {seed_number} is processed."
-               f"\nCorrect? [Y/n] ")
-
-if not answer.strip().lower() == "y":
-    print("Aborted.")
-    exit()
-
-# df = pd.read_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx")
-# df = df[["video_id", "ideology_score", "populism_score"]]
-# df.to_excel(OUTPUT_GEMINI / "classification_results_9_g25_f.xlsx", index = False)
-#
-# df = pd.read_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx")
-# df = df[["video_id", "ideology_score"]]
-# df.to_excel(OUTPUT_GEMINI / "classification_results_8_g25_f.xlsx", index = False)
-
 
 pattern_configuration = {
     "video_type_vs_all_models": (
@@ -71,61 +56,66 @@ pattern_configuration = {
     ),
 }
 
+if ONLY_VALIDATION:
+    df = pd.read_excel(OUTPUT_PATH)
 
-df = pd.read_excel(MAIN_FILE)
+else:
+    df = pd.read_excel(MAIN_FILE)
+
+    df["ideology_score_all_statements"] = df["ideology_score_all_statements"].fillna(df["ideology_score_manual"])
+    df["populism_score_all_statements"] = df["populism_score_all_statements"].fillna(df["populism_score_manual"])
+
+    search_scheme = "classification_results_*.xlsx"
+
+    all_files = glob.glob(search_scheme, root_dir = RESULTS_DIRECTORY)
+
+    print(f"{len(all_files)} files found.")
+
+    counter = 0
+    for file_name in all_files:
+        match = re.search(r"classification_results_(\d+)_(.+)\.xlsx", file_name)
+
+        if match:
+            model_number = match.group(1)
+            model_name = match.group(2)
+
+            suffix = f"_{model_number}_{model_name}"
+        else:
+            suffix = "_pattern_not_found"
+
+        df_model = pd.read_excel(RESULTS_DIRECTORY / file_name)
+
+        cols = df_model.columns
+        if "video_type" in cols:
+            df_model["video_type"] = (df_model["video_type"] == "Reaction").astype(int)
+
+        if "ideology_score" in cols:
+            df_model["political"] = (df_model["ideology_score"] != -1).astype(int)
+        elif "populism_score" in cols:
+            df_model["political"] = (df_model["populism_score"] != -1).astype(int)
+            counter += 1
+        else:
+            print(f"No column to detect political content in '{file_name}'.")
+
+        df_model = df_model.rename(columns  ={
+            col: f"{col}{suffix}" for col in df_model.columns if col != "video_id"
+        })
+
+        df = pd.merge(df, df_model, on = "video_id", how = "left")
+
+    print(f"Populism used to detect political content in {counter} datasets.")
+
+    if CONVERT:
+        for col in df.columns:
+            if "ideology_score" in col:
+                df[col] = pd.cut(df[col], bins=ideology_bins, labels=ideology_labels_numeric).astype(int)
+            if "populism_score" in col:
+                df[col] = pd.cut(df[col], bins=populism_bins, labels=populism_labels_numeric).astype(int)
 
 
-df["ideology_score_all_statements"] = df["ideology_score_all_statements"].fillna(df["ideology_score_manual"])
-df["populism_score_all_statements"] = df["populism_score_all_statements"].fillna(df["populism_score_manual"])
+    df.to_excel(OUTPUT_PATH, index = False)
 
-if CONVERT:
-    df["ideology_score_manual"] = pd.cut(df["ideology_score_manual"], bins = ideology_bins, labels = ideology_labels)
-    df["ideology_score_all_statements"] = pd.cut(df["ideology_score_all_statements"], bins = ideology_bins, labels = ideology_labels)
-    df["populism_score_manual"] = pd.cut(df["populism_score_manual"], bins = populism_bins, labels = populism_labels)
-    df["populism_score_all_statements"] = pd.cut(df["populism_score_all_statements"], bins = populism_bins, labels = populism_labels)
-
-search_scheme = "classification_results_*.xlsx"
-
-all_files = glob.glob(search_scheme, root_dir = RESULTS_DIRECTORY)
-
-print(f"{len(all_files)} files found.")
-
-counter = 0
-for file_name in all_files:
-    match = re.search(r"classification_results_(\d+)_(.+)\.xlsx", file_name)
-
-    if match:
-        model_number = match.group(1)
-        model_name = match.group(2)
-
-        suffix = f"_{model_number}_{model_name}"
-    else:
-        suffix = "_pattern_not_found"
-
-    df_model = pd.read_excel(OUTPUT_GEMINI / file_name)
-
-    cols = df_model.columns
-    if "video_type" in cols:
-        df_model["video_type"] = (df_model["video_type"] == "Reaction").astype(int)
-
-    if "ideology_score" in cols:
-        df_model["political"] = (df_model["ideology_score"] != -1).astype(int)
-    elif "populism_score" in cols:
-        df_model["political"] = (df_model["populism_score"] != -1).astype(int)
-        counter += 1
-    else:
-        print(f"No column to detect political content in '{file_name}'.")
-
-    df_model = df_model.rename(columns  ={
-        col: f"{col}{suffix}" for col in df_model.columns if col != "video_id"
-    })
-
-    df = pd.merge(df, df_model, on = "video_id", how = "left")
-
-print(f"Populism used to detect political content in {counter} datasets.")
-df.to_excel(OUTPUT_PATH, index = False)
-
-print(f"Merged file saved under '{OUTPUT_PATH}'.")
+    print(f"Merged file saved under '{OUTPUT_PATH}'.")
 
 political_results = []
 

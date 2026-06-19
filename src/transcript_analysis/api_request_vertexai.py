@@ -6,13 +6,11 @@ from google.cloud import storage
 from src.config.paths import EXPLORATION
 from src.config.settings import BUCKET_NAME, PROJECT_ID, LOCATION
 
-client = genai.Client(
-    vertexai = True,
-    project=PROJECT_ID,
-    location = LOCATION
-)
-
-seed_number = "42"
+# ===============================================
+# CONFIGURATION
+# ===============================================
+# Specify seed number and prompts
+seed_number = "41"
 
 INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
@@ -857,10 +855,54 @@ prompts_populism = {
     """,
 }
 
+prompt_5_adjusted = {
+"PROMPT_05": """
+    Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien und strukturiere das Ergebnis exakt nach dem vorgegebenen JSON-Schema.
+
+    1. VIDEO-TYP:
+    Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" oder "Standard".
+
+    2. POLITISCHE IDEOLOGIE (Skala 0 bis 10):
+    Bewerte die Position des Creators zu soziokulturellen und gesellschaftspolitischen Themen im Kontext Deutschlands auf einer Skala von 0 (extrem links) bis 10 (extrem rechts). 
+    - Die mathematische Mitte (neutral/ausgewogen berichtet, ohne eigenes Framing) liegt exakt bei 5.0.
+    - Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+
+    !!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
+    Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+    - Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+    - Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte:
+      -> LINKS (0.0-4.9): Fokus auf soziale Gerechtigkeit, staatliche Regulierung, Umverteilung, Antikapitalismus, progressive Gesellschaftspolitik, Klimaschutz durch Ge- und Verbote.
+      -> RECHTS (5.1-10.0): Fokus auf individuelle Freiheit (Wirtschaftsliberalismus), Marktmechanismen, private Sachwerte/Selbstvorsorge, traditionelle Werte, Nationalstaat, explizite Ablehnung staatlicher Eingriffe.
+
+    3. POPULISMUS (Skala 0 bis 10):
+    Bewerte den Text hinsichtlich des Populismusgrads basierend auf dem "ideational approach" auf einer Skala von 0 (gar nicht populistisch) bis 10 (extrem populistisch). 
+    - Ein Video, in dem rein neutral argumentiert wird, erhält den Wert 0.0.
+    - Wenn das Video vollständig unpolitisch/ideologiefrei ist und kein Bezug zu gesellschaftlichen Debatten oder Eliten hergestellt wird, setze den Score zwingend auf -1.0.
+    - Nutze diese Skala für die reine Systemkritik, das Framing "Reine Bevölkerung vs. korrupte Elite" und das Misstrauen gegenüber dem "Mainstream".
+
+    Ausgabeformat:
+    Gib ausschließlich ein valides JSON-Objekt zurück. Kein Markdown-Codeblock, kein Text davor oder danach. 
+    Die Struktur MUSS exakt so aussehen:
+    {
+      "video_type": "Reaction",
+      "ideology_score": 5.0,
+      "populism_score": 0.0,
+    }
+    """,
+}
 ### Choose prompts ###
 
-prompts = prompts_ideology    # [prompts_both, prompts_ideology, prompts_populism]
+prompts = prompts_populism    # [prompts_both, prompts_ideology, prompts_populism]
 
+client = genai.Client(
+    vertexai = True,
+    project=PROJECT_ID,
+    location = LOCATION
+)
+
+# ===============================================
+# FUNCTIONS
+# ===============================================
 
 def get_prompt_number(prompt_key: str) -> str:
     if prompt_key.startswith("PROMPT_") and prompt_key[7:].isdigit():
@@ -924,16 +966,13 @@ def start_batch_job(jsonl_path, model):
     return job.name
 
 
-def run_all_prompts(
-        prompt_keys,
-        model_name: str = "gemini_25_flash",
-        dry_run: bool = False
-):
+def run_all_prompts(csv_path, prompt_keys, model_name: str = "gemini_25_flash", dry_run: bool = False):
     model_alias = MODEL_ALIASES.get(model_name, "unknown_model")
     if isinstance(prompt_keys, str):
         prompt_keys = [prompt_keys]
 
     print(f"\n{'=' * 60}")
+    print(f"Input: '{csv_path}'")
     print(f"Model: {model_alias}")
     print(f"Prompts to run: {len(prompt_keys)}")
     print(f"Prompts: {prompt_keys}")
@@ -970,7 +1009,7 @@ def run_all_prompts(
                     continue
 
             if not dry_run:
-                csv_to_jsonl(INPUT_CSV, jsonl_path, system_prompt)
+                csv_to_jsonl(csv_path, jsonl_path, system_prompt)
                 job_id = start_batch_job(jsonl_path, model_alias)
 
             else:
@@ -1001,11 +1040,16 @@ def run_all_prompts(
     return results
 
 
+# ===============================================
+# MAIN
+# ===============================================
+
 if __name__ == "__main__":
     PROMPTS_TO_RUN = list(prompts.keys())
 
     run_all_prompts(
+        csv_path = INPUT_CSV,
         prompt_keys = PROMPTS_TO_RUN,
         model_name = "gemini_25_flash",
-        dry_run = True
+        dry_run = False
     )
