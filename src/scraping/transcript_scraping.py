@@ -132,8 +132,6 @@ for video_id in video_ids_sorted:
                 "status": f"Fehler: {e}"
         })
 
-    processed_video_ids.add(video_id)
-
     # Nur echte API-Anfragen zählen
     api_request_count += 1
 
