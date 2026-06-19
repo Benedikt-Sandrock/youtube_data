@@ -444,14 +444,3 @@ def channel_id_to_name_batched(youtube, list_of_ids):
 
     # Die Liste in der ursprünglichen Reihenfolge zurückgeben
     return [results_dict.get(cid) for cid in list_of_ids]
-
-
-
-
-
-
-
-
-
-
-
