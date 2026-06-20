@@ -16,6 +16,4 @@ __pycache__
 /data/samples/cot_50k_channels/all_videos_50k_channels.json
 /data/raw/video_metadata_total.jsonl
 /data/raw/video_metadata_detailed_total.json
-/data/samples/cot_50k_channels/all_videos_50k_channels.json
-/data/samples/cot_50k_channels/sampled_50k_channels.json
 /data/samples/cot_50k_channels/transcripts_cot_50k.csv
