@@ -11,13 +11,14 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES
 
 
 stop_word = "blocking"
-
+speed_download = False
+print(f"Speed download: {speed_download}")
 # Daten laden
 # Muss konfiguriert werden
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 
-video_list = SAMPLES / "cot_50k_channels" / "sampled_50k_channels.json"
+video_list = SAMPLES / "party_identification" / "sampled_50k_channels.json"
 file_path = TRANSCRIPTS / "all_transcripts.csv"
 file_path_backup = TRANSCRIPTS / "all_transcripts_backup.csv"
 
@@ -75,6 +76,12 @@ if os.path.exists(file_path):
 else:
     print("No existing CSV found")
 
+videos_to_process = [v for v in video_ids_sorted if v not in processed_video_ids]
+
+random.shuffle(videos_to_process)
+
+print(f"\n🎲 {len(videos_to_process)} videos left to process. Order has been randomized.")
+# ----------------------------------------------
 
 # Download
 
@@ -136,7 +143,7 @@ for video_id in video_ids_sorted:
     api_request_count += 1
 
     # Pause nach jedem API-Request
-    pause = random.uniform(26, 36)
+    pause = random.uniform(0, 20) if speed_download else random.uniform(26, 36) #26,36
     print(f"→ Break: {pause:.2f} seconds")
     time.sleep(pause)
 
@@ -145,12 +152,12 @@ for video_id in video_ids_sorted:
         print(f"\n Saving …")
         save_to_csv(daten, file_path)
         daten.clear()
-        batch_pause = random.uniform(45, 85)
+        batch_pause = random.uniform(0, 40) if speed_download else random.uniform(45, 85) # 45, 85
         print(f"Batch break after {api_request_count} requests: {batch_pause:.2f} seconds")
         time.sleep(batch_pause)
 
     if api_request_count % 100 == 0:
-        lange_pause = random.uniform(290, 310)
+        lange_pause = random.uniform(290, 310) # 290, 310
         print(f"Long break: {lange_pause:.2f} seconds")
         time.sleep(lange_pause)
 

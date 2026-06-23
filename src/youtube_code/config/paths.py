@@ -21,4 +21,6 @@ LLM = OUTPUTS / "llm"
 OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
 REPORTS = OUTPUTS / "reports"
+GRAPHS = OUTPUTS / "graphs"
+ACTIVITY = OUTPUTS / "activity_over_time"
 
