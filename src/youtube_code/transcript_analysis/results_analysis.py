@@ -12,7 +12,7 @@ from youtube_code.config import OUTPUT_GEMINI, EXTERNAL, VALIDATION
 # If CONVERT is true the numerical classification is mapped to a 5- (ideology) and  a 6-point-scale (populism):
 CONVERT = False
 ONLY_VALIDATION = False  # If combined file already exists
-seed_number = "0"       # ["0", "41", "42"] -> 0 combines other test sets
+seed_number = "41"       # ["0", "41", "42"] -> 0 combines other test sets
 
 MAIN_FILE = EXTERNAL / f"complete_classification_{seed_number}.xlsx"
 OUTPUT_PATH = OUTPUT_GEMINI / "results_merged" / f"all_results_merged_{seed_number}.xlsx" if not CONVERT else OUTPUT_GEMINI / "results_merged" / f"all_results_merged_{seed_number}_converted.xlsx"
@@ -52,7 +52,7 @@ pattern_configuration = {
     ),
     "populism_all_statements_vs_all_models": (
         "populism_score_all_statements",
-        lambda col: ("2_" in col or "5_" or "51_" in col in col or "6_" in col or "8_" in col) and "populism_score" in col
+        lambda col: ("2_" in col or "5_" in col or "51_" in col or "6_" in col or "8_" in col) and "populism_score" in col
     ),
 }
 

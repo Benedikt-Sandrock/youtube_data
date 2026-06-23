@@ -213,7 +213,6 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
     print("Metadata saved.")
 
 
-
 def load_json(path):
     print(f"Reading file: '{path}'")
     with open(path, "r", encoding = "utf-8") as f:
@@ -444,3 +443,14 @@ def channel_id_to_name_batched(youtube, list_of_ids):
 
     # Die Liste in der ursprünglichen Reihenfolge zurückgeben
     return [results_dict.get(cid) for cid in list_of_ids]
+
+
+
+
+
+
+
+
+
+
+

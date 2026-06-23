@@ -12,8 +12,8 @@ __pycache__
 /data/transcripts/all_transcripts_backup.csv
 /src/youtube_code/transcript_analysis/id_files_done/
 /data/raw/channel_metadata_total.json
-/data/samples/cot_50k_channels/sampled_50k_channels.json
-/data/samples/cot_50k_channels/all_videos_50k_channels.json
+/data/samples/conflict_over_time/sampled_50k_channels.json
+/data/samples/conflict_over_time/all_videos_50k_channels.json
 /data/raw/video_metadata_total.jsonl
 /data/raw/video_metadata_detailed_total.json
-/data/samples/cot_50k_channels/transcripts_cot_50k.csv
+/data/samples/conflict_over_time/transcripts_cot_50k.csv

@@ -12,8 +12,9 @@ from youtube_code.config import OUTPUT_GEMINI, PROJECT_ID, LOCATION
 # CONFIG
 # ============================================================
 
-seed_number = "41"
+seed_number = "cot_total"
 
+SAVE_FORMAT = "CSV"
 OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / f"classification_{seed_number}" / "classification_results"
 ID_FILES_DIR = Path("id_files")
 ID_FILES_DONE_DIR = Path("id_files_done")
@@ -26,8 +27,8 @@ storage_client = storage.Client(project=PROJECT_ID)
 # HELPERS
 # ============================================================
 
-def saving_results(output_uri: str, excel_path: str):
-    """Download JSONL from GCS and save as Excel."""
+def saving_results(output_uri: str, output_path: str, save_format):
+    """Download JSONL from GCS and save as Excel/CSV."""
     print(f"  Downloading results from {output_uri}...")
 
     uri_parts = output_uri.replace("gs://", "").split("/", 1)
@@ -93,8 +94,13 @@ def saving_results(output_uri: str, excel_path: str):
             print(f"  Error reading row: {e}")
 
     df = pd.DataFrame(results)
-    df.to_excel(excel_path, index=False)
-    print(f"  ✓ Saved: {excel_path}")
+
+
+    if save_format == "CSV":
+        df.to_csv(output_path, index = False)
+    else:
+        df.to_excel(output_path, index=False)
+    print(f"  ✓ Saved: {output_path}")
 
 
 def find_output_url(status_job) -> str | None:
@@ -113,7 +119,7 @@ def find_output_url(status_job) -> str | None:
     return None
 
 
-def process_id_file(id_file_path: Path) -> str:
+def process_id_file(id_file_path: Path, save_format = "CSV") -> str:
     """
     Check job status and download results if ready.
     Returns: 'downloaded', 'pending', 'failed', 'skipped', 'error'
@@ -127,7 +133,13 @@ def process_id_file(id_file_path: Path) -> str:
         print(f"  Could not read ID file {id_file_path.name}: {e}")
         return "error"
 
+    csv_path = f"{OUTPUT_EXCEL_BASE}_{prompt_number}_{model_alias}.csv"
     excel_path = f"{OUTPUT_EXCEL_BASE}_{prompt_number}_{model_alias}.xlsx"
+
+    if save_format == "CSV":
+        output_path = csv_path
+    else:
+        output_path = excel_path
 
     print(f"\n[{id_file_path.name}]  Prompt: {prompt_number} | Model: {model_alias}")
 
@@ -146,8 +158,8 @@ def process_id_file(id_file_path: Path) -> str:
         return "failed"
 
     elif current_state == "JOB_STATE_SUCCEEDED":
-        if os.path.exists(excel_path):
-            print(f"  Output file already exists: {excel_path}")
+        if os.path.exists(output_path):
+            print(f"  Output file already exists: {output_path}")
             answer = input("  Overwrite? [y/N] ")
             if answer.lower() != "y":
                 print("  Skipping.")
@@ -158,7 +170,7 @@ def process_id_file(id_file_path: Path) -> str:
             print("  ✗ No prediction JSONL found in GCS output folder.")
             return "error"
 
-        saving_results(output_url, excel_path)
+        saving_results(output_url, output_path, SAVE_FORMAT)
 
         # Move ID file to done folder
         ID_FILES_DONE_DIR.mkdir(exist_ok=True)
@@ -199,7 +211,7 @@ def main():
     summary = {"downloaded": [], "pending": [], "failed": [], "skipped": [], "error": []}
 
     for id_file_path in id_files:
-        result = process_id_file(id_file_path)
+        result = process_id_file(id_file_path, SAVE_FORMAT)
         summary[result].append(id_file_path.name)
 
     # Summary

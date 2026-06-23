@@ -3,32 +3,33 @@ First step: Creates a list (saved as json) of all unique channel ids within a di
 Second step: Gets all videos for channels of a given list and saves them in "SAMPLES"
 """
 
-from src.youtube_code.config.paths import CHANNEL_LISTS, RAW, SAMPLES
-from src.youtube_code.utils.io import collect_unique_channel_ids, save_json, load_json
+from youtube_code.config import CHANNEL_LISTS, RAW, SAMPLES
+from youtube_code.utils import collect_unique_channel_ids, save_json, load_json
 
 
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
-FIRST_STEP = False
+FIRST_STEP = True
 SECOND_STEP = True
 SAMPLE_NAME = "all_videos_50k_channels.json"
-DIR_NAME = "conflict_over_time"
+DIR_NAME = "party_identification"
 
 
 DIRECTORY = CHANNEL_LISTS / f"{DIR_NAME}"
 FILENAME = "all_channel_ids_discovered.json"
+FILENAMES = ["all_channel_ids_discovered.json", "all_channel_ids_discovered_2.json"]
 METADATA = RAW / "channel_metadata_total.json"
 CHANNEL_LIST = DIRECTORY / "channel_list.json"
 ALL_VIDEOS_FILE = RAW / "videos_total.json"
-SAMPLE_FILE = SAMPLES / f"{SAMPLE_NAME}"
+SAMPLE_FILE = SAMPLES / f"{DIR_NAME}" /  f"{SAMPLE_NAME}"
 
 # ─────────────────────────────────────────────
 # MAIN CODE
 # ─────────────────────────────────────────────
 if FIRST_STEP:
-    print(f"\nCreate a list of all unique IDs in '{DIRECTORY}' for files '{FILENAME}'")
-    data = collect_unique_channel_ids(DIRECTORY, FILENAME)
+    print(f"\nCreate a list of all unique IDs in '{DIRECTORY}' for files '{FILENAMES}'")
+    data = collect_unique_channel_ids(DIRECTORY, FILENAMES)
 
     metadata = load_json(METADATA)
     metadata = [c["channel_id"] for c in metadata if c["subscribers"] >= 50000]

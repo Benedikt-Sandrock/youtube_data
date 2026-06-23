@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from google import genai
 from google.cloud import storage
-from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION
+from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION, SAMPLES
 
 # ===============================================
 # CONFIGURATION
@@ -11,7 +11,8 @@ from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION
 # Specify seed number and prompts
 seed_number = "41"
 
-INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
+INPUT_CSV = SAMPLES / "cot_50k_channels" / "transcripts_leftover.csv"
+#INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
 MODEL_ALIASES = {
@@ -970,11 +971,15 @@ def run_all_prompts(csv_path, prompt_keys, model_name: str = "gemini_25_flash", 
     if isinstance(prompt_keys, str):
         prompt_keys = [prompt_keys]
 
+    df = pd.read_csv(csv_path)
+    transcripts = len(df)
+
     print(f"\n{'=' * 60}")
     print(f"Input: '{csv_path}'")
     print(f"Model: {model_alias}")
     print(f"Prompts to run: {len(prompt_keys)}")
     print(f"Prompts: {prompt_keys}")
+    print(f"Number of transcripts to be rated: {transcripts}")
     print(f"Dry run: {dry_run}")
     print(f"{'=' * 60}\n")
 
