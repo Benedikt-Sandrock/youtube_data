@@ -12,7 +12,6 @@ Arguments:
     --seed              Random seed
 """
 
-import csv
 import json
 import random
 import pandas as pd
@@ -25,10 +24,12 @@ from youtube_code.utils import load_set
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
+### CENTRAL CONFIGURATION ###
+sample_name = "combined"   # ["conflict_over_time", "party_identification"]
+
 all_videos_file_name = "all_videos_50k_channels.json"
 output_file_name_sampled = "sampled_50k_channels.json"
 output_file_name_keyword = "keyword_videos_50k_channels.json"
-sample_name = "party_identification"   # ["cot_50k_channels", "party_identification"]
 
 
 REFERENCE_DATE = datetime(2023, 10, 7, tzinfo=timezone.utc)
@@ -43,7 +44,7 @@ SEED = 42
 CHANNEL_LIST = CHANNEL_LISTS / f"{sample_name}" / "channel_list.json"
 OUTPUT_KEYWORD_VIDEOS = SAMPLES / f"{sample_name}" / output_file_name_keyword
 
-COT_SAMPLE_VIDEOS = SAMPLES / "cot_50k_channels" / "sampled_50k_channels.json"
+COT_SAMPLE_VIDEOS = SAMPLES / "conflict_over_time" / "sampled_50k_channels.json"
 TRANSCRIPTS_PATH = TRANSCRIPTS / "all_transcripts.csv"
 
 
@@ -68,7 +69,7 @@ def get_all_videos(channel_list_path, output_path, metadata_path):
             try:
                 data = json.loads(line)
                 if data.get("channel_id") in channel_set:
-                    filtered_data = {key: data[key] for key in KEYS_TO_KEEP if key in data}
+                    filtered_data = {key: data[key] for key in KEYS_TO_KEEP}
                     if not is_first_item:
                         outfile.write(",\n")
                     else:

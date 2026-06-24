@@ -9,11 +9,13 @@ from youtube_code.config import EXPLORATION, SAMPLES, OUTPUT_GEMINI
 # ===================================================
 
 PROMPT_NUMBER = "051"
+results_sample = "classification_pi_total"
+sample = "party_identification"
 
-RESULTS_PATH = OUTPUT_GEMINI / "classification_cot_total" / f"classification_results_{PROMPT_NUMBER}_gemini-2.5-flash.csv"
-VIDEOS_PATH = SAMPLES / "cot_50k_channels" / "all_videos_50k_channels_name.json"
-OUTPUT_PATH_07 = OUTPUT_GEMINI / "channel_results_07.xlsx"
-OUTPUT_PATH_051 = OUTPUT_GEMINI / "channel_results_051.xlsx"
+RESULTS_PATH = OUTPUT_GEMINI / results_sample / f"classification_results_{PROMPT_NUMBER}_gemini-2.5-flash.csv"
+VIDEOS_PATH = SAMPLES / sample / "all_videos_50k_channels.json"
+OUTPUT_PATH_07 = OUTPUT_GEMINI / results_sample / "channel_results_07.xlsx"
+OUTPUT_PATH_051 = OUTPUT_GEMINI / results_sample / "channel_results_051.xlsx"
 
 channels_map = {
     "UCjSkyrjqPeMwubZU0CnScXA": "SchrangTV",
@@ -38,7 +40,7 @@ def aggregation(results_path, videos_path, output_path):
 
     #df["channel_name"] = df["channel_id"].replace(channels_map)
 
-    df.to_excel("ratings_merged.xlsx", index = False)
+    #df.to_excel("ratings_merged.xlsx", index = False)
 
     df["ideology_score"] = df["ideology_score"].astype(float)
     df["populism_score"] = df["populism_score"].astype(float)
@@ -276,7 +278,7 @@ def test_graphs(df):
 
 if __name__ == "__main__":
     aggregation(RESULTS_PATH, VIDEOS_PATH, OUTPUT_PATH_051)
-    comparison_stats(OUTPUT_PATH_07, OUTPUT_PATH_051)
+    #comparison_stats(OUTPUT_PATH_07, OUTPUT_PATH_051)
 
     # main_graphs(OUTPUT_PATH_07)
     # main_graphs(OUTPUT_PATH_051)

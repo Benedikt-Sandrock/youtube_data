@@ -446,19 +446,22 @@ def channel_id_to_name_batched(youtube, list_of_ids):
 
 
 def merge_channel_name(input_path, channel_path, output_path):
-    print("Requires function: 'load_json'")
     data = load_json(input_path)
-    meta = load_json(channel_path)
+    channel_mapping = {}
+    with open(channel_path, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                video = json.loads(line)
+                if "video_id" in video:
+                    channel_mapping[video["video_id"]] = video.get(
+                        "channel_title"
+                    )
 
-    channel_mapping = {
-        video["video_id"]: video.get("channel_title") for video in meta if "video_id" in video
-    }
     for video in data:
         video_id = video.get("video_id")
         video["channel_title"] = channel_mapping.get(video_id)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-
 
 
 

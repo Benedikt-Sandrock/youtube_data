@@ -11,7 +11,7 @@ from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION, 
 # Specify seed number and prompts
 seed_number = "41"
 
-INPUT_CSV = SAMPLES / "cot_50k_channels" / "transcripts_leftover.csv"
+INPUT_CSV = SAMPLES / "party_identification" / "transcripts_party_identification_1.csv"
 #INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
