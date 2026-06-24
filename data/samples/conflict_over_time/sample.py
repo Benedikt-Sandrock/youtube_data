@@ -16,4 +16,7 @@ def merge_channel_name(input_path, channel_path, output_path):
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-merge_channel_name("sampled_50k_channels.json", "all_videos_50k_channels_name.json", "sampled_50k_channels.json")
+#merge_channel_name("sampled_50k_channels.json", "all_videos_50k_channels_name.json", "sampled_50k_channels.json")
+
+data = load_json("all_videos_50k_channels.json")
+print(len(data))
