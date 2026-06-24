@@ -18,3 +18,5 @@ __pycache__
 /data/raw/video_metadata_detailed_total.json
 /data/samples/conflict_over_time/transcripts_cot_50k.csv
 /outputs/activity_over_time/
+/data/samples/conflict_over_time/
+/data/samples/party_identification/
