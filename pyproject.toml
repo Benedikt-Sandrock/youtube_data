@@ -23,6 +23,7 @@ dependencies = [
     "google-genai",
     "google-cloud-storage",
     "scipy",
+    "json_repair",
 ]
 
 [tool.setuptools.packages.find]

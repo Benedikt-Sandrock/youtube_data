@@ -12,7 +12,7 @@ from youtube_code.config import OUTPUT_GEMINI, PROJECT_ID, LOCATION
 # CONFIG
 # ============================================================
 
-seed_number = "cot_total"
+seed_number = "pi_total"
 
 SAVE_FORMAT = "CSV"
 OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / f"classification_{seed_number}" / "classification_results"
@@ -189,8 +189,6 @@ def process_id_file(id_file_path: Path, save_format = "CSV") -> str:
 # ============================================================
 
 def main():
-    ID_FILES_DIR.mkdir(exist_ok=True)
-
     id_files = sorted(ID_FILES_DIR.glob("job_id_*.txt"))
 
     if not id_files:

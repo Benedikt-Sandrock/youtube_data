@@ -1,22 +1,22 @@
-from youtube_code.config import TRANSCRIPTS, RAW
-from src.youtube_code.utils.io import load_json
+from youtube_code.config import TRANSCRIPTS, RAW, OUTPUT_GEMINI
+from src.youtube_code.utils.io import load_json, merge_channel_name
 import json
 import pandas as pd
 
-def merge_channel_name(input_path, channel_path, output_path):
-    data = load_json(input_path)
-    meta = load_json(channel_path)
 
-    channel_mapping = {
-        video["video_id"]: video.get("channel_title") for video in meta if "video_id" in video
-    }
-    for video in data:
-        video_id = video.get("video_id")
-        video["channel_title"] = channel_mapping.get(video_id)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+#merge_channel_name("all_videos_50k_channels.json", RAW/"video_metadata_total.jsonl", "all_videos_50k_channels.json")
+df = pd.read_csv("keyword_videos_50k_channels.csv")
+df_2 = pd.read_excel(OUTPUT_GEMINI / "channel_results_051.xlsx")
 
-#merge_channel_name("sampled_50k_channels.json", "all_videos_50k_channels_name.json", "sampled_50k_channels.json")
+IDEOLOGY_BINS = [-0.01, 4.5, 5.49, 7.5,  10.01]
+IDEOLOGY_LABELS = ["Links", "Mitte", "Rechts", "Sehr rechts"]
 
-data = load_json("all_videos_50k_channels.json")
-print(len(data))
+POPULISM_BINS = [-0.01, 3, 7, 10.01]
+POPULISM_LABELS = ["Niedrig", "Mittel", "Hoch"]
+
+df_2["ideology_group"] = pd.cut(
+    df_2["ideology_channel"], bins= IDEOLOGY_BINS, labels= IDEOLOGY_LABELS, include_lowest= True
+)
+
+df = pd.merge(df, df_2[["channel_title", "ideology_group"]], on = "channel_title", how = "left")
+df.to_csv("keyword_videos_50k_channels.csv", index = False)

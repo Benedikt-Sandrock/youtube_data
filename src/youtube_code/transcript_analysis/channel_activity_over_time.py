@@ -86,7 +86,7 @@ TIME_RESOLUTION = "W"
 # --- Grouping thresholds (0-10 scale) ---------------------------------------
 # Adjust the cut points and/or labels as needed. Bins are interpreted as
 # (lower, upper] except for the lowest bin, which also includes the lower edge.
-IDEOLOGY_BINS = [-0.01, 4.5, 5.5, 10.01]
+IDEOLOGY_BINS = [-0.01, 4.5, 5.49, 10.01]
 IDEOLOGY_LABELS = ["Links", "Mitte", "Rechts"]
 
 POPULISM_BINS = [-0.01, 3, 7, 10.01]
@@ -292,9 +292,7 @@ def compute_relative_activity(pivot_avg: pd.DataFrame, event_date="2023-10-07"):
 # =============================================================================
 
 
-def plot_activity(
-    pivot_total: pd.DataFrame, pivot_avg: pd.DataFrame, group_col: str, label: str, output_dir: str
-):
+def plot_activity(pivot_total: pd.DataFrame, pivot_avg: pd.DataFrame, group_col: str, label: str, output_dir: str):
     """Creates and saves a two-panel plot (total uploads + average uploads
     per channel) for one grouping variable."""
     fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
