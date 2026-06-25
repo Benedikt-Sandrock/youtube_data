@@ -11,7 +11,7 @@ from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION, 
 # Specify seed number and prompts
 seed_number = "41"
 
-INPUT_CSV = SAMPLES / "party_identification" / "transcripts_party_identification_1.csv"
+INPUT_CSV = SAMPLES / "combined" / "transcripts_combined_max100.csv"
 #INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
@@ -890,9 +890,29 @@ prompt_5_adjusted = {
     }
     """,
 }
+
+prompt_99_sentiment = {
+"PROMPT_99_SENTIMENT": """Du analysierst ein Transkript eines deutschsprachigen YouTube-Videos zum Nahostkonflikt.
+
+Bewerte für jeden der folgenden Akteure, FALLS er im Transkript vorkommt, das Sentiment gegenüber seinen Handlungen/seiner Politik (nicht: Mitgefühl mit Leid, das er erfährt):
+
+- israel_regierung (Staat Israel, Regierung, Militär/IDF)
+- palaestinenser_zivil (palästinensische Zivilbevölkerung, NICHT Hamas)
+- hamas (Hamas als Organisation)
+- westliche_staaten (USA, EU, Deutschland u.a. im Kontext des Konflikts)
+
+Wert pro Akteur auf einer kontinuierlichen Skala: -1 (negativ), -0.5 (eher negativ), 0 (neutral), +0.5 (eher positiv), +1 (positiv) | null (falls Akteur im Transkript nicht vorkommt)
+
+Wichtig: Eine reine Schilderung, dass ein Akteur Opfer von Gewalt wird, ist NICHT automatisch "positiv" für diesen Akteur — kodiere in diesem Fall "null", sofern keine explizite Bewertung seines Handelns erfolgt.
+
+Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärung, kein Markdown:
+{"israel_regierung": ..., "palaestinenser_zivil": ..., "hamas": ..., "westliche_staaten": ...}
+"""
+}
+
 ### Choose prompts ###
 
-prompts = prompt_5_adjusted    # [prompts_both, prompts_ideology, prompts_populism]
+prompts = prompt_99_sentiment    # [prompts_both, prompts_ideology, prompts_populism]
 
 client = genai.Client(
     vertexai = True,
