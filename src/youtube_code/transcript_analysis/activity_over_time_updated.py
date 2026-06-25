@@ -496,11 +496,23 @@ def main():
                                                 ]).agg(agg_dict).reset_index())
 
     merged_kw_df_grouped.to_csv("merged_kw_grouped_channel.csv", index = False)
-    merged_kw_ideology = merged_kw_df_grouped.groupby(["ideology_group", "publish_date"]).agg(
+    merged_kw_channel = merged_kw_df_grouped.groupby("channel_name").agg(
         video_count = ("channel_name_key", "sum"),
+        ideology = ("ideology_group","first")
+    ).reset_index()
+    merged_kw_channel.to_csv("merged_kw_channel.csv", index =False)
+
+    merged_kw_ideology = merged_kw_df.groupby(["ideology_group", pd.Grouper(key="publish_date", freq=TIME_RESOLUTION)]).agg(
+        video_count = ("channel_name_key", "size"),
         channel_count = ("channel_name_key", "nunique")
     ).reset_index()
-    merged_kw_ideology.to_csv("merged_ideology.csv", index = False)
+    print("Nach Groupby:", merged_kw_ideology.head())
+    merged_kw_ideology = merged_kw_ideology.pivot(index = "publish_date", columns = "ideology_group", values = "channel_count").fillna(0)
+    print("Nach Pivot (vor reset_index):\n", merged_kw_ideology.head())
+    merged_kw_ideology = merged_kw_ideology.reset_index()
+    merged_kw_ideology.to_csv("merged_ideology.csv", index=False)
+    merged_kw_ideology = merged_kw_ideology[merged_kw_ideology["Links"] >= merged_kw_ideology["Rechts"]]
+    merged_kw_ideology.to_csv("merged_ideology_left.csv", index = False)
     grouping_configs = [
         ("ideology_group", IDEOLOGY_LABELS, "Ideologie"),
         #("populism_group", POPULISM_LABELS, "Populismus"),
