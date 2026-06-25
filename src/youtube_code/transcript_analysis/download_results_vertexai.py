@@ -12,7 +12,7 @@ from youtube_code.config import OUTPUT_GEMINI, PROJECT_ID, LOCATION
 # CONFIG
 # ============================================================
 
-seed_number = "pi_total"
+seed_number = "combined"
 
 SAVE_FORMAT = "CSV"
 OUTPUT_EXCEL_BASE = OUTPUT_GEMINI / f"classification_{seed_number}" / "classification_results"

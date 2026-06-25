@@ -394,6 +394,6 @@ def get_random_sample(input_file, output_file, exclude_keywords, time_deltas, ma
 
 
 if __name__ == "__main__":
-    #get_all_videos(CHANNEL_LIST, FILE_ALL_VIDEOS, METADATA_PATH)
+    get_all_videos(CHANNEL_LIST, FILE_ALL_VIDEOS, METADATA_PATH)
 
     get_random_sample(FILE_ALL_VIDEOS, OUTPUT_FILE, KEYWORDS, TIME_DELTAS, MAX_PER_GROUP, PRIORITIZE_POLITICS, SEED)
