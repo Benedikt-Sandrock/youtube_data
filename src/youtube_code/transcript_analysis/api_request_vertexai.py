@@ -1064,16 +1064,57 @@ def run_all_prompts(csv_path, prompt_keys, model_name: str = "gemini_25_flash", 
     return results
 
 
+def check_costs_only(csv_path, prompt_keys, model_alias="gemini-2.5-flash"):
+    """Berechnet die exakte Tokenanzahl und Kosten, ohne die API für Bewertungen aufzurufen."""
+    df = pd.read_csv(csv_path)
+    print(f"Starte kostenlose Token- und Kostenberechnung für {len(df)} Zeilen...")
+
+    # Vertex-Client initialisieren
+    check_client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
+
+    # Schleife über alle Prompts, die du in der Pipeline hast
+    for prompt_key in prompt_keys:
+        system_prompt = prompts[prompt_key]
+        total_input_tokens = 0
+
+        print(f"\nBerechne für Prompt: {prompt_key}...")
+
+        for index, row in df.iterrows():
+            transcript = str(row.get("transcript", ""))
+            if not transcript.strip():
+                continue
+
+            full_text = f"{system_prompt}\n\nHier ist das Transkript:\n\n{transcript}"
+
+            # KOSTENLOSER API-Aufruf zur Token-Zählung
+            try:
+                response = check_client.models.count_tokens(
+                    model=model_alias,
+                    contents=full_text
+                )
+                total_input_tokens += response.total_tokens
+            except Exception as e:
+                print(f"Fehler bei Zeile {index}: {e}")
+
+        # Kostenberechnung (0,15 $ pro 1 Mio. Tokens im Batch-Modus)
+        estimated_cost_usd = (total_input_tokens / 1_000_000) * 0.15
+
+        print(f"--- ERGEBNIS FÜR: {prompt_key} ---")
+        print(f"Gesamte Input-Tokens: {total_input_tokens:,}")
+        print(f"Geschätzte reine Input-Kosten (Batch): {estimated_cost_usd:.4f} USD")
+
+
 # ===============================================
 # MAIN
 # ===============================================
 
 if __name__ == "__main__":
     PROMPTS_TO_RUN = list(prompts.keys())
+    check_costs_only(INPUT_CSV, PROMPTS_TO_RUN)
 
-    run_all_prompts(
-        csv_path = INPUT_CSV,
-        prompt_keys = PROMPTS_TO_RUN,
-        model_name = "gemini_25_flash",
-        dry_run = False
-    )
+    # run_all_prompts(
+    #     csv_path = INPUT_CSV,
+    #     prompt_keys = PROMPTS_TO_RUN,
+    #     model_name = "gemini_25_flash",
+    #     dry_run = False
+    # )
