@@ -3,6 +3,8 @@ from youtube_code.utils import load_json, load_set, merge_channel_name
 from youtube_code.config import TRANSCRIPTS, OUTPUT_GEMINI, RAW
 import pandas as pd
 
+df = pd.read_json("keyword_videos_50k_channels.json")
+print(len(df))
 # df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
 # print(len(df))
 #

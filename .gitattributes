@@ -1,4 +1,6 @@
-# Captures all csv files in all subfolders of "Transcript files"
 data/raw/videos_total.json filter=lfs diff=lfs merge=lfs -text
-data/transcripts/all_transcripts.csv filter=lfs diff=lfs merge=lfs -text
 data/samples/all_videos_50k_channels.json filter=lfs diff=lfs merge=lfs -text
+
+data/transcripts/all_transcripts.csv filter=lfs diff=lfs merge=lfs -text
+data/transcripts/all_transcripts.csv filter = lfs diff = lfs merge = lfs -text
+data/transcripts/all_transcripts_segments.csv filter = lfs diff = lfd merge = lfs -text

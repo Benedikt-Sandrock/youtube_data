@@ -11,7 +11,7 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES
 
 
 stop_word = "blocking"
-speed_download = False
+speed_download = True
 print(f"Speed download: {speed_download}")
 # Daten laden
 # Muss konfiguriert werden
@@ -19,7 +19,9 @@ print(f"Speed download: {speed_download}")
 #file_path : Speicherort der Datei mit Transkripten
 
 video_list = SAMPLES / "party_identification" / "sampled_50k_channels.json"
-file_path = TRANSCRIPTS / "all_transcripts.csv"
+file_path_existing = TRANSCRIPTS / "all_transcripts.csv"
+file_path = TRANSCRIPTS / "all_transcripts_2.csv"
+
 file_path_backup = TRANSCRIPTS / "all_transcripts_backup.csv"
 
 #os.makedirs((file_path), exist_ok=True)
@@ -52,29 +54,23 @@ def save_to_csv(daten_chunk, file_path):
 
 # Verarbeitete Video-IDs laden
 
-processed_video_ids = set()
+processed_df = pd.read_csv(file_path_existing, usecols = ["video_id"])
+processed_video_ids = set(processed_df["video_id"].astype(str))
+print(f"{len(processed_video_ids)} IDs in first file.")
 
 if os.path.exists(file_path):
-    print("Existing CSV found – Loading already processed video IDs…")
-    existing_df = pd.read_csv(file_path)
-    len_before = len(existing_df)
-    existing_df = existing_df[~existing_df["status"].str.contains("Max retries", na = False)]
-    len_after = len(existing_df)
-    removed = len_before - len_after
-    print(f"Removed {removed} videos for which download failed.")
-    # existing_df = existing_df.drop_duplicates(subset = ["video_id"], keep = "last")
-    # len_duplicates = len(existing_df)
-    # duplicates = len_after - len_duplicates
-    # print(f"Removed {duplicates} duplicates.")
-    existing_df.to_csv(file_path, index = False)
-    processed_video_ids = set(existing_df["video_id"].astype(str))
-    print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
-
-    already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
-    print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
-
+    existing_df = pd.read_csv(file_path, usecols = ["video_id"])
+    new_processed_ids = set(existing_df["video_id"].astype(str))
 else:
-    print("No existing CSV found")
+    new_processed_ids = set()
+
+print(f"{len(new_processed_ids)} IDs in second file.")
+processed_video_ids = processed_video_ids | new_processed_ids
+print(f"{len(processed_video_ids)} IDs in total.")
+
+already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
+print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
+
 
 videos_to_process = [v for v in video_ids_sorted if v not in processed_video_ids]
 
@@ -152,7 +148,7 @@ for video_id in video_ids_sorted:
         print(f"\n Saving …")
         save_to_csv(daten, file_path)
         daten.clear()
-        batch_pause = random.uniform(0, 40) if speed_download else random.uniform(45, 85) # 45, 85
+        batch_pause = random.uniform(0, 20) if speed_download else random.uniform(45, 85) # 45, 85
         print(f"Batch break after {api_request_count} requests: {batch_pause:.2f} seconds")
         time.sleep(batch_pause)
 
