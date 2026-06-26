@@ -11,7 +11,7 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES
 
 
 stop_word = "blocking"
-speed_download = True
+speed_download = False
 print(f"Speed download: {speed_download}")
 # Daten laden
 # Muss konfiguriert werden
