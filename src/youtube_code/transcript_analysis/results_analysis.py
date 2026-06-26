@@ -65,7 +65,7 @@ else:
     df["ideology_score_all_statements"] = df["ideology_score_all_statements"].fillna(df["ideology_score_manual"])
     df["populism_score_all_statements"] = df["populism_score_all_statements"].fillna(df["populism_score_manual"])
 
-    search_scheme = "classification_results_*.xlsx"
+    search_scheme = "classification_results_*.csv"
 
     all_files = glob.glob(search_scheme, root_dir = RESULTS_DIRECTORY)
 
@@ -73,7 +73,7 @@ else:
 
     counter = 0
     for file_name in all_files:
-        match = re.search(r"classification_results_(\d+)_(.+)\.xlsx", file_name)
+        match = re.search(r"classification_results_(\d+)_(.+)\.csv", file_name)
 
         if match:
             model_number = match.group(1)
@@ -83,7 +83,7 @@ else:
         else:
             suffix = "_pattern_not_found"
 
-        df_model = pd.read_excel(RESULTS_DIRECTORY / file_name)
+        df_model = pd.read_csv(RESULTS_DIRECTORY / file_name)
 
         cols = df_model.columns
         if "video_type" in cols:
