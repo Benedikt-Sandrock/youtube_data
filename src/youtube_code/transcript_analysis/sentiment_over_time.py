@@ -3,8 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-IDEOLOGY_BINS = [-0.01, 4.5, 5.49,7, 10.01]
-IDEOLOGY_LABELS = ["Left", "Center", "Right", "Far-right"]
+IDEOLOGY_BINS = [-0.01, 3.5, 7.5, 10.01]
+IDEOLOGY_LABELS = ["Left", "Center", "Right"]
 
 POPULISM_BINS = [-0.01, 3, 7, 10.01]
 POPULISM_LABELS = ["Low", "Middle", "High"]
@@ -38,9 +38,12 @@ for var, name in sentiment_vars.items():
     df_ideology['month_str'] = df_ideology['month'].astype(str)
     df_populism['month_str'] = df_populism['month'].astype(str)
 
-    df_ideology[var] = df_ideology.groupby('ideology_group')[var] \
-        .transform(lambda x: x.ewm(span=3, adjust=False).mean())
-    # Plotten Sie nun 'smoothed_score' statt 'sentiment_score'
+    # df_ideology[var] = df_ideology.groupby('ideology_group')[var] \
+    #     .transform(lambda x: x.ewm(span=3, adjust=False).mean())
+    #
+    # df_populism[var] = (df_populism.groupby("populism_group")[var].
+    #                     transform(lambda x: x.ewm(span = 3, adjust = False).mean()))
+
     # Plot 1: Ideologie
     plt.figure(figsize=(12, 6))
     sns.lineplot(data=df_ideology, x='month_str', y=var, hue='ideology_group', marker='o')
