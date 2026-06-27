@@ -11,8 +11,8 @@ from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION, 
 # Specify seed number and prompts
 seed_number = "41"
 
-INPUT_CSV = SAMPLES / "combined" / "transcripts_combined_max100.csv"
-#INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
+#INPUT_CSV = SAMPLES / "combined" / "transcripts_combined_max100.csv"
+INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
 MODEL_ALIASES = {
@@ -912,7 +912,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärung, kein Markdown:
 
 ### Choose prompts ###
 
-prompts = prompt_99_sentiment    # [prompts_both, prompts_ideology, prompts_populism]
+prompts = prompts_both    # [prompts_both, prompts_ideology, prompts_populism]
 
 client = genai.Client(
     vertexai = True,
@@ -954,7 +954,10 @@ def csv_to_jsonl(csv_path, jsonl_path, system_prompt):
                             "parts": [{"text": f"{system_prompt}\n\nHier ist das Transkript:\n\n{transcript}"}]}],
                     "generationConfig": {
                         "responseMimeType": "application/json",
-                        "temperature": 0
+                        "temperature": 0,
+                        "thinkingConfig": {
+                            "thinkingBudget": 1024
+                        }
                     }
                 }
             }
@@ -1110,11 +1113,11 @@ def check_costs_only(csv_path, prompt_keys, model_alias="gemini-2.5-flash"):
 
 if __name__ == "__main__":
     PROMPTS_TO_RUN = list(prompts.keys())
-    check_costs_only(INPUT_CSV, PROMPTS_TO_RUN)
+    #check_costs_only(INPUT_CSV, PROMPTS_TO_RUN)
 
-    # run_all_prompts(
-    #     csv_path = INPUT_CSV,
-    #     prompt_keys = PROMPTS_TO_RUN,
-    #     model_name = "gemini_25_flash",
-    #     dry_run = False
-    # )
+    run_all_prompts(
+        csv_path = INPUT_CSV,
+        prompt_keys = PROMPTS_TO_RUN,
+        model_name = "gemini_25_flash",
+        dry_run = False
+    )
