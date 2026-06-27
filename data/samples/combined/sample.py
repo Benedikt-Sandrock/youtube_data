@@ -1,5 +1,5 @@
 import json
-from youtube_code.utils import load_json, merge_channel_name
+from youtube_code.utils import load_json, merge_channel_name, save_json
 from youtube_code.config import RAW, OUTPUT_GEMINI, TRANSCRIPTS
 import pandas as pd
 
@@ -16,6 +16,19 @@ only1 = ids1 - ids2
 only2 = ids2 - ids1
 
 print(len(intersection), len(total), len(only1), len(only2))
+kw = load_json("keyword_videos_50k_channels.json")
+kw = set(v["channel_id"] for v in kw)
+
+data = load_json("sampled_50k_channels.json")
+print(len(data))
+
+data = [v for v in data if v["channel_id"] in kw]
+print(len(data))
+
+save_json("relevant_sampled_50k_channels.json", data)
+
+
+
 
 # kw = pd.read_json("keyword_videos_50k_channels.json")
 # print(len(kw))

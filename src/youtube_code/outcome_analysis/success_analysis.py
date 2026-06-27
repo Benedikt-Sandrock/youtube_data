@@ -13,7 +13,9 @@ starting_time = time.perf_counter()
 
 # === PATHS AND CONFIG ===
 EVENT_DATE = "2023-10-07"
-BASELINE_MONTH = "2023-09"
+BASELINE_MONTH = "2023-09"          # letzter Monat des Baseline-Zeitraums
+BASELINE_WINDOW_MONTHS = 3          # Anzahl Monate rueckwaerts ab BASELINE_MONTH (inkl.)
+                                     # 1 = nur dieser Monat; 3 = dieser Monat + die 2 davor usw.
 PLOT_START_DATE = "2022-10-01"
 
 METADATA_INPUT = RAW / "video_metadata_total.jsonl"
@@ -65,19 +67,37 @@ def load_classification(classification_path):
     return class_df
 
 
-def rebase_to_baseline(df_grouped, group_col, value_col, date_col, baseline_month, baseline_mask=None):
-    """
-    Normiert value_col pro Gruppe so, dass der Wert im baseline_month = 100 ist.
+def format_baseline_label(baseline_month, baseline_window_months=1):
+    """Formatiert den Baseline-Zeitraum fuer Plot-Legenden, z.B. '2023-09' oder '2023-07 bis 2023-09'."""
+    if baseline_window_months <= 1:
+        return str(baseline_month)
+    end_period = pd.Period(baseline_month, freq='M')
+    start_period = end_period - (baseline_window_months - 1)
+    return f"{start_period} bis {end_period}"
 
-    baseline_mask: optionale boolesche Maske auf df_grouped. Schraenkt ein, aus welchen
-    Zeilen die Baseline berechnet wird (z.B. nur die 'Alle Videos'-Zeilen, nicht die
+
+def rebase_to_baseline(df_grouped, group_col, value_col, date_col, baseline_month,
+                        baseline_window_months=1, baseline_mask=None):
+    """
+    Normiert value_col pro Gruppe so, dass der Durchschnitt im Baseline-Zeitraum = 100 ist.
+
+    baseline_window_months: Anzahl Monate, die in die Baseline einfliessen, gezaehlt
+    RUECKWAERTS ab baseline_month (inklusive). 1 = nur baseline_month selbst, 3 = baseline_month
+    und die zwei Monate davor usw. Geht bewusst nur rueckwaerts, damit die Baseline nie ins
+    Post-Event-Gebiet (nach dem 7.10.) rutscht. Ein Fenster > 1 macht die Baseline robuster
+    gegenueber Einzelmonats-Ausreissern (z.B. ein Kanal ohne Upload genau im Referenzmonat).
+
+    baseline_mask: optionale boolesche Maske auf df_grouped. Schraenkt zusaetzlich ein, aus
+    welchen Zeilen die Baseline berechnet wird (z.B. nur die 'Alle Videos'-Zeilen, nicht die
     'Keyword Videos'-Zeilen). Die berechnete Baseline wird trotzdem auf ALLE Zeilen der
     jeweiligen Gruppe angewendet (auch auf die, die durch die Maske ausgeschlossen wurden).
-    Damit teilen sich z.B. Keyword-Videos und alle Videos dieselbe, stabile Baseline.
     """
     df_grouped = df_grouped.copy()
-    baseline_period = pd.Period(baseline_month, freq='M')
-    month_mask = df_grouped[date_col].dt.to_period('M') == baseline_period
+    end_period = pd.Period(baseline_month, freq='M')
+    start_period = end_period - (baseline_window_months - 1)
+
+    months = df_grouped[date_col].dt.to_period('M')
+    month_mask = (months >= start_period) & (months <= end_period)
 
     if baseline_mask is not None:
         month_mask = month_mask & baseline_mask
@@ -92,8 +112,8 @@ def rebase_to_baseline(df_grouped, group_col, value_col, date_col, baseline_mont
     return df_grouped
 
 
-def weighted_relative_trend(df, group_col, baseline_month, date_col='published_at',
-                             value_col='view_count', weight_power=0.0):
+def weighted_relative_trend(df, group_col, baseline_month, baseline_window_months=1,
+                             date_col='published_at', value_col='view_count', weight_power=0.0):
     """
     Berechnet fuer JEDEN KANAL eine eigene Baseline (statt einer gemeinsamen Gruppen-Baseline)
     und bildet anschliessend pro Gruppe einen GEWICHTETEN Durchschnitt ueber die Wachstums-
@@ -108,7 +128,7 @@ def weighted_relative_trend(df, group_col, baseline_month, date_col='published_a
         weight_power = 0.5 -> Kompromiss (Wurzel-Gewichtung): grosse Kanaele zaehlen mehr als
                                kleine, aber nicht proportional zu ihrer vollen Groesse.
 
-    Kanaele ohne Videos im baseline_month bekommen keine Baseline (NaN) und werden komplett
+    Kanaele ohne Videos im Baseline-Zeitraum bekommen keine Baseline (NaN) und werden komplett
     ausgeschlossen (auch aus dem Gewicht) - wie viele das betrifft, wird ausgegeben.
     """
     df_channel_monthly = (
@@ -118,14 +138,16 @@ def weighted_relative_trend(df, group_col, baseline_month, date_col='published_a
     )
 
     df_channel_monthly = rebase_to_baseline(df_channel_monthly, 'channel_title', value_col,
-                                             date_col, baseline_month)
+                                             date_col, baseline_month,
+                                             baseline_window_months=baseline_window_months)
 
     n_total = df_channel_monthly['channel_title'].nunique()
     valid = df_channel_monthly.dropna(subset=['relative_pct']).copy()
     n_valid = valid['channel_title'].nunique()
     if n_valid < n_total:
+        baseline_label = format_baseline_label(baseline_month, baseline_window_months)
         print(f"Weighted Index (power={weight_power}, {value_col}): {n_total - n_valid} von "
-              f"{n_total} Kanaelen ohne Baseline im {baseline_month} werden ausgeschlossen.")
+              f"{n_total} Kanaelen ohne Baseline im Zeitraum ({baseline_label}) werden ausgeschlossen.")
 
     valid['weight'] = valid['baseline'] ** weight_power
     valid['weighted_value'] = valid['relative_pct'] * valid['weight']
@@ -137,6 +159,9 @@ def weighted_relative_trend(df, group_col, baseline_month, date_col='published_a
     )
     agg['relative_pct'] = agg['weighted_value_sum'] / agg['weight_sum']
     return agg[[date_col, group_col, 'relative_pct']]
+
+
+
 
 
 def plot_relative_trend(df_grouped, group_col, date_col, value_col, title, ylabel,
@@ -265,14 +290,14 @@ def add_subscriber_normalization(df, subscriber_source_path, subscriber_column):
     return df
 
 
-def keyword_relative_success(df, keywords, group_col, baseline_month,
+def keyword_relative_success(df, keywords, group_col, baseline_month, baseline_window_months=1,
                               date_col='published_at', value_col='views_per_subscriber'):
     """
     Vergleicht Videos, deren Titel mind. eines der `keywords` enthaelt, mit ALLEN Videos
     derselben Gruppe, jeweils subscriber-normiert.
 
     Wichtig: Beide Serien ('Alle Videos' und 'Keyword Videos') werden auf DIESELBE Baseline
-    normiert - die von 'Alle Videos' im baseline_month. Eine eigene Keyword-Baseline waere
+    normiert - die von 'Alle Videos' im Baseline-Zeitraum. Eine eigene Keyword-Baseline waere
     unzuverlaessig, weil vor dem Event praktisch keine Videos mit diesen Keywords existieren.
     Der Wert sagt damit direkt: "Wie gut laufen Keyword-Videos verglichen mit einem
     durchschnittlichen Video dieser Gruppe im Referenzzeitraum?" (100 = genauso gut wie normal).
@@ -286,9 +311,12 @@ def keyword_relative_success(df, keywords, group_col, baseline_month,
         n = df['title'].str.contains(re.escape(kw), case=False, na=False, regex=True).sum()
         print(f"  '{kw}': {n}")
 
-    baseline_period = pd.Period(baseline_month, freq='M')
-    n_keyword_before = df.loc[df['has_keyword'] & (df[date_col].dt.to_period('M') == baseline_period)].shape[0]
-    print(f"Keyword-Videos im Baseline-Monat ({baseline_month}): {n_keyword_before} "
+    end_period = pd.Period(baseline_month, freq='M')
+    start_period = end_period - (baseline_window_months - 1)
+    months = df[date_col].dt.to_period('M')
+    baseline_label = format_baseline_label(baseline_month, baseline_window_months)
+    n_keyword_before = df.loc[df['has_keyword'] & (months >= start_period) & (months <= end_period)].shape[0]
+    print(f"Keyword-Videos im Baseline-Zeitraum ({baseline_label}): {n_keyword_before} "
           "-> deshalb wird auf die Baseline von 'Alle Videos' normiert, nicht auf eine eigene.")
 
     def monthly_mean(sub_df, label):
@@ -310,6 +338,7 @@ def keyword_relative_success(df, keywords, group_col, baseline_month,
     # Baseline NUR aus den 'Alle Videos'-Zeilen berechnen, dann auf beide Serien anwenden:
     combined = rebase_to_baseline(
         combined, group_col, value_col, date_col, baseline_month,
+        baseline_window_months=baseline_window_months,
         baseline_mask=(combined['series'] == 'Alle Videos')
     )
     return combined
