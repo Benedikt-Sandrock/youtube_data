@@ -5,36 +5,34 @@ import os
 import time
 
 from youtube_code.config import (RAW, CHANNEL_LISTS, SAMPLES, OUTPUT_GEMINI, IDEOLOGY_LABELS, IDEOLOGY_BINS,
-                                 POPULISM_BINS, POPULISM_LABELS)
+                                 POPULISM_BINS, POPULISM_LABELS, KEYWORDS)
 from youtube_code.utils import load_json
 
 starting_time = time.perf_counter()
 
 # === PATHS AND CONFIG ===
 EVENT_DATE = "2023-10-07"
-BASELINE_MONTH = "2023-09"        # dieser Monat wird pro Gruppe auf 100 normiert
-PLOT_START_DATE = "2022-10-01"    # Plot beginnt am 1.10.2022
+BASELINE_MONTH = "2023-09"
+PLOT_START_DATE = "2022-10-01"
 
 METADATA_INPUT = RAW / "video_metadata_total.jsonl"
 METADATA_OUTPUT = SAMPLES / "combined" / "video_metadata_relevant.csv"
 CHANNEL_LIST_PATH = CHANNEL_LISTS / "combined" / "channel_list.json"
 CLASSIFICATION_PATH = OUTPUT_GEMINI / "channel_results_051.xlsx"
 
-# WICHTIG: "month" wird mit "> start_date" verglichen (exklusiv), also einen Monat
-# VOR dem gewuenschten Plot-Start setzen, damit Oktober 2022 noch enthalten ist.
-START_DATE = "2022-09"
+
+START_DATE = "2022-10"
 END_DATE = "2025-12"
 
-# --- Konfiguration fuer Teil 2 (Keyword-Analyse) ---
-KEYWORD = "Gaza"                        # TODO: gewuenschtes Keyword eintragen
-SUBSCRIBER_COLUMN = "subscriber_count"  # TODO: an echten Spaltennamen anpassen
-SUBSCRIBER_SOURCE_PATH = CLASSIFICATION_PATH  # TODO: ggf. andere Datei mit Subscriber-Zahlen
+# --- Configuration Part 2 (Keyword-Analysis) ---
+SUBSCRIBER_COLUMN = "subscribers"
+SUBSCRIBER_SOURCE_PATH = CLASSIFICATION_PATH
 
 
 # === FUNKTIONEN ===
 
 def prepare_metadata(metadata_input, metadata_output, channel_list_path, start_date, end_date):
-    """Liest und filtert Metadaten fuer relevante Kanaele und den relevanten Zeitraum."""
+    """Reads and filters metadata for relevant channels and time period."""
 
     print("Reading input files...")
     channel_list = load_json(channel_list_path)
@@ -44,7 +42,7 @@ def prepare_metadata(metadata_input, metadata_output, channel_list_path, start_d
     temp_df = temp_df[temp_df["channel_id"].isin(channel_list)]
     temp_df['published_at'] = pd.to_datetime(temp_df['published_at'])
     temp_df["month"] = temp_df["published_at"].dt.to_period("M")
-    temp_df = temp_df[(temp_df["month"] > start_date) & (temp_df["month"] <= end_date)]
+    temp_df = temp_df[(temp_df["month"] >= start_date) & (temp_df["month"] <= end_date)]
     temp_df["duration"] = pd.to_timedelta(temp_df["duration"])
 
     print(f"Videos left in data: {len(temp_df)}")
@@ -53,12 +51,13 @@ def prepare_metadata(metadata_input, metadata_output, channel_list_path, start_d
 
 
 def load_classification(classification_path):
-    """Laedt die Kanal-Klassifikation und bildet Ideologie-/Populismus-Gruppen."""
+    """Loads channel classification, creates populism/ideology groups."""
     class_df = pd.read_excel(classification_path)
     class_df["ideology_group"] = pd.cut(class_df["ideology_channel_mean"], bins=IDEOLOGY_BINS,
                                          labels=IDEOLOGY_LABELS, include_lowest=True)
     class_df["populism_group"] = pd.cut(class_df["populism_channel_mean"], bins=POPULISM_BINS,
                                          labels=POPULISM_LABELS, include_lowest=True)
+
     return class_df
 
 
@@ -71,14 +70,17 @@ def rebase_to_baseline(df_grouped, group_col, value_col, date_col, baseline_mont
 
     df_grouped[value_col] = df_grouped[value_col].astype(float)
     df_grouped['baseline'] = df_grouped[group_col].map(baselines)
+    df_grouped["baseline"] = df_grouped["baseline"].astype(float)
+    df_grouped[value_col] = df_grouped[value_col].astype(float)
     df_grouped['relative_pct'] = (df_grouped[value_col] / df_grouped['baseline']) * 100
     return df_grouped
 
 
 def plot_relative_trend(df_grouped, group_col, date_col, value_col, title, ylabel,
-                         plot_start, event_date, baseline_month):
+                         plot_start, event_date, baseline_month, smooth = False):
     plot_df = df_grouped[df_grouped[date_col] >= plot_start]
-
+    if smooth:
+        plot_df[value_col] = plot_df.groupby(group_col)[value_col].transform(lambda x: x.ewm(span = 3, adjust=False).mean())
     plt.figure(figsize=(14, 7))
     sns.set_theme(style="whitegrid")
     sns.lineplot(data=plot_df, x=date_col, y=value_col, hue=group_col, marker='o', linewidth=2)
@@ -138,12 +140,10 @@ def keyword_relative_success(df, keyword, group_col, baseline_month,
 
 # === MAIN ===
 if __name__ == "__main__":
-    if not os.path.exists(METADATA_OUTPUT):
-        df = prepare_metadata(METADATA_INPUT, METADATA_OUTPUT, CHANNEL_LIST_PATH, START_DATE, END_DATE)
-    else:
-        # Achtung: Falls START_DATE/END_DATE geaendert wurden, alte CSV ggf. loeschen,
-        # damit hier nicht versehentlich ein veralteter (zu kurzer) Zeitraum geladen wird.
+    if os.path.exists(METADATA_OUTPUT):
         df = pd.read_csv(METADATA_OUTPUT)
+    else:
+        df = prepare_metadata(METADATA_INPUT, METADATA_OUTPUT, CHANNEL_LIST_PATH, START_DATE, END_DATE)
 
     class_df = load_classification(CLASSIFICATION_PATH)
     df = pd.merge(df, class_df[["channel_title", "ideology_group", "populism_group"]],
@@ -163,23 +163,23 @@ if __name__ == "__main__":
         df_monthly, group_col='ideology_group', date_col='published_at', value_col='relative_pct',
         title='Verlauf der monatlichen Gesamtviews relativ zur Baseline (nach Ideologiegruppe)',
         ylabel=f'Views relativ zu {BASELINE_MONTH} (%)',
-        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_month=BASELINE_MONTH
+        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_month=BASELINE_MONTH, smooth= True
     )
 
     # --- Teil 2: Schneiden Videos mit einem bestimmten Keyword im Titel besser/schlechter ab
     #             als die allgemeine Baseline (subscriber-normiert)? ---
-    df = add_subscriber_normalization(df, SUBSCRIBER_SOURCE_PATH, SUBSCRIBER_COLUMN)
-
-    keyword_df = keyword_relative_success(
-        df, keyword=KEYWORD, group_col='ideology_group', baseline_month=BASELINE_MONTH
-    )
-
-    plot_relative_trend(
-        keyword_df, group_col='group_series', date_col='published_at', value_col='relative_pct',
-        title=f"Erfolg von Videos mit Keyword '{KEYWORD}' vs. allgemeine Baseline (subscriber-normiert)",
-        ylabel=f'Views/Subscriber relativ zu {BASELINE_MONTH} (%)',
-        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_month=BASELINE_MONTH
-    )
+    # df = add_subscriber_normalization(df, SUBSCRIBER_SOURCE_PATH, SUBSCRIBER_COLUMN)
+    #
+    # keyword_df = keyword_relative_success(
+    #     df, keyword=KEYWORD, group_col='ideology_group', baseline_month=BASELINE_MONTH
+    # )
+    #
+    # plot_relative_trend(
+    #     keyword_df, group_col='group_series', date_col='published_at', value_col='relative_pct',
+    #     title=f"Erfolg von Videos mit Keyword '{KEYWORD}' vs. allgemeine Baseline (subscriber-normiert)",
+    #     ylabel=f'Views/Subscriber relativ zu {BASELINE_MONTH} (%)',
+    #     plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_month=BASELINE_MONTH
+    # )
 
 end_time = time.perf_counter()
 script_duration = end_time - starting_time
