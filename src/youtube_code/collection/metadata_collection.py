@@ -9,7 +9,7 @@ from youtube_code.config import RAW, API_KEY_C
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
-channel_metadata = False
+channel_metadata = True
 video_metadata = True
 DETAILED = False
 
