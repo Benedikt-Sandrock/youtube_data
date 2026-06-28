@@ -1,3 +1,0 @@
-projects/921222602739/locations/us-central1/batchPredictionJobs/4039467190573858816
-02
-gemini-2.5-flash
