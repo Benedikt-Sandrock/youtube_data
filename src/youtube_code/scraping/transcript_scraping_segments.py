@@ -14,7 +14,7 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = True
+SPEED_DOWNLOAD = False
 
 VIDEO_LIST = SAMPLES / "combined" / "keyword_videos_50k_channels.json"
 #FILE_PATH_ALL = [TRANSCRIPTS / "all_transcripts.csv", TRANSCRIPTS /"all_transcripts_2.csv"]
