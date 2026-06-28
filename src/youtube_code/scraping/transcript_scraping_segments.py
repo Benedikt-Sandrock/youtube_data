@@ -50,6 +50,11 @@ def save_to_csv(daten_chunk, file_path):
 # =====================================================
 
 print(f"Speed download: {SPEED_DOWNLOAD}")
+if SPEED_DOWNLOAD:
+    answer = input("Speed download activated. Continue? [y/N] ")
+    if answer.lower() != "y":
+        print("Abort.")
+        exit()
 
 print("Reading sample videos...")
 with open(VIDEO_LIST, "r", encoding="utf-8") as f:

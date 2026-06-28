@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 
-df = pd.read_csv("../../../outputs/title_classification/results_all_models_41.csv")
+df = pd.read_csv("../../outputs/title_classification/results_all_models_41.csv")
 print(df["title"].duplicated().sum())
 print(len(df))
 df = df.drop_duplicates(subset = ["title"])
