@@ -21,8 +21,8 @@ KEYWORDS = ["nahe osten", "naher osten", "nahen osten", "nahost", "shani louk", 
             "israel", "palästina", "palästin", "gaza", "hamas", "IDF", "Jerusalem",
             "netanjahu", "netanyahu", "hisbollah", "mossad"]
 
-IDEOLOGY_BINS = [-0.1, 4, 6, 10.1]
-IDEOLOGY_BINS_STRICT = [-0.1, 3.5, 6.5, 10.1]
+IDEOLOGY_BINS = [-0.1, 4.5, 6, 10.1]
+IDEOLOGY_BINS_STRICT = [-0.1, 4, 6.5, 10.1]
 IDEOLOGY_LABELS = ["left", "center", "right"]
 
 POPULISM_BINS = [-0.1, 3, 7, 10.1]

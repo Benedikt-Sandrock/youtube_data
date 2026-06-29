@@ -1,4 +1,7 @@
 """
+
+!!! ÜBERPRÜFEN, OB KEYWORD GRAPH SUBSCRIBER NORMALISIERT IST !!!
+
 success_trend_analysis.py
 
 Relative view-trend analysis of German YouTube channels around the 7 Oct 2023 event,
@@ -40,8 +43,8 @@ from success_data_utils import (
 # --- Event & baseline period ---
 EVENT_DATE = "2023-10-07"
 BASELINE_MONTH = "2023-09"        # last month of the baseline period
-BASELINE_WINDOW_MONTHS = 1        # number of months counted backwards from BASELINE_MONTH (incl.)
-BASELINE_WINDOW_SINGLE = 3        # number of months for channel-wise baseline calculation
+BASELINE_WINDOW_MONTHS = 3        # number of months counted backwards from BASELINE_MONTH (incl.)
+BASELINE_WINDOW_SINGLE = 6        # number of months for channel-wise baseline calculation
 PLOT_START_DATE = "2022-10-01"
 
 # --- Data source paths ---
@@ -50,7 +53,7 @@ METADATA_OUTPUT = SAMPLES / "combined" / "video_metadata_relevant.csv"
 CHANNEL_LIST_PATH = CHANNEL_LISTS / "combined" / "channel_list.json"
 CLASSIFICATION_PATH = OUTPUT_GEMINI / "channel_results_051.xlsx"
 START_DATE = "2022-10"
-END_DATE = "2025-12"
+END_DATE = "2026-03"
 
 # --- Grouping column (switch to 'populism_group' to re-run everything by populism instead) ---
 GROUP_COL = "ideology_group"
@@ -70,7 +73,7 @@ WEIGHT_POWER = 0.5
 
 # --- Plot smoothing (applied to all trend plots below) ---
 # rolling window approach ist used with triangular method
-SMOOTH_PLOTS = True
+SMOOTH_PLOTS = False
 SMOOTH_SPAN = 3
 
 
@@ -94,7 +97,7 @@ def build_weighting_comparison(df, group_col, baseline_month, baseline_window_si
     return pd.concat(frames, ignore_index=True)
 
 
-def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weighting_col,
+def plot_weighting_comparison_2(df_combined, group_col, date_col, value_col, weighting_col,
                                plot_start, event_date, baseline_label,
                                smooth=False, smooth_span=3):
     """
@@ -122,11 +125,127 @@ def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weigh
 
     g.set_titles("{col_name}")
     g.set_axis_labels("Month", f"relative to {baseline_label} (%)")
-    g.fig.suptitle("Weighting-scheme comparison per group", y=1.02)
-    plt.tight_layout()
+    g.fig.suptitle("Weighting-scheme comparison per group", y=0.98)
+    g.figure.subplots_adjust(top = 0.88, right = 0.82)
     plt.show()
 
 
+def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weighting_col,
+                              plot_start, event_date, baseline_label,
+                              smooth=False, smooth_span=3):
+    """
+    Faceted comparison of multiple weighting schemes with a dual y-axis.
+    - Primary y-axis (left): Value-weighted & Sqrt-weighted
+    - Secondary y-axis (right): Equal-weighted
+    All panels share the same y-axis scales to ensure comparability.
+    """
+    plot_df = df_combined[df_combined[date_col] >= plot_start].copy()
+    if smooth:
+        plot_df[value_col] = (
+            plot_df.groupby([group_col, weighting_col])[value_col]
+            .transform(lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean())
+        )
+
+    groups = sorted(plot_df[group_col].astype(str).unique())
+    n_groups = len(groups)
+
+    # Raster-Setup (maximal 3 Spalten, genau wie col_wrap=3)
+    cols = min(3, n_groups)
+    rows = (n_groups - 1) // cols + 1
+
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows), squeeze=False)
+    axes = axes.flatten()
+
+    sns.set_theme(style="whitegrid")
+
+    # Exaktes Label aus den weight_schemes (wichtig für den Filter)
+    equal_label = "Equal-weighted"
+
+    # 1. Globale Min/Max-Werte für BEIDE Achsen ermitteln, um die Skala über alle Panels hinweg zu fixieren
+    val_sqrt_data = plot_df[plot_df[weighting_col] != equal_label][value_col]
+    equal_data = plot_df[plot_df[weighting_col] == equal_label][value_col]
+
+    def get_limits(s):
+        if s.empty: return 0, 100
+        vmin, vmax = s.min(), s.max()
+        margin = (vmax - vmin) * 0.1  # 10% Rand zur besseren Lesbarkeit
+        if pd.isna(margin) or margin == 0: margin = 10
+        return vmin - margin, vmax + margin
+
+    y1_min, y1_max = get_limits(val_sqrt_data)
+    y2_min, y2_max = get_limits(equal_data)
+
+    # Farbzuordnung konsistent halten
+    weightings = plot_df[weighting_col].unique()
+    palette = sns.color_palette("tab10", len(weightings))
+    color_map = dict(zip(weightings, palette))
+
+    lines_for_legend = []
+    labels_for_legend = []
+
+    for i, group in enumerate(groups):
+        ax1 = axes[i]
+        ax2 = ax1.twinx()  # Zweite y-Achse für diesen Subplot generieren
+
+        group_df = plot_df[plot_df[group_col].astype(str) == group]
+
+        # Linke Achse (ax1): Sqrt-weighted & Value-weighted
+        for w in weightings:
+            if w == equal_label: continue
+            w_df = group_df[group_df[weighting_col] == w]
+            line, = ax1.plot(w_df[date_col], w_df[value_col], label=w,
+                             color=color_map[w], marker="o", linewidth=2)
+            # Nur im ersten Panel für die globale Legende speichern
+            if i == 0:
+                lines_for_legend.append(line)
+                labels_for_legend.append(w)
+
+        # Rechte Achse (ax2): Equal-weighted
+        eq_df = group_df[group_df[weighting_col] == equal_label]
+        if not eq_df.empty:
+            # Optisch abheben durch gestrichelte Linie und "x" Marker
+            line, = ax2.plot(eq_df[date_col], eq_df[value_col], label=equal_label,
+                             color=color_map[equal_label], marker="x", linestyle="--", linewidth=2)
+            if i == 0:
+                lines_for_legend.append(line)
+                labels_for_legend.append(equal_label)
+
+        # Globale Achsen-Limits setzen (gewährleistet die Vergleichbarkeit der 3 Panels)
+        ax1.set_ylim(y1_min, y1_max)
+        ax2.set_ylim(y2_min, y2_max)
+
+        # Formatierung des Subplots
+        ax1.set_title(group)
+        ax1.axhline(100, color="red", linestyle="--", linewidth=1.2, zorder=0)
+        ax1.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.2, zorder=0)
+        ax1.tick_params(axis="x", rotation=45)
+
+        # Y-Labels aus Platzgründen nur an den äußeren Rändern anzeigen
+        if i % cols == 0:
+            ax1.set_ylabel(f"Value / Sqrt (%)")
+        else:
+            ax1.set_yticklabels([])
+
+        if (i + 1) % cols == 0 or i == n_groups - 1:
+            ax2.set_ylabel(f"Equal-weighted (%)")
+        else:
+            ax2.set_yticklabels([])
+
+        # Gitterlinien für ax2 deaktivieren, um ein optisches Chaos mit den ax1-Gittern zu vermeiden
+        ax2.grid(False)
+
+    # Leere Subplots (falls vorhanden) unsichtbar machen
+    for j in range(i + 1, len(axes)):
+        axes[j].set_visible(False)
+
+    # Einzelne globale Legende zentral oberhalb des Plots
+    fig.legend(lines_for_legend, labels_for_legend, loc="upper center",
+               bbox_to_anchor=(0.5, 0.95), ncol=len(weightings), frameon=False)
+
+    fig.suptitle("Weighting-scheme comparison per group", y=1.02, fontsize=14)
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.85)  # Platz für Legende schaffen
+    plt.show()
 # ======================================================================
 # STEP 4 HELPERS: keyword-specific success
 # ======================================================================
@@ -175,7 +294,7 @@ def keyword_relative_success(df, keywords, group_col, baseline_month, baseline_w
         return out
 
     overall = monthly_mean(df, "All videos")
-    keyword_label = "Videos with keyword (" + ", ".join(keywords) + ")"
+    keyword_label = "Videos with keyword)"
     keyword_only = monthly_mean(df[df["has_keyword"]], keyword_label)
 
     combined = pd.concat([overall, keyword_only], ignore_index=True)
@@ -285,7 +404,7 @@ def main():
     ]
     comparison_df = build_weighting_comparison(df, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_SINGLE,
                                                 weight_schemes, value_col="view_count")
-    plot_weighting_comparison(
+    plot_weighting_comparison_2(
         comparison_df, GROUP_COL, "published_at", "relative_pct", "weighting",
         plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
         smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,
@@ -293,12 +412,13 @@ def main():
 
     # ---- STEP 4: Keyword-specific success vs. group baseline ----
     # Adjust KEYWORDS above to analyze a different set of keywords.
-    keyword_df = keyword_relative_success(df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS)
+    keyword_df = keyword_relative_success(df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
+                                          value_col = "views_per_subscriber")
     if keyword_df is not None:
         focus_series = next(s for s in keyword_df["series"].unique() if s != "All videos")
         plot_keyword_focus_trend(
             keyword_df, GROUP_COL, "series", focus_series, "published_at", "relative_pct",
-            title=f"Keyword video performance vs. general baseline (subscriber-normalized): {KEYWORDS}",
+            title=f"Keyword video performance vs. general baseline",
             ylabel=f"views/subscriber relative to {baseline_label} (%)",
             plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
             smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,

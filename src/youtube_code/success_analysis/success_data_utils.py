@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from youtube_code.config import IDEOLOGY_LABELS, IDEOLOGY_BINS, POPULISM_BINS, POPULISM_LABELS
+from youtube_code.config import IDEOLOGY_LABELS, IDEOLOGY_BINS, IDEOLOGY_BINS_STRICT, POPULISM_BINS, POPULISM_LABELS
 from youtube_code.utils import load_json
 
 
@@ -58,6 +58,7 @@ def load_classification(classification_path):
     groups using the bin edges/labels defined in youtube_code.config.
     """
     class_df = pd.read_excel(classification_path)
+
     class_df["ideology_group"] = pd.cut(
         class_df["ideology_channel_mean"], bins=IDEOLOGY_BINS, labels=IDEOLOGY_LABELS, include_lowest=True
     )

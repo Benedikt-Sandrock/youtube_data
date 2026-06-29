@@ -44,7 +44,7 @@ from success_data_utils import load_video_data, rebase_to_baseline, format_basel
 # --- Event & baseline period ---
 EVENT_DATE = "2023-10-07"
 BASELINE_MONTH = "2023-09"
-BASELINE_WINDOW_MONTHS = 1
+BASELINE_WINDOW_MONTHS = 3
 PLOT_START_DATE = "2022-10-01"
 
 # --- Data source paths ---

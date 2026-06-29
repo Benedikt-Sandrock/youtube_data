@@ -25,7 +25,7 @@ print(len(data))
 data = [v for v in data if v["channel_id"] in kw]
 print(len(data))
 
-save_json("relevant_sampled_50k_channels.json", data)
+#save_json("relevant_sampled_50k_channels.json", data)
 video_ids = [v["video_id"] for v in data]
 
 df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
