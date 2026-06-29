@@ -6,6 +6,8 @@ import pandas as pd
 # df = pd.read_json("keyword_videos_50k_channels.json")
 # print(len(df))
 df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+df = pd.concat([df, df2])
 print(f"all transcripts:{len(df)}")
 
 classi = pd.read_csv(OUTPUT_GEMINI / "classification_cot_total" / "classification_results_051_gemini-2.5-flash.csv")
@@ -13,7 +15,7 @@ classi2 = pd.read_csv(OUTPUT_GEMINI / "classification_pi_total" / "classificatio
 classi = pd.concat([classi, classi2])
 print(f"all classified:{len(classi)}")
 
-data = load_json("sampled_50k_channels.json")
+data = load_json("../combined/relevant_sampled_50k_channels.json")
 
 data = [v["video_id"] for v in data]
 print(f"sample vids: {len(data)}")

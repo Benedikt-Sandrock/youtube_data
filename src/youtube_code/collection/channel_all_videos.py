@@ -32,7 +32,7 @@ YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 # Paths
 # ─────────────────────────────────────────────
 VIDEOS_TOTAL_FILE = RAW / "videos_total.json"
-CHANNEL_INPUT     = CHANNEL_LISTS / "conflict_over_time" / "channel_list.json"
+CHANNEL_INPUT     = CHANNEL_LISTS / "party_identification" / "channel_list.json"
 CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 
 # Language-classification settings

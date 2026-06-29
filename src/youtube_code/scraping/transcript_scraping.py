@@ -31,7 +31,6 @@ with open(video_list, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 video_ids_sorted = [item["video_id"] for item in data]
-
 print(f"Number of video-IDs: {len(video_ids_sorted)}")
 
 # Funktionen
