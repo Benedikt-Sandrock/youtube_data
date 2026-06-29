@@ -20,3 +20,10 @@ __pycache__
 /outputs/activity_over_time/
 /data/samples/conflict_over_time/
 /data/samples/party_identification/
+/data/samples/combined/all_videos_50k_channels.json
+/data/samples/combined/keyword_videos_50k_channels.json
+/data/samples/combined/kw_vids.json
+/data/samples/combined/sampled_50k_channels.json
+/data/samples/combined/transcripts_combined_max100.csv
+/data/samples/combined/video_metadata_relevant.csv
+/src/youtube_code/outcome_analysis/gaa.csv
