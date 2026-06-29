@@ -9,10 +9,10 @@ from youtube_code.config import EXPLORATION, SAMPLES, OUTPUT_GEMINI
 # ===================================================
 
 PROMPT_NUMBER = "051"
-results_sample = "classification_pi_total"
+results_sample = ""
 sample = "party_identification"
 
-RESULTS_PATH = OUTPUT_GEMINI / results_sample / f"classification_results_{PROMPT_NUMBER}_gemini-2.5-flash.csv"
+RESULTS_PATH = OUTPUT_GEMINI / results_sample / f"classification_results_{PROMPT_NUMBER}_complete.csv"
 VIDEOS_PATH = SAMPLES / sample / "all_videos_50k_channels.json"
 OUTPUT_PATH_07 = OUTPUT_GEMINI / results_sample / "channel_results_07.xlsx"
 OUTPUT_PATH_051 = OUTPUT_GEMINI / results_sample / "channel_results_051.xlsx"

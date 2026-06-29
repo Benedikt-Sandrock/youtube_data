@@ -156,7 +156,7 @@ for video_id in video_ids_sorted:
     api_request_count += 1
 
     # Break after each API-request
-    pause = random.uniform(10, 20) if SPEED_DOWNLOAD else random.uniform(26, 36) #26,36
+    pause = random.uniform(15, 20) if SPEED_DOWNLOAD else random.uniform(26, 36) #26,36
     print(f"→ Break: {pause:.2f} seconds")
     time.sleep(pause)
 
@@ -165,7 +165,7 @@ for video_id in video_ids_sorted:
         print(f"\n Saving …")
         save_to_csv(daten, OUTPUT_FILE)
         daten.clear()
-        batch_break = random.uniform(10, 40) if SPEED_DOWNLOAD else random.uniform(45, 85) # 45, 85
+        batch_break = random.uniform(20, 40) if SPEED_DOWNLOAD else random.uniform(45, 85) # 45, 85
         print(f"Batch break after {api_request_count} requests: {batch_break:.2f} seconds")
         time.sleep(batch_break)
 

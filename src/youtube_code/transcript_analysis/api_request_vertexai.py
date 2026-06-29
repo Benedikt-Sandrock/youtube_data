@@ -11,8 +11,8 @@ from youtube_code.config import EXPLORATION, BUCKET_NAME, PROJECT_ID, LOCATION, 
 # Specify seed number and prompts
 seed_number = "41"
 
-#INPUT_CSV = SAMPLES / "combined" / "transcripts_combined_max100.csv"
-INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
+INPUT_CSV = SAMPLES / "party_identification" / "transcripts_party_identification_2.csv"
+#INPUT_CSV = EXPLORATION / "training_data" / f"sample_vids_{seed_number}.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "gemini_batch_input{prompt_number}_{model_name}.jsonl"
 
 MODEL_ALIASES = {
@@ -912,7 +912,7 @@ Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärung, kein Markdown:
 
 ### Choose prompts ###
 
-prompts = prompts_both    # [prompts_both, prompts_ideology, prompts_populism]
+prompts = prompt_5_adjusted    # [prompts_both, prompts_ideology, prompts_populism]
 
 client = genai.Client(
     vertexai = True,
@@ -955,9 +955,9 @@ def csv_to_jsonl(csv_path, jsonl_path, system_prompt):
                     "generationConfig": {
                         "responseMimeType": "application/json",
                         "temperature": 0,
-                        "thinkingConfig": {
-                            "thinkingBudget": 1024
-                        }
+                        # "thinkingConfig": {
+                        #     "thinkingBudget": 1024
+                        # },
                     }
                 }
             }
