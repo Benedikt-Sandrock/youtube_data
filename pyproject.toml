@@ -24,6 +24,7 @@ dependencies = [
     "google-cloud-storage",
     "scipy",
     "json_repair",
+    "statsmodels",
 ]
 
 [tool.setuptools.packages.find]

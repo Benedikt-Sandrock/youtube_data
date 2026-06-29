@@ -1,22 +1,26 @@
 """
 nahost_data_utils.py
 
-Shared utilities for the Nahost YouTube channel analysis scripts:
-    - nahost_trend_analysis.py    (relative view trends, weighting schemes, keyword success)
-    - nahost_advanced_analysis.py (views decomposition, ITS regression, decay, format shift, engagement)
+Shared utilities for the YouTube channel analysis scripts:
+    - success_trend_analysis.py    (relative view trends, weighting schemes, keyword success)
+    - success_advanced_analysis.py (views decomposition, ITS regression, decay, format shift, engagement)
 
 This module is imported, not run directly - it has no __main__ block and no analysis-specific
 config (event date, plot ranges, etc. live in each analysis script's own config block).
 
-Two groups of functions:
+Three groups of functions:
     1. DATA LOADING   - read raw metadata, merge channel classification, attach subscriber counts
     2. BASELINE TOOLS - normalize a time series to a baseline period ("baseline month(s) = 100%"),
                          optionally per-channel-weighted to avoid large channels dominating the picture
+    3. PLOT HELPER    - Covers every "metric per month, one line per group" plot
+                        used across both analysis scripts - baseline-relative trends, decay/format/
+                        engagement plots, and the panels of multi-panel figures (via the `ax` parameter).
 """
 
 import os
-
+import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 
 from youtube_code.config import IDEOLOGY_LABELS, IDEOLOGY_BINS, POPULISM_BINS, POPULISM_LABELS
 from youtube_code.utils import load_json
@@ -166,7 +170,7 @@ def rebase_to_baseline(df_grouped, group_col, value_col, date_col, baseline_mont
     return df_grouped
 
 
-def weighted_relative_trend(df, group_col, baseline_month, baseline_window_months=1,
+def weighted_relative_trend(df, group_col, baseline_month, baseline_window_single=1,
                              date_col="published_at", value_col="view_count", weight_power=0.0):
     """
     Compute a per-CHANNEL growth index (each channel rebased to its OWN baseline), then
@@ -191,13 +195,13 @@ def weighted_relative_trend(df, group_col, baseline_month, baseline_window_month
         .reset_index()
     )
     channel_monthly = rebase_to_baseline(channel_monthly, "channel_title", value_col, date_col,
-                                          baseline_month, baseline_window_months)
+                                          baseline_month, baseline_window_single)
 
     n_total = channel_monthly["channel_title"].nunique()
     valid = channel_monthly.dropna(subset=["relative_pct"]).copy()
     n_valid = valid["channel_title"].nunique()
     if n_valid < n_total:
-        label = format_baseline_label(baseline_month, baseline_window_months)
+        label = format_baseline_label(baseline_month, baseline_window_single)
         print(f"[weighted_relative_trend] power={weight_power}, {value_col}: "
               f"{n_total - n_valid} of {n_total} channels have no baseline data in {label} "
               f"and are excluded.")
@@ -212,3 +216,52 @@ def weighted_relative_trend(df, group_col, baseline_month, baseline_window_month
     )
     agg["relative_pct"] = agg["weighted_value_sum"] / agg["weight_sum"]
     return agg[[date_col, group_col, "relative_pct"]]
+
+
+def plot_group_trend(df_long, group_col, date_col, value_col, title, ylabel, plot_start,
+                      event_date=None, reference_line=None, reference_label=None,
+                      smooth=False, smooth_span=3, ax=None, show_legend=True):
+    """
+    Generic single-panel line plot of value_col over time, one line per group_col category.
+
+    event_date        : if given, draws a vertical dotted line marking it (e.g. event day).
+    reference_line     : if given (e.g. 100), draws a horizontal dashed reference line.
+    reference_label    : legend label for that reference line.
+    smooth              : if True, apply an exponentially-weighted moving average (span=smooth_span)
+                          per group before plotting - useful for noisy monthly series.
+    ax                  : pass an existing matplotlib Axes to draw into a multi-panel figure;
+                          otherwise a new standalone figure is created and shown immediately.
+    """
+    standalone = ax is None
+    plot_df = df_long[df_long[date_col] >= plot_start].copy()
+
+    if smooth:
+        plot_df[value_col] = (
+            plot_df.groupby(group_col)[value_col]
+            .transform(lambda x: x.ewm(span=smooth_span, adjust=False).mean())
+        )
+
+    if standalone:
+        plt.figure(figsize=(14, 7))
+        sns.set_theme(style="whitegrid")
+        ax = plt.gca()
+
+    sns.lineplot(data=plot_df, x=date_col, y=value_col, hue=group_col, marker="o",
+                 linewidth=2, ax=ax, legend=show_legend)
+
+    if reference_line is not None:
+        ax.axhline(reference_line, color="red", linestyle="--", linewidth=1.5, label=reference_label)
+    if event_date is not None:
+        ax.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.5,
+                   label="Event date")
+
+    ax.set_title(title, fontsize=13 if standalone else 11)
+    ax.set_xlabel("Month")
+    ax.set_ylabel(ylabel)
+    ax.tick_params(axis="x", rotation=45)
+
+    if standalone:
+        if show_legend:
+            ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        plt.tight_layout()
+        plt.show()

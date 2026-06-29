@@ -1,10 +1,11 @@
 from googleapiclient.discovery import build
 import json
 import os
-from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
-from src.youtube_code.utils.io import load_set
-from src.youtube_code.config.settings import API_KEY
 from dateutil.relativedelta import relativedelta
+
+from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
+from src.youtube_code.utils import load_set
+from src.youtube_code.config import API_KEY, API_KEY_C
 
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
 
@@ -20,18 +21,19 @@ print(config_text)
 
 answer = input("Right specification? [y/n]")
 if not answer.lower() == "y":
-    print("Wrong specification. Check 'polyt_key_variables.py'")
+    print("Wrong specification. Check 'settings_variables.py'")
     exit()
 
-file_path = os.path.join(target_directory, "configuration.txt")
+config_path = os.path.join(target_directory, "configuration.txt")
 os.makedirs(target_directory, exist_ok=True)
 
-with open(file_path, "w", encoding = "utf-8") as f:
+with open(config_path, "w", encoding = "utf-8") as f:
     f.write(config_text)
 
-print(f"Configuration saved to {file_path}")
+print(f"Configuration saved to {config_path}")
 print("Directory is created and video search is initiated...")
 os.makedirs(target_directory, exist_ok=True)
+
 ###
 #Dateipfade definieren
 ###
@@ -42,18 +44,58 @@ all_channels_path = os.path.join(target_directory, "all_channel_ids_discovered.j
 # german_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_german_reference.json"
 # foreign_channels_reference = "../JSON Files/channel_ids_classified/all_channel_ids_foreign_reference.json"
 identification_vids = os.path.join(target_directory, "identification_vids.json")
+
+output_files = [all_channels_path, identification_vids, config_path]
+existing_files = [f for f in output_files if os.path.exists(f)]
+
+overwrite = False
+if existing_files:
+    print("\nWarning: The following output files already exist:\n")
+    for f in existing_files:
+        print(f" -", f)
+
+    if config_path in existing_files:
+        print("\nSearches already performed:\n")
+        with open(config_path, "r") as f:
+            file_content = f.read()
+            print(file_content)
+    while True:
+        choice = input(
+            "\n[a] append data\n"
+            "[o] overwrite data\n"
+            "[q] abort\n"
+            "Choice: "
+        ).lower()
+
+        if choice == "a":
+            overwrite = False
+            break
+        elif choice == "o":
+            overwrite = True
+            break
+        elif choice == "q":
+            print("Exit program.")
+            exit()
+        else:
+            print("Invalid input")
+
+
 ###
 #Dateien laden
 ###
 print("Dateien werden geladen:")
 # german_ref = load_set(german_channels_reference)
 # foreign_ref = load_set(foreign_channels_reference)
-
-all_channel_ids = load_set(all_channels_path)
+if overwrite:
+    all_channel_ids = set()
+else:
+    all_channel_ids = load_set(all_channels_path)
 # german_channels = load_set(german_channels_path)
 # foreign_channels = load_set(foreign_channels_path)
 
-if os.path.exists(identification_vids):
+if overwrite:
+    ident_vids = []
+elif os.path.exists(identification_vids):
     with open(identification_vids, "r", encoding="utf-8") as f:
             ident_vids = json.load(f)
 else:

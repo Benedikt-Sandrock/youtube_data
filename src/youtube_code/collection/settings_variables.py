@@ -1,32 +1,36 @@
-#identification of channels
-published_after_ident = "2023-09-07T00:00:00Z"
-published_before_ident = "2023-10-07T00:00:00Z"
-
+from youtube_code.config import CHANNEL_LISTS
 from datetime import datetime
-import os
-start_date = datetime(2022, 2, 24)
-final_end_date = datetime(2023, 2, 24)
-#period of analysis
+
+
+# === CONFIG ###
+
+# Search period
+start_date = datetime(2024, 1, 7)
+final_end_date = datetime(2024, 4, 6)
+
+# Analysis period
 published_after_analysis = "2022-10-07T00:00:00Z"
 published_before_analysis = "2026-04-27T00:00:00Z"
 
-query_list_politics = ["SPD"]
+# Query configuration
+query = "CDU"
+month_interval = 1
+sample = "party_identification"
 
-#query_list = ["Nahostkonflikt", "Gaza-Krieg", "Israel Palästina Konflikt", "Palästina Israel Konflikt"] #schon durchgelaufen monatsweise
-ziel_directory = f"../JSON Files/ident_1803/party_identification/SPD"
 
-query = "Ukraine"
-query_list_middle_east = ["Konflikt Israel Palästina", "Konflikt Palästina Israel", "Konflikt Palästina Israel", "Israel Palästina", "Palästina Israel", "Krieg Naher Osten"]
-target_directory_me = f"../conflict_over_time/channel_identification/keyword/{query}"
 
+if month_interval in [1,3]:
+    month_interval_str = "monthly" if month_interval == 1 else "quarterly"
+else:
+    print("Wrong month interval specified.")
+    exit()
 
 query_list = [query]
-month_interval = 3
+#target_directory = CHANNEL_LISTS / f"{sample}/channel_identification/keyword/{month_interval_str}/{query}"
+target_directory = CHANNEL_LISTS / "all_identification"
 
-if month_interval == 1:
-    target_directory = f"../russia_ukraine/channel_identification/keyword/monthly/{query}"
-if month_interval == 3:
-    target_directory = f"../russia_ukraine/channel_identification/keyword/quarterly/{query}"
+
+
 
 #query_list = ["Nahostkonflikt", "Gaza-Krieg", "Israel Palästina Konflikt", "Palästina Israel Konflikt"] #schon durchgelaufen monatsweise
 
@@ -141,4 +145,3 @@ if month_interval == 3:
     # print(len(ref_german))
     # safe_json("../JSON Files/channel_ids_classified/all_channel_ids_foreign_3years.json", ref_foreign)
     # safe_json("../JSON Files/channel_ids_classified/all_channel_ids_german_3years.json", ref_german)
-

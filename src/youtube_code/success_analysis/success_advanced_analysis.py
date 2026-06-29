@@ -1,8 +1,8 @@
 """
-nahost_advanced_analysis.py
+success_advanced_analysis.py
 
 Deeper analyses of channel performance around the 7 Oct 2023 event, complementing
-nahost_trend_analysis.py:
+success_trend_analysis.py:
 
     STEP 1: Load data
     STEP 2: Channel-count transparency per group
@@ -17,11 +17,11 @@ NOT included (data not available yet, see comments at the end of main()):
     - Linking these metrics to the sentiment/framing/populism LLM classification
     - Subscriber GROWTH (only a current snapshot exists, no historical series)
 
-NEW DEPENDENCIES compared to nahost_trend_analysis.py:
+NEW DEPENDENCIES compared to success_trend_analysis.py:
     pip install statsmodels scipy --break-system-packages
     (scipy is likely already installed as a seaborn/pandas dependency; statsmodels probably not)
 
-Shared building blocks live in nahost_data_utils.py and nahost_plot_utils.py - both must be
+Shared building blocks live in success_data_utils.py and success_plot_utils.py - both must be
 importable (same folder or on PYTHONPATH) when running this script.
 """
 
@@ -34,8 +34,7 @@ from scipy.optimize import curve_fit
 
 from youtube_code.config import RAW, CHANNEL_LISTS, SAMPLES, OUTPUT_GEMINI
 
-from nahost_data_utils import load_video_data, rebase_to_baseline, format_baseline_label
-from nahost_plot_utils import plot_group_trend
+from success_data_utils import load_video_data, rebase_to_baseline, format_baseline_label, plot_group_trend
 
 
 # ======================================================================
@@ -76,7 +75,7 @@ SHORT_VIDEO_THRESHOLD_SECONDS = 60   # YouTube's usual Shorts definition (adjust
 def print_channel_counts(df, group_col):
     """
     Print how many channels make up each group. Important context for interpreting the
-    equal-/sqrt-weighted indices from nahost_trend_analysis.py: a noisy median computed from
+    equal-/sqrt-weighted indices from success_trend_analysis.py: a noisy median computed from
     3 channels is far less reliable than one computed from 40, even though both plots look
     equally "official".
     """
@@ -412,7 +411,7 @@ def plot_engagement(monthly, group_col, date_col, plot_start, event_date):
 
 def main():
     # ---- STEP 1: Load data ----
-    # Note: unlike nahost_trend_analysis.py, this script does NOT call
+    # Note: unlike success_trend_analysis.py, this script does NOT call
     # add_subscriber_normalization() - none of the analyses below use views_per_subscriber.
     df = load_video_data(METADATA_INPUT, METADATA_OUTPUT, CHANNEL_LIST_PATH, CLASSIFICATION_PATH,
                           START_DATE, END_DATE)
@@ -453,7 +452,7 @@ def main():
 
     # ---- Placeholders for later (data not available yet) ----
     # NLP linkage: once sentiment/framing/populism scores per video exist from the LLM
-    # classification (see nahost_sentiment_analysis.py), this is the place to check whether
+    # classification (see success_sentiment_analysis.py), this is the place to check whether
     # framing intensity correlates with views - independent of channel ideology.
     #
     # Subscriber GROWTH (rather than just a current snapshot) would be a stronger indicator

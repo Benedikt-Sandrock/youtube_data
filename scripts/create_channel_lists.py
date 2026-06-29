@@ -10,10 +10,10 @@ from youtube_code.utils import collect_unique_channel_ids, save_json, load_json
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
-FIRST_STEP = False
-SECOND_STEP = True
+FIRST_STEP = True
+SECOND_STEP = False
 SAMPLE_NAME = "all_videos_50k_channels.json"
-DIR_NAME = "combined"
+DIR_NAME = "party_identification"
 
 
 DIRECTORY = CHANNEL_LISTS / f"{DIR_NAME}"

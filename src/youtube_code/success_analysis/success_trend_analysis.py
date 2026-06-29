@@ -1,5 +1,5 @@
 """
-nahost_trend_analysis.py
+success_trend_analysis.py
 
 Relative view-trend analysis of German YouTube channels around the 7 Oct 2023 event,
 broken down by ideology group. Three complementary perspectives on "did this group's
@@ -14,8 +14,8 @@ videos do better after the event":
     STEP 4: Keyword-specific success vs. the group's general baseline
             -> e.g. "how do videos mentioning Gaza/Israel/Hamas perform vs. a typical video"
 
-Shared building blocks live in nahost_data_utils.py (data loading, baseline normalization)
-and nahost_plot_utils.py (generic trend plotting) - both must be importable (same folder
+Shared building blocks live in success_data_utils.py (data loading, baseline normalization)
+and success_plot_utils.py (generic trend plotting) - both must be importable (same folder
 or on PYTHONPATH) when running this script.
 """
 
@@ -27,11 +27,10 @@ import matplotlib.pyplot as plt
 
 from youtube_code.config import RAW, CHANNEL_LISTS, SAMPLES, OUTPUT_GEMINI, KEYWORDS
 
-from nahost_data_utils import (
+from success_data_utils import (
     load_video_data, add_subscriber_normalization, aggregate_monthly,
-    rebase_to_baseline, format_baseline_label, weighted_relative_trend,
+    rebase_to_baseline, format_baseline_label, weighted_relative_trend, plot_group_trend
 )
-from nahost_plot_utils import plot_group_trend
 
 
 # ======================================================================
@@ -42,6 +41,7 @@ from nahost_plot_utils import plot_group_trend
 EVENT_DATE = "2023-10-07"
 BASELINE_MONTH = "2023-09"        # last month of the baseline period
 BASELINE_WINDOW_MONTHS = 1        # number of months counted backwards from BASELINE_MONTH (incl.)
+BASELINE_WINDOW_SINGLE = 3        # number of months for channel-wise baseline calculation
 PLOT_START_DATE = "2022-10-01"
 
 # --- Data source paths ---
@@ -66,11 +66,10 @@ SUBSCRIBER_SOURCE_PATH = CLASSIFICATION_PATH
 WEIGHT_POWER = 0.5
 
 # --- STEP 4: keyword analysis ---
-# KEYWORDS is imported from youtube_code.config (shared across analysis scripts) - override
-# it here with a local list if you want a different set just for this script, e.g.:
-# KEYWORDS = ["Gaza", "Israel", "Hamas"]
+# KEYWORDS is imported from youtube_code.config
 
 # --- Plot smoothing (applied to all trend plots below) ---
+# rolling window approach ist used with triangular method
 SMOOTH_PLOTS = True
 SMOOTH_SPAN = 3
 
@@ -79,7 +78,7 @@ SMOOTH_SPAN = 3
 # STEP 3 HELPERS: weighting-scheme comparison
 # ======================================================================
 
-def build_weighting_comparison(df, group_col, baseline_month, baseline_window_months,
+def build_weighting_comparison(df, group_col, baseline_month, baseline_window_single,
                                 weight_schemes, value_col="view_count"):
     """
     Run weighted_relative_trend() once per (weight_power, label) pair in `weight_schemes`
@@ -88,7 +87,7 @@ def build_weighting_comparison(df, group_col, baseline_month, baseline_window_mo
     """
     frames = []
     for power, label in weight_schemes:
-        trend = weighted_relative_trend(df, group_col, baseline_month, baseline_window_months,
+        trend = weighted_relative_trend(df, group_col, baseline_month, baseline_window_single,
                                          value_col=value_col, weight_power=power)
         trend["weighting"] = label
         frames.append(trend)
@@ -107,7 +106,7 @@ def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weigh
     if smooth:
         plot_df[value_col] = (
             plot_df.groupby([group_col, weighting_col])[value_col]
-            .transform(lambda x: x.ewm(span=smooth_span, adjust=False).mean())
+            .transform(lambda x: x.rolling(window = smooth_span, center=True, win_type="triang").mean())
         )
 
     sns.set_theme(style="whitegrid")
@@ -203,7 +202,7 @@ def plot_keyword_focus_trend(df_grouped, group_col, series_col, focus_series, da
     if smooth:
         plot_df[value_col] = (
             plot_df.groupby([group_col, series_col])[value_col]
-            .transform(lambda x: x.ewm(span=smooth_span, adjust=False).mean())
+            .transform(lambda x: x.rolling(window = smooth_span, center= True, win_type = "triang").mean())
         )
 
     groups = sorted(plot_df[group_col].astype(str).unique())
@@ -284,7 +283,7 @@ def main():
         (WEIGHT_POWER, f"Sqrt-weighted (power={WEIGHT_POWER})"),
         (1.0, "Value-weighted"),
     ]
-    comparison_df = build_weighting_comparison(df, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
+    comparison_df = build_weighting_comparison(df, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_SINGLE,
                                                 weight_schemes, value_col="view_count")
     plot_weighting_comparison(
         comparison_df, GROUP_COL, "published_at", "relative_pct", "weighting",

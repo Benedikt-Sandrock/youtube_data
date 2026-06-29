@@ -4,18 +4,18 @@ from youtube_code.config import RAW, OUTPUT_GEMINI, TRANSCRIPTS
 import pandas as pd
 
 
-df = pd.read_json("../party_identification/keyword_videos_50k_channels.json")
-df2 = pd.read_json("../conflict_over_time/keyword_videos_50k_channels.json")
-
-ids1 = set(df["video_id"].to_list())
-ids2 = set(df2["video_id"].to_list())
-
-intersection = ids1 & ids2
-total = ids1 | ids2
-only1 = ids1 - ids2
-only2 = ids2 - ids1
-
-print(len(intersection), len(total), len(only1), len(only2))
+# df = pd.read_json("../party_identification/keyword_videos_50k_channels.json")
+# df2 = pd.read_json("../conflict_over_time/keyword_videos_50k_channels.json")
+#
+# ids1 = set(df["video_id"].to_list())
+# ids2 = set(df2["video_id"].to_list())
+#
+# intersection = ids1 & ids2
+# total = ids1 | ids2
+# only1 = ids1 - ids2
+# only2 = ids2 - ids1
+#
+# print(len(intersection), len(total), len(only1), len(only2))
 kw = load_json("keyword_videos_50k_channels.json")
 kw = set(v["channel_id"] for v in kw)
 
@@ -26,6 +26,25 @@ data = [v for v in data if v["channel_id"] in kw]
 print(len(data))
 
 save_json("relevant_sampled_50k_channels.json", data)
+video_ids = [v["video_id"] for v in data]
+
+df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+df =pd.concat([df, df2])
+
+ids = set(df["video_id"].to_list())
+print(len(ids))
+
+video_ids = set(video_ids)
+print(len(video_ids))
+
+inter = video_ids & ids
+print(len(inter))
+rest = video_ids - ids
+print(len(rest), rest)
+df = df[df["video_id"].isin(video_ids)]
+
+print(len(df))
 
 
 
