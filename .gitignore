@@ -33,5 +33,5 @@ __pycache__
 /outputs/llm/gemini/classification_42/
 /outputs/llm/gemini/results_merged/all_results_merged_411.xlsx
 /scripts/downloads/
-/data/samples/*.json
-/data/samples/*.csv
+/data/samples/**.json
+/data/samples/**.csv
