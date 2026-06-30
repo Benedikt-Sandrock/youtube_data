@@ -98,7 +98,7 @@ def build_weighting_comparison(df, group_col, baseline_month, baseline_window_si
     return pd.concat(frames, ignore_index=True)
 
 
-def plot_weighting_comparison_2(df_combined, group_col, date_col, value_col, weighting_col,
+def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weighting_col,
                                 plot_start, event_date, baseline_label,
                                 smooth=False, smooth_span=3):
     """
@@ -230,13 +230,13 @@ def plot_weighting_comparison_2(df_combined, group_col, date_col, value_col, wei
     # tight_layout with rect reserves space at the bottom for the legend;
     # bbox_to_anchor (0, 0) is relative to the rect's lower-left corner.
     fig.suptitle("Weighting-scheme comparison per group", fontsize=14)
-    fig.tight_layout(rect=[0, 0.10, 1, 0.97])
 
     fig.legend(handles=legend_handles,
                loc="lower center",
                bbox_to_anchor=(0.5, 0.01),
                ncol=min(len(legend_handles), 4),
                frameon=True, fontsize=9)
+    fig.tight_layout(rect=[0, 0.10, 1, 0.97])
     plt.show()
 
 
@@ -539,21 +539,15 @@ def plot_shorts_comparison(df_plot, date_col, value_col, group_col, hue_col,
         mlines.Line2D([], [], color="grey", linestyle=":",  linewidth=1.2,
                       label="Event date (Oct 7, 2023)"),
     ]
-
-    fig.legend(handles=legend_handles,
-               loc="lower center",
-               bbox_to_anchor=(0.5, -0.04),
-               ncol=min(len(legend_handles), 4),
-               frameon=True, fontsize=9)
-
     fig.suptitle(title, fontsize=14)
-    fig.tight_layout(rect=[0, 0.1, 1, 0.97])
 
     fig.legend(handles=legend_handles,
                loc="lower center",
-               bbox_to_anchor=(0.5, 0.01),
+               bbox_to_anchor=(0.5, 0),
                ncol=min(len(legend_handles), 4),
                frameon=True, fontsize=9)
+
+    fig.tight_layout(rect=[0, 0.1, 1, 0.97])
     plt.show()
 
 
@@ -604,7 +598,7 @@ def main():
     ]
     comparison_df = build_weighting_comparison(df, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_SINGLE,
                                                 weight_schemes, value_col="view_count")
-    plot_weighting_comparison_2(
+    plot_weighting_comparison(
         comparison_df, GROUP_COL, "published_at", "relative_pct", "weighting",
         plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
         smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,
@@ -612,17 +606,17 @@ def main():
 
     # ---- STEP 4: Keyword-specific success vs. group baseline ----
     # Adjust KEYWORDS above to analyze a different set of keywords.
-    keyword_df = keyword_relative_success(df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
-                                          value_col = "views_per_subscriber")
-    if keyword_df is not None:
-        focus_series = next(s for s in keyword_df["series"].unique() if s != "All videos")
-        plot_keyword_focus_trend(
-            keyword_df, GROUP_COL, "series", focus_series, "published_at", "relative_pct",
-            title=f"Keyword video performance vs. general baseline (subscriber-normed, logged values)",
-            ylabel=f"views/subscriber relative to {baseline_label} (%)",
-            plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
-            smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,
-        )
+    # keyword_df = keyword_relative_success(df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
+    #                                       value_col = "views_per_subscriber")
+    # if keyword_df is not None:
+    #     focus_series = next(s for s in keyword_df["series"].unique() if s != "All videos")
+    #     plot_keyword_focus_trend(
+    #         keyword_df, GROUP_COL, "series", focus_series, "published_at", "relative_pct",
+    #         title=f"Keyword video performance vs. general baseline (subscriber-normed, logged values)",
+    #         ylabel=f"views/subscriber relative to {baseline_label} (%)",
+    #         plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
+    #         smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,
+    #     )
 
     # ---- STEP 5: Shorts vs. long videos ----
     comp1, comp2, comp3, comp4 = build_shorts_comparisons(
