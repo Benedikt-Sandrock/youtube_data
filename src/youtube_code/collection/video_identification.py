@@ -1,13 +1,4 @@
 """
-
-ANPASSUNGEN:
-- nicht jedes Mal Abfrage, ob Datei schon existiert
-- abfangen, wenn ein Fehler bei der Anfrage auftritt: nicht in config/registry übernehmen, wenn Anfrage nicht gespeichert wird
-- In der Video datei sollen nicht so viele Daten gespeichert werden: nur video und channel id -> Rest wird über Metadaten erfasst
-- Wenn neues Skript von Claude übernommen wird, wieder month_interval Speicherung einfügen
-
-
-
 YouTube video identification and channel discovery script.
 
 Searches YouTube for videos matching the configured queries within a date
@@ -16,22 +7,36 @@ history on every video recording which run(s) discovered it.
 
 Storage model
 --------------
-Everything lives in ONE consolidated project store:
- all_channel_ids_discovered.json and identification_vids.json.
+Everything lives in ONE consolidated project store (no more per-query
+directories): all_channel_ids_discovered.json and identification_vids.json.
 Provenance is tracked per video/run instead of via folder structure, so the
 same video found by different queries/runs is merged, not duplicated.
+
+Videos are stored with only video_id and channel_id (plus found_by); title,
+channel title, and publish date are deliberately left out here and merged
+in later from a separate metadata file/pipeline.
 
 Each execution gets a run_id (a timestamp). For that run_id, this script
 records in runs_registry.json:
   - which queries were searched
   - the searched video date range (search_start / search_end)
+  - the month_interval used to chunk that range
   - the moment the run was actually executed (executed_at)
 A human-readable copy of the same information is appended to
 configuration.txt for quick manual review.
 
+Both the project store and the run registry are only updated once ALL
+queries for this run have completed successfully. If a query raises an
+error partway through, nothing from this run is written to disk, so a
+failed run never ends up half-saved or registered.
+
 This makes it possible to later select run_ids by search term and/or by
 date range and recover exactly which videos/channels they identified - see
 `select_run_ids` and `filter_by_run_ids` at the bottom of this file.
+
+Every successful run appends to the existing project store (no overwrite
+prompt). To deliberately wipe the store and start over, call
+`reset_project()`.
 """
 
 from datetime import datetime
@@ -103,43 +108,13 @@ def resolve_output_paths(target_directory: str) -> dict:
     }
 
 
-def ask_overwrite_or_append(paths: dict) -> bool:
-    """Returns True if existing output files should be overwritten, False if
-    new results should be appended to them."""
-    existing_files = [p for p in paths.values() if os.path.exists(p)]
-    if not existing_files:
-        return False
-
-    print("\nWarning: the following output files already exist:\n")
-    for f in existing_files:
-        print(" -", f)
-
-    if os.path.exists(paths["config_log"]):
-        print("\nPrevious runs recorded in configuration.txt:\n")
-        with open(paths["config_log"], "r", encoding="utf-8") as f:
-            print(f.read())
-
-    while True:
-        choice = input(
-            "\n[a] append data\n"
-            "[o] overwrite data\n"
-            "[q] abort\n"
-            "Choice: "
-        ).lower()
-        if choice == "a":
-            return False
-        if choice == "o":
-            return True
-        if choice == "q":
-            print("Aborting.")
-            exit()
-        print("Invalid input.")
-
-
-def load_existing_data(paths: dict, overwrite: bool):
-    if overwrite:
-        return set(), []
-
+def load_existing_data(paths: dict) -> tuple:
+    """
+    Always loads the existing project store, i.e. every run appends to it.
+    With run_id-based provenance tracking there's no longer a meaningful
+    "overwrite" choice to make on every single run - if you ever want to
+    deliberately start over, call reset_project() instead (see below).
+    """
     all_channel_ids = load_set(paths["all_channels"])
 
     if os.path.exists(paths["identification_vids"]):
@@ -151,6 +126,18 @@ def load_existing_data(paths: dict, overwrite: bool):
     return all_channel_ids, ident_vids
 
 
+def print_project_status(all_channel_ids: set, ident_vids: list, registry: dict) -> None:
+    """Quick overview of what's already in the project store, so you always
+    know what this run is appending to."""
+    if not ident_vids and not registry:
+        print("No existing project store found - starting fresh.")
+        return
+    print(
+        f"Existing project store: {len(ident_vids)} videos, "
+        f"{len(all_channel_ids)} channels, {len(registry)} run(s) recorded so far."
+    )
+
+
 def save_outputs(paths: dict, all_channel_ids: set, ident_vids: list) -> None:
     with open(paths["all_channels"], "w", encoding="utf-8") as f:
         json.dump(sorted(all_channel_ids), f, indent=2, ensure_ascii=False)
@@ -159,14 +146,21 @@ def save_outputs(paths: dict, all_channel_ids: set, ident_vids: list) -> None:
         json.dump(ident_vids, f, indent=2, ensure_ascii=False)
 
 
-def reset_logs_if_overwrite(paths: dict, overwrite: bool) -> None:
-    """If the channel/video stores are being reset, reset the configuration
-    log and run registry too, so old run_ids referencing now-deleted data
-    don't linger around."""
-    if not overwrite:
-        return
-    open(paths["config_log"], "w", encoding="utf-8").close()
-    save_run_registry(paths["runs_registry"], {})
+def reset_project(target_directory: str) -> None:
+    """
+    Deliberately wipe the consolidated project store (all_channel_ids,
+    identification_vids, configuration.txt, runs_registry.json). NOT called
+    automatically by main() - run it explicitly if you really want to start
+    over, e.g. from a Python shell:
+
+        from video_identification import reset_project
+        reset_project("/path/to/target_directory")
+    """
+    paths = resolve_output_paths(target_directory)
+    for path in paths.values():
+        if os.path.exists(path):
+            os.remove(path)
+    print(f"Project store at '{target_directory}' has been reset.")
 
 
 # ---------------------------------------------------------------------------
@@ -211,13 +205,15 @@ def search_videos_for_query(query: str, start_date, final_end_date, month_interv
 
 
 def parse_video_items(items: list) -> list:
+    """
+    Extract only the identifying fields needed at this stage. Title,
+    channel title, and publish date are intentionally NOT stored here -
+    they get merged in later from a separate metadata file/pipeline.
+    """
     return [
         {
             "video_id": item["id"]["videoId"],
-            "title": item["snippet"]["title"],
             "channel_id": item["snippet"]["channelId"],
-            "channel_title": item["snippet"]["channelTitle"],
-            "published_at": item["snippet"]["publishedAt"],
         }
         for item in items
     ]
@@ -313,12 +309,12 @@ def save_run_registry(path: str, registry: dict) -> None:
         json.dump(registry, f, indent=2, ensure_ascii=False)
 
 
-def register_run(registry: dict, run_id: str, queries: list, month_interval, search_start, search_end, executed_at) -> dict:
+def register_run(registry: dict, run_id: str, queries: list, search_start, search_end, month_interval, executed_at) -> dict:
     registry[run_id] = {
         "queries": list(queries),
-        "interval": month_interval,
         "search_start": to_iso_date(search_start),
         "search_end": to_iso_date(search_end),
+        "month_interval": month_interval,
         "executed_at": to_iso_datetime(executed_at),
     }
     return registry
@@ -391,35 +387,41 @@ def main():
     os.makedirs(target_directory, exist_ok=True)
     paths = resolve_output_paths(target_directory)
 
-    overwrite = ask_overwrite_or_append(paths)
-    reset_logs_if_overwrite(paths, overwrite)
-    append_run_to_config_log(paths["config_log"], config_text)
-
     registry = load_run_registry(paths["runs_registry"])
-    register_run(registry, run_id, query_list, month_interval, start_date, final_end_date, datetime.now())
-    save_run_registry(paths["runs_registry"], registry)
+    all_channel_ids, ident_vids = load_existing_data(paths)
+    print_project_status(all_channel_ids, ident_vids, registry)
 
-    print("Loading existing files...")
-    all_channel_ids, ident_vids = load_existing_data(paths, overwrite)
     existing_video_ids = {v["video_id"] for v in ident_vids}
 
-    for query in query_list:
-        print(f"\nQuery: {query}")
-        print(f"Full period: {start_date} to {final_end_date}")
+    # Everything below only touches in-memory data. Nothing is written to
+    # disk - and therefore this run is not recorded anywhere - unless every
+    # query in query_list completes without error.
+    try:
+        for query in query_list:
+            print(f"\nQuery: {query}")
+            print(f"Full period: {start_date} to {final_end_date}")
 
-        items = search_videos_for_query(query, start_date, final_end_date, month_interval)
-        videos = parse_video_items(items)
-        print(f"Videos found: {len(videos)}")
+            items = search_videos_for_query(query, start_date, final_end_date, month_interval)
+            videos = parse_video_items(items)
+            print(f"Videos found: {len(videos)}")
 
-        update_video_history(ident_vids, existing_video_ids, videos, run_id, query)
-        print("Video list updated.")
+            update_video_history(ident_vids, existing_video_ids, videos, run_id, query)
+            print("Video list updated.")
 
-        channel_ids = {video["channel_id"] for video in videos}
-        print(f"Unique channels in this query: {len(channel_ids)}")
-        print(channel_ids)
-        all_channel_ids.update(channel_ids)
+            channel_ids = {video["channel_id"] for video in videos}
+            print(f"Unique channels in this query: {len(channel_ids)}")
+            print(channel_ids)
+            all_channel_ids.update(channel_ids)
+    except Exception as exc:
+        print(f"\nError while processing query '{query}': {exc}")
+        print("This run will NOT be saved or registered. Fix the issue and re-run.")
+        raise
 
-        save_outputs(paths, all_channel_ids, ident_vids)
+    save_outputs(paths, all_channel_ids, ident_vids)
+    append_run_to_config_log(paths["config_log"], config_text)
+
+    register_run(registry, run_id, query_list, start_date, final_end_date, month_interval, datetime.now())
+    save_run_registry(paths["runs_registry"], registry)
 
     print(f"\nDone. Run ID for this execution: {run_id}")
 
