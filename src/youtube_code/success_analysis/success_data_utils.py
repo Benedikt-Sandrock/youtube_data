@@ -89,7 +89,7 @@ def add_subscriber_normalization(df, subscriber_source_path, subscriber_column):
 
 
 def load_video_data(metadata_input, metadata_output, channel_list_path, classification_path,
-                     start_date, end_date):
+                     start_date, end_date, include_shorts):
     """
     Full video-level data loading pipeline:
         1. Load video metadata (from cache if it exists, otherwise rebuild via prepare_metadata)
@@ -103,6 +103,15 @@ def load_video_data(metadata_input, metadata_output, channel_list_path, classifi
         df["published_at"] = pd.to_datetime(df["published_at"])
     else:
         df = prepare_metadata(metadata_input, metadata_output, channel_list_path, start_date, end_date)
+
+    df["duration"] = pd.to_timedelta(df["duration"])
+    df["is_short"] = df["duration"] < pd.Timedelta("1 min")
+    if not include_shorts:
+        len_before = len(df)
+        df = df[~df["is_short"]]
+        len_after = len(df)
+        removed_shorts = len_before - len_after
+        print(f"Removed {removed_shorts} shorts.")
 
     class_df = load_classification(classification_path)
     df = pd.merge(df, class_df[["channel_title", "ideology_group", "populism_group"]],

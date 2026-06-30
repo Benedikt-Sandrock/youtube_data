@@ -25,6 +25,7 @@ dependencies = [
     "scipy",
     "json_repair",
     "statsmodels",
+    "krippendorff",
 ]
 
 [tool.setuptools.packages.find]

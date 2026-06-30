@@ -23,7 +23,7 @@ or on PYTHONPATH) when running this script.
 """
 
 import re
-
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -54,6 +54,8 @@ CHANNEL_LIST_PATH = CHANNEL_LISTS / "combined" / "channel_list.json"
 CLASSIFICATION_PATH = OUTPUT_GEMINI / "channel_results_051.xlsx"
 START_DATE = "2022-10"
 END_DATE = "2026-03"
+# --- Inclusion of YouTube Shorts (videos below one minute)
+INCLUDE_SHORTS = True
 
 # --- Grouping column (switch to 'populism_group' to re-run everything by populism instead) ---
 GROUP_COL = "ideology_group"
@@ -246,6 +248,9 @@ def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weigh
     fig.tight_layout()
     fig.subplots_adjust(top=0.85)  # Platz für Legende schaffen
     plt.show()
+
+
+
 # ======================================================================
 # STEP 4 HELPERS: keyword-specific success
 # ======================================================================
@@ -293,10 +298,15 @@ def keyword_relative_success(df, keywords, group_col, baseline_month, baseline_w
         out["series"] = label
         return out
 
+    df["log_views_per_subscriber"] = np.log1p(df["views_per_subscriber"])
+    tdf = df[(df["ideology_group"] == "right") & ((df["month"] == "2023-10") | (df["month"] == "2023-09") | (df["month"] == "2023-11"))
+             & (df["has_keyword"] == True)]
+
+    tdf.to_csv("keyword_df.csv", index=False)
+    df["views_per_subscriber"] = np.log1p(df["views_per_subscriber"])
     overall = monthly_mean(df, "All videos")
     keyword_label = "Videos with keyword)"
     keyword_only = monthly_mean(df[df["has_keyword"]], keyword_label)
-
     combined = pd.concat([overall, keyword_only], ignore_index=True)
     combined["group_series"] = combined[group_col].astype(str) + " - " + combined["series"]
 
@@ -312,7 +322,7 @@ def plot_keyword_focus_trend(df_grouped, group_col, series_col, focus_series, da
                               title, ylabel, plot_start, event_date, baseline_label,
                               smooth=False, smooth_span=3):
     """
-    Keyword-analysis plot: colour = group (same colour for a group's keyword line and its
+    Keyword-analysis plot: colour = group (same color for a group's keyword line and its
     'All videos' line, so they're easy to pair up). The keyword series (focus_series) is drawn
     thick and solid (the actual focus); the 'All videos' series thin, dashed and semi-transparent
     in the background, for context.
@@ -358,6 +368,114 @@ def plot_keyword_focus_trend(df_grouped, group_col, series_col, focus_series, da
 
 
 # ======================================================================
+# STEP 5 HELPERS: Shorts vs. long videos
+# ======================================================================
+
+def build_shorts_comparisons(df, keywords, group_col, baseline_month, baseline_window_months,
+                             date_col = "published_at", value_col = "views_per_subscriber"):
+    """
+    Creates dataframes for three shorts-comparisons. Uses logged views per subscriber.
+    """
+    df = df.copy()
+    if "has_keyword" not in df.columns:
+        pattern = "|".join(re.escape(kw) for kw in keywords)
+        df["has_keyword"] = df["title"].str.contains(pattern, case = False, na = False, regex = True)
+    df[value_col] = np.log1p(df[value_col])
+
+    def get_monthly_mean(sub_df, label_col_name, label_val):
+        out = (
+            sub_df.groupby([pd.Grouper(key=date_col, freq="ME"), group_col])[value_col]
+            .mean().reset_index()
+        )
+        out[label_col_name] = label_val
+        return out
+
+    # --- 1. All shorts vs. all other videos ---
+    shorts_all = get_monthly_mean(df[df["is_short"] == True], "video_type", "Shorts")
+    long_all = get_monthly_mean(df[df["is_short"] == False], "video_type", "Long videos")
+    comp1 = pd.concat([shorts_all, long_all], ignore_index=True)
+
+    # Baseline: Shorts vs. shorts, longs vs. longs
+    comp1["group_type_combo"] = comp1[group_col].astype(str) + " | " + comp1["video_type"]
+    comp1_rebased = rebase_to_baseline(
+        comp1, group_col="group_type_combo", value_col=value_col, baseline_month = baseline_month,
+        baseline_window_months =baseline_window_months, date_col = "published_at")
+    comp1_rebased[group_col] = comp1_rebased["group_type_combo"].apply(lambda x: x.split(" | ")[0])
+
+    # --- 2. Shorts with keyword vs. shorts without keyword ---
+    kw_shorts = get_monthly_mean(df[(df["is_short"] == True) & (df["has_keyword"] == True)], "series", "Keyword Shorts")
+    non_kw_shorts = get_monthly_mean(df[(df["is_short"] == True) & (df["has_keyword"] == False)], "series",
+                                     "Non-Keyword Shorts")
+    all_shorts_baseline = get_monthly_mean(df[df["is_short"] == True], "series", "All Shorts")
+
+    comp2 = pd.concat([kw_shorts, non_kw_shorts, all_shorts_baseline], ignore_index=True)
+    comp2_rebased = rebase_to_baseline(
+        comp2, group_col=group_col, value_col=value_col, date_col=date_col,
+        baseline_month=baseline_month, baseline_window_months=baseline_window_months,
+        baseline_mask=(comp2["series"] == "All Shorts")
+    )
+    comp2_rebased = comp2_rebased[comp2_rebased["series"].isin(["Keyword Shorts", "Non-Keyword Shorts"])]
+
+    # --- 3. Shorts with keyword vs. videos with keyword ---
+    kw_shorts_3 = get_monthly_mean(df[(df["is_short"] == True) & (df["has_keyword"] == True)], "video_type",
+                                   "Keyword Shorts")
+    kw_long_3 = get_monthly_mean(df[(df["is_short"] == False) & (df["has_keyword"] == True)], "video_type",
+                                 "Keyword Long Videos")
+
+    all_shorts_3 = get_monthly_mean(df[df["is_short"] == True], "video_type", "All Shorts (Baseline)")
+    all_long_3 = get_monthly_mean(df[df["is_short"] == False], "video_type", "All Long Videos (Baseline)")
+
+    # Rebasing Shorts
+    comp3_shorts = pd.concat([kw_shorts_3, all_shorts_3], ignore_index=True)
+    comp3_shorts_rebased = rebase_to_baseline(
+        comp3_shorts, group_col=group_col, value_col=value_col, date_col=date_col,
+        baseline_month=baseline_month, baseline_window_months=baseline_window_months,
+        baseline_mask=(comp3_shorts["video_type"] == "All Shorts (Baseline)")
+    )
+
+    # Rebasing Long Videos
+    comp3_long = pd.concat([kw_long_3, all_long_3], ignore_index=True)
+    comp3_long_rebased = rebase_to_baseline(
+        comp3_long, group_col=group_col, value_col=value_col, date_col=date_col,
+        baseline_month=baseline_month, baseline_window_months=baseline_window_months,
+        baseline_mask=(comp3_long["video_type"] == "All Long Videos (Baseline)")
+    )
+
+    comp3_rebased = pd.concat([
+        comp3_shorts_rebased[comp3_shorts_rebased["video_type"] == "Keyword Shorts"],
+        comp3_long_rebased[comp3_long_rebased["video_type"] == "Keyword Long Videos"]
+    ], ignore_index=True)
+
+    return comp1_rebased, comp2_rebased, comp3_rebased
+
+
+def plot_shorts_comparison(df_plot, date_col, value_col, group_col, hue_col, title, ylabel, plot_start, event_date, baseline_label, smooth=False, smooth_span=3):
+    plot_df = df_plot[df_plot[date_col] >= plot_start].copy()
+    if smooth:
+        plot_df[value_col] = (
+            plot_df.groupby([group_col, hue_col])[value_col]
+            .transform(lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean())
+        )
+
+    sns.set_theme(style="whitegrid")
+    g = sns.relplot(
+        data=plot_df, x=date_col, y=value_col, hue=hue_col,
+        col=group_col, kind="line", marker="o", linewidth=2.5,
+        height=4, aspect=1.3, col_wrap=3, facet_kws={"sharey": False}
+    )
+    for ax in g.axes.flat:
+        ax.axhline(100, color="red", linestyle="--", linewidth=1.2)
+        ax.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.2)
+        ax.tick_params(axis="x", rotation=45)
+
+    g.set_titles("{col_name}")
+    g.set_axis_labels("Month", ylabel)
+    g.fig.suptitle(title, y=1.03, fontsize=14)
+    plt.tight_layout()
+    plt.show()
+
+
+# ======================================================================
 # MAIN
 # ======================================================================
 
@@ -367,7 +485,7 @@ def main():
     # ---- STEP 1: Load data ----
     # Adjust paths/dates above if the data location or time window changes.
     df = load_video_data(METADATA_INPUT, METADATA_OUTPUT, CHANNEL_LIST_PATH, CLASSIFICATION_PATH,
-                          START_DATE, END_DATE)
+                          START_DATE, END_DATE, INCLUDE_SHORTS)
     df = add_subscriber_normalization(df, SUBSCRIBER_SOURCE_PATH, SUBSCRIBER_COLUMN)
 
     # ---- STEP 2: Group-level trend (large channels dominate the group sum here) ----
@@ -418,12 +536,44 @@ def main():
         focus_series = next(s for s in keyword_df["series"].unique() if s != "All videos")
         plot_keyword_focus_trend(
             keyword_df, GROUP_COL, "series", focus_series, "published_at", "relative_pct",
-            title=f"Keyword video performance vs. general baseline",
+            title=f"Keyword video performance vs. general baseline (subscriber-normed, logged values)",
             ylabel=f"views/subscriber relative to {baseline_label} (%)",
             plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
             smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN,
         )
 
+    # ---- STEP 5: Shorts vs. long videos ----
+    comp1, comp2, comp3 = build_shorts_comparisons(
+        df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
+        value_col="views_per_subscriber"
+    )
+
+    # Comparison 1: Shorts vs. long videos (All shorts and videos, respectively)
+    plot_shorts_comparison(
+        comp1, "published_at", "relative_pct", GROUP_COL, "video_type",
+        title="1. All Shorts vs. All Long Videos",
+        ylabel=f"relative to own baseline (%)",
+        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
+        smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
+    )
+
+    # Comparison 2: Keyword shorts vs. non-Keyword shorts (Baseline: All shorts)
+    plot_shorts_comparison(
+        comp2, "published_at", "relative_pct", GROUP_COL, "series",
+        title="2. Keyword Shorts vs. Non-Keyword Shorts",
+        ylabel=f"relative to All Shorts baseline (%)",
+        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
+        smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
+    )
+
+    # Comparison 3: Keyword shorts vs. Keyword Long Videos (Baseline: All shorts and videos, respectively)
+    plot_shorts_comparison(
+        comp3, "published_at", "relative_pct", GROUP_COL, "video_type",
+        title="3. Keyword Shorts vs. Keyword Long Videos",
+        ylabel=f"relative to respective general baseline (%)",
+        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
+        smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
+    )
 
 if __name__ == "__main__":
     main()

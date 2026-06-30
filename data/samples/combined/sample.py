@@ -14,37 +14,52 @@ import pandas as pd
 # total = ids1 | ids2
 # only1 = ids1 - ids2
 # only2 = ids2 - ids1
-#
 # print(len(intersection), len(total), len(only1), len(only2))
-kw = load_json("keyword_videos_50k_channels.json")
-kw = set(v["channel_id"] for v in kw)
 
-data = load_json("sampled_50k_channels.json")
-print(len(data))
-
-data = [v for v in data if v["channel_id"] in kw]
-print(len(data))
-
-#save_json("relevant_sampled_50k_channels.json", data)
-video_ids = [v["video_id"] for v in data]
-
-df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
-df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
-df =pd.concat([df, df2])
-
-ids = set(df["video_id"].to_list())
+df = pd.read_json("keyword_videos_50k_channels.json")
+df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+df3 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+df2 = pd.concat([df2, df3])
+print(len(df2))
+ids = df["video_id"].to_list()
 print(len(ids))
+df2 = df2[df2["video_id"].isin(ids)]
+print(len(df2))
 
-video_ids = set(video_ids)
-print(len(video_ids))
+df2.to_csv("keyword_videos_50k_channels.csv", index=False)
 
-inter = video_ids & ids
-print(len(inter))
-rest = video_ids - ids
-print(len(rest), rest)
-df = df[df["video_id"].isin(video_ids)]
 
-print(len(df))
+
+#
+#kw = load_json("keyword_videos_50k_channels.json")
+# kw = set(v["channel_id"] for v in kw)
+#
+# data = load_json("sampled_50k_channels.json")
+# print(len(data))
+#
+# data = [v for v in data if v["channel_id"] in kw]
+# print(len(data))
+#
+# #save_json("relevant_sampled_50k_channels.json", data)
+# video_ids = [v["video_id"] for v in data]
+#
+# df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+# df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+# df =pd.concat([df, df2])
+#
+# ids = set(df["video_id"].to_list())
+# print(len(ids))
+#
+# video_ids = set(video_ids)
+# print(len(video_ids))
+#
+# inter = video_ids & ids
+# print(len(inter))
+# rest = video_ids - ids
+# print(len(rest), rest)
+# df = df[df["video_id"].isin(video_ids)]
+#
+# print(len(df))
 
 
 
