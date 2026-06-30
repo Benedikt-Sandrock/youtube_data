@@ -10,7 +10,7 @@ __pycache__
 /outputs/sample_description/
 /youtube_data.egg-info/
 /data/transcripts/all_transcripts_backup.csv
-/src/youtube_code/transcript_analysis/id_files_done/
+/scripts/old/transcript_analysis/id_files_done/
 /data/raw/channel_metadata_total.json
 /data/samples/conflict_over_time/sampled_50k_channels.json
 /data/samples/conflict_over_time/all_videos_50k_channels.json
@@ -27,3 +27,9 @@ __pycache__
 /data/samples/combined/transcripts_combined_max100.csv
 /data/samples/combined/video_metadata_relevant.csv
 /src/youtube_code/outcome_analysis/gaa.csv
+/outputs/llm/gemini/results/
+/data/samples/combined/keyword_videos_50k_channels.csv
+/outputs/llm/gemini/classification_41/
+/outputs/llm/gemini/classification_42/
+/outputs/llm/gemini/results_merged/all_results_merged_411.xlsx
+/scripts/downloads/
