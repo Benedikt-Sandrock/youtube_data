@@ -18,7 +18,7 @@ print(f"Speed download: {speed_download}")
 #video_list : Liste mit Videos, für die Transkripte heruntergeladen werden soll
 #file_path : Speicherort der Datei mit Transkripten
 
-video_list = SAMPLES / "combined" / "relevant_sampled_50k_channels.json"
+video_list = SAMPLES / "combined" / "keyword_videos_50k_channels.json"
 file_path_existing = TRANSCRIPTS / "all_transcripts.csv"
 file_path = TRANSCRIPTS / "all_transcripts_2.csv"
 
