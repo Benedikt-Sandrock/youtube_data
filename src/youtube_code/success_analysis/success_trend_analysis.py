@@ -1,7 +1,4 @@
 """
-
-!!! ÜBERPRÜFEN, OB KEYWORD GRAPH SUBSCRIBER NORMALISIERT IST !!!
-
 success_trend_analysis.py
 
 Relative view-trend analysis of German YouTube channels around the 7 Oct 2023 event,
@@ -27,8 +24,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 
-from youtube_code.config import RAW, CHANNEL_LISTS, SAMPLES, OUTPUT_GEMINI, KEYWORDS
+from youtube_code.config import RAW, CHANNEL_LISTS, SAMPLES, OUTPUT_GEMINI, KEYWORDS, EXTERNAL
 
 from success_data_utils import (
     load_video_data, add_subscriber_normalization, aggregate_monthly,
@@ -52,6 +50,7 @@ METADATA_INPUT = RAW / "video_metadata_total.jsonl"
 METADATA_OUTPUT = SAMPLES / "combined" / "video_metadata_relevant.csv"
 CHANNEL_LIST_PATH = CHANNEL_LISTS / "combined" / "channel_list.json"
 CLASSIFICATION_PATH = OUTPUT_GEMINI / "channel_results_051.xlsx"
+MEDIA_PATH = EXTERNAL / "media_type.xlsx"
 START_DATE = "2022-10"
 END_DATE = "2026-03"
 # --- Inclusion of YouTube Shorts (videos below one minute)
@@ -100,155 +99,145 @@ def build_weighting_comparison(df, group_col, baseline_month, baseline_window_si
 
 
 def plot_weighting_comparison_2(df_combined, group_col, date_col, value_col, weighting_col,
-                               plot_start, event_date, baseline_label,
-                               smooth=False, smooth_span=3):
+                                plot_start, event_date, baseline_label,
+                                smooth=False, smooth_span=3):
     """
-    Faceted comparison of multiple weighting schemes: one subplot per group, with one line
-    per weighting scheme inside each. Separate subplots (rather than one crowded plot) because
-    N groups x M weighting schemes in a single panel quickly becomes unreadable.
+    Faceted weighting-scheme comparison: one subplot per ideology group.
+
+    Layout
+    ------
+    - Left y-axis  : Value-weighted & Sqrt-weighted (solid lines, circle markers).
+    - Right y-axis : Equal-weighted (dashed line, x markers).
+    - Both axes share a **single global scale** across all panels so groups can be
+      compared at a glance.
+    - A shared legend sits below the figure and never overlaps the data.
     """
+    equal_label = "Equal-weighted"
+
     plot_df = df_combined[df_combined[date_col] >= plot_start].copy()
     if smooth:
         plot_df[value_col] = (
             plot_df.groupby([group_col, weighting_col])[value_col]
-            .transform(lambda x: x.rolling(window = smooth_span, center=True, win_type="triang").mean())
-        )
-
-    sns.set_theme(style="whitegrid")
-    g = sns.relplot(
-        data=plot_df, x=date_col, y=value_col, hue=weighting_col,
-        col=group_col, kind="line", marker="o", linewidth=2,
-        height=4, aspect=1.3, col_wrap=3, facet_kws={"sharey": False},
-    )
-    for ax in g.axes.flat:
-        ax.axhline(100, color="red", linestyle="--", linewidth=1.2)
-        ax.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.2)
-        ax.tick_params(axis="x", rotation=45)
-
-    g.set_titles("{col_name}")
-    g.set_axis_labels("Month", f"relative to {baseline_label} (%)")
-    g.fig.suptitle("Weighting-scheme comparison per group", y=0.98)
-    g.figure.subplots_adjust(top = 0.88, right = 0.82)
-    plt.show()
-
-
-def plot_weighting_comparison(df_combined, group_col, date_col, value_col, weighting_col,
-                              plot_start, event_date, baseline_label,
-                              smooth=False, smooth_span=3):
-    """
-    Faceted comparison of multiple weighting schemes with a dual y-axis.
-    - Primary y-axis (left): Value-weighted & Sqrt-weighted
-    - Secondary y-axis (right): Equal-weighted
-    All panels share the same y-axis scales to ensure comparability.
-    """
-    plot_df = df_combined[df_combined[date_col] >= plot_start].copy()
-    if smooth:
-        plot_df[value_col] = (
-            plot_df.groupby([group_col, weighting_col])[value_col]
-            .transform(lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean())
+            .transform(
+                lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean()
+            )
         )
 
     groups = sorted(plot_df[group_col].astype(str).unique())
     n_groups = len(groups)
-
-    # Raster-Setup (maximal 3 Spalten, genau wie col_wrap=3)
     cols = min(3, n_groups)
     rows = (n_groups - 1) // cols + 1
 
-    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows), squeeze=False)
-    axes = axes.flatten()
+    # ------------------------------------------------------------------
+    # Global y-limits: computed once, applied to every panel
+    # ------------------------------------------------------------------
+    def _limits(series):
+        s = series.dropna()
+        if s.empty:
+            return 80.0, 120.0
+        lo, hi = s.min(), s.max()
+        margin = max((hi - lo) * 0.12, 5.0)
+        return lo - margin, hi + margin
 
-    sns.set_theme(style="whitegrid")
+    y1_min, y1_max = _limits(plot_df.loc[plot_df[weighting_col] != equal_label, value_col])
+    y2_min, y2_max = _limits(plot_df.loc[plot_df[weighting_col] == equal_label, value_col])
 
-    # Exaktes Label aus den weight_schemes (wichtig für den Filter)
-    equal_label = "Equal-weighted"
-
-    # 1. Globale Min/Max-Werte für BEIDE Achsen ermitteln, um die Skala über alle Panels hinweg zu fixieren
-    val_sqrt_data = plot_df[plot_df[weighting_col] != equal_label][value_col]
-    equal_data = plot_df[plot_df[weighting_col] == equal_label][value_col]
-
-    def get_limits(s):
-        if s.empty: return 0, 100
-        vmin, vmax = s.min(), s.max()
-        margin = (vmax - vmin) * 0.1  # 10% Rand zur besseren Lesbarkeit
-        if pd.isna(margin) or margin == 0: margin = 10
-        return vmin - margin, vmax + margin
-
-    y1_min, y1_max = get_limits(val_sqrt_data)
-    y2_min, y2_max = get_limits(equal_data)
-
-    # Farbzuordnung konsistent halten
-    weightings = plot_df[weighting_col].unique()
+    # ------------------------------------------------------------------
+    # Color map (consistent across panels)
+    # ------------------------------------------------------------------
+    weightings = list(plot_df[weighting_col].unique())
     palette = sns.color_palette("tab10", len(weightings))
     color_map = dict(zip(weightings, palette))
 
-    lines_for_legend = []
-    labels_for_legend = []
+    # ------------------------------------------------------------------
+    # Build figure
+    # ------------------------------------------------------------------
+    sns.set_theme(style="whitegrid")
+    fig, axes = plt.subplots(rows, cols, figsize=(5.5 * cols, 4.2 * rows), squeeze=False)
+    axes_flat = axes.flatten()
 
     for i, group in enumerate(groups):
-        ax1 = axes[i]
-        ax2 = ax1.twinx()  # Zweite y-Achse für diesen Subplot generieren
+        ax1 = axes_flat[i]
+        ax2 = ax1.twinx()
 
         group_df = plot_df[plot_df[group_col].astype(str) == group]
 
-        # Linke Achse (ax1): Sqrt-weighted & Value-weighted
-        for w in weightings:
-            if w == equal_label: continue
-            w_df = group_df[group_df[weighting_col] == w]
-            line, = ax1.plot(w_df[date_col], w_df[value_col], label=w,
-                             color=color_map[w], marker="o", linewidth=2)
-            # Nur im ersten Panel für die globale Legende speichern
-            if i == 0:
-                lines_for_legend.append(line)
-                labels_for_legend.append(w)
+        # Left axis: value- and sqrt-weighted
+        for w in [w for w in weightings if w != equal_label]:
+            w_df = group_df[group_df[weighting_col] == w].sort_values(date_col)
+            ax1.plot(w_df[date_col], w_df[value_col],
+                     color=color_map[w], marker="o", markersize=4,
+                     linewidth=2, label=w)
 
-        # Rechte Achse (ax2): Equal-weighted
-        eq_df = group_df[group_df[weighting_col] == equal_label]
+        # Right axis: equal-weighted
+        eq_df = group_df[group_df[weighting_col] == equal_label].sort_values(date_col)
         if not eq_df.empty:
-            # Optisch abheben durch gestrichelte Linie und "x" Marker
-            line, = ax2.plot(eq_df[date_col], eq_df[value_col], label=equal_label,
-                             color=color_map[equal_label], marker="x", linestyle="--", linewidth=2)
-            if i == 0:
-                lines_for_legend.append(line)
-                labels_for_legend.append(equal_label)
+            ax2.plot(eq_df[date_col], eq_df[value_col],
+                     color=color_map[equal_label], marker="x", markersize=5,
+                     linestyle="--", linewidth=2, label=equal_label)
 
-        # Globale Achsen-Limits setzen (gewährleistet die Vergleichbarkeit der 3 Panels)
+        # Shared global limits
         ax1.set_ylim(y1_min, y1_max)
         ax2.set_ylim(y2_min, y2_max)
 
-        # Formatierung des Subplots
-        ax1.set_title(group)
+        # Reference lines
         ax1.axhline(100, color="red", linestyle="--", linewidth=1.2, zorder=0)
-        ax1.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.2, zorder=0)
-        ax1.tick_params(axis="x", rotation=45)
+        ax1.axvline(pd.to_datetime(event_date), color="grey",
+                    linestyle=":", linewidth=1.2, zorder=0)
 
-        # Y-Labels aus Platzgründen nur an den äußeren Rändern anzeigen
-        if i % cols == 0:
-            ax1.set_ylabel(f"Value / Sqrt (%)")
+        ax1.set_title(group, fontsize=11, fontweight="bold", pad=6)
+        ax1.tick_params(axis="x", rotation=45)
+        ax2.grid(False)  # avoid double grid
+
+        # y-axis labels only at the outer edges
+        col_pos = i % cols
+        is_leftmost  = col_pos == 0
+        is_rightmost = (col_pos == cols - 1) or (i == n_groups - 1)
+
+        if is_leftmost:
+            ax1.set_ylabel(f"Value / Sqrt-weighted (%)\n(rel. to {baseline_label})", fontsize=9)
         else:
+            ax1.set_ylabel("")
             ax1.set_yticklabels([])
 
-        if (i + 1) % cols == 0 or i == n_groups - 1:
-            ax2.set_ylabel(f"Equal-weighted (%)")
+        if is_rightmost:
+            ax2.set_ylabel(f"Equal-weighted (%)\n(rel. to {baseline_label})", fontsize=9)
         else:
+            ax2.set_ylabel("")
             ax2.set_yticklabels([])
 
-        # Gitterlinien für ax2 deaktivieren, um ein optisches Chaos mit den ax1-Gittern zu vermeiden
-        ax2.grid(False)
+    # Hide unused subplots
+    for j in range(n_groups, len(axes_flat)):
+        axes_flat[j].set_visible(False)
 
-    # Leere Subplots (falls vorhanden) unsichtbar machen
-    for j in range(i + 1, len(axes)):
-        axes[j].set_visible(False)
+    # ------------------------------------------------------------------
+    # Shared legend below the figure
+    # ------------------------------------------------------------------
+    legend_handles = [
+        mlines.Line2D([], [], color=color_map[w], marker="o" if w != equal_label else "x",
+                      linestyle="-" if w != equal_label else "--",
+                      linewidth=2, markersize=5,
+                      label=w)
+        for w in weightings
+    ]
+    legend_handles += [
+        mlines.Line2D([], [], color="red",  linestyle="--", linewidth=1.2,
+                      label=f"Baseline ({baseline_label} = 100 %)"),
+        mlines.Line2D([], [], color="grey", linestyle=":",  linewidth=1.2,
+                      label="Event date (Oct 7, 2023)"),
+    ]
 
-    # Einzelne globale Legende zentral oberhalb des Plots
-    fig.legend(lines_for_legend, labels_for_legend, loc="upper center",
-               bbox_to_anchor=(0.5, 0.95), ncol=len(weightings), frameon=False)
+    # tight_layout with rect reserves space at the bottom for the legend;
+    # bbox_to_anchor (0, 0) is relative to the rect's lower-left corner.
+    fig.suptitle("Weighting-scheme comparison per group", fontsize=14)
+    fig.tight_layout(rect=[0, 0.10, 1, 0.97])
 
-    fig.suptitle("Weighting-scheme comparison per group", y=1.02, fontsize=14)
-    fig.tight_layout()
-    fig.subplots_adjust(top=0.85)  # Platz für Legende schaffen
+    fig.legend(handles=legend_handles,
+               loc="lower center",
+               bbox_to_anchor=(0.5, 0.01),
+               ncol=min(len(legend_handles), 4),
+               frameon=True, fontsize=9)
     plt.show()
-
 
 
 # ======================================================================
@@ -380,7 +369,7 @@ def build_shorts_comparisons(df, keywords, group_col, baseline_month, baseline_w
     if "has_keyword" not in df.columns:
         pattern = "|".join(re.escape(kw) for kw in keywords)
         df["has_keyword"] = df["title"].str.contains(pattern, case = False, na = False, regex = True)
-    df[value_col] = np.log1p(df[value_col])
+    #df[value_col] = np.log1p(df[value_col])
 
     def get_monthly_mean(sub_df, label_col_name, label_val):
         out = (
@@ -446,32 +435,125 @@ def build_shorts_comparisons(df, keywords, group_col, baseline_month, baseline_w
         comp3_long_rebased[comp3_long_rebased["video_type"] == "Keyword Long Videos"]
     ], ignore_index=True)
 
-    return comp1_rebased, comp2_rebased, comp3_rebased
+    # --- 4. Videos with keyword vs. videos without keyword ---
+    kw_videos = get_monthly_mean(df[(df["is_short"] == False) & (df["has_keyword"] == True)], "series", "Keyword Videos")
+    non_kw_videos = get_monthly_mean(df[(df["is_short"] == False) & (df["has_keyword"] == False)], "series",
+                                     "Non-Keyword Videos")
+    all_videos_baseline = get_monthly_mean(df[df["is_short"] == False], "series", "All Videos")
+
+    comp4 = pd.concat([kw_videos, non_kw_videos, all_videos_baseline], ignore_index=True)
+    comp4_rebased = rebase_to_baseline(
+        comp4, group_col=group_col, value_col=value_col, date_col=date_col,
+        baseline_month=baseline_month, baseline_window_months=baseline_window_months,
+        baseline_mask=(comp4["series"] == "All Videos")
+    )
+    comp4_rebased = comp4_rebased[comp4_rebased["series"].isin(["Keyword Videos", "Non-Keyword Videos"])]
+
+    return comp1_rebased, comp2_rebased, comp3_rebased, comp4_rebased
 
 
-def plot_shorts_comparison(df_plot, date_col, value_col, group_col, hue_col, title, ylabel, plot_start, event_date, baseline_label, smooth=False, smooth_span=3):
+def plot_shorts_comparison(df_plot, date_col, value_col, group_col, hue_col,
+                           title, ylabel, plot_start, event_date, baseline_label,
+                           smooth=False, smooth_span=3):
+    """
+    Faceted Shorts-comparison plot: one subplot per ideology group.
+
+    Layout
+    ------
+    - All panels share a **single global y-axis scale** so differences in magnitude
+      between groups are immediately visible.
+    - The shared legend is placed below the figure and never overlaps the data.
+    """
     plot_df = df_plot[df_plot[date_col] >= plot_start].copy()
     if smooth:
         plot_df[value_col] = (
             plot_df.groupby([group_col, hue_col])[value_col]
-            .transform(lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean())
+            .transform(
+                lambda x: x.rolling(window=smooth_span, center=True, win_type="triang").mean()
+            )
         )
 
+    # ------------------------------------------------------------------
+    # Global y-limits
+    # ------------------------------------------------------------------
+    s = plot_df[value_col].dropna()
+    if not s.empty:
+        lo, hi = s.min(), s.max()
+        margin = max((hi - lo) * 0.12, 5.0)
+        y_min, y_max = lo - margin, hi + margin
+    else:
+        y_min, y_max = 80.0, 120.0
+
+    groups = sorted(plot_df[group_col].astype(str).unique())
+    hues   = list(plot_df[hue_col].unique())
+    n_groups = len(groups)
+    cols = min(3, n_groups)
+    rows = (n_groups - 1) // cols + 1
+
+    palette   = sns.color_palette("tab10", len(hues))
+    color_map = dict(zip(hues, palette))
+
     sns.set_theme(style="whitegrid")
-    g = sns.relplot(
-        data=plot_df, x=date_col, y=value_col, hue=hue_col,
-        col=group_col, kind="line", marker="o", linewidth=2.5,
-        height=4, aspect=1.3, col_wrap=3, facet_kws={"sharey": False}
-    )
-    for ax in g.axes.flat:
-        ax.axhline(100, color="red", linestyle="--", linewidth=1.2)
+    fig, axes = plt.subplots(rows, cols, figsize=(5.5 * cols, 4.2 * rows), squeeze=False)
+    axes_flat = axes.flatten()
+
+    for i, group in enumerate(groups):
+        ax = axes_flat[i]
+        group_df = plot_df[plot_df[group_col].astype(str) == group]
+
+        for h in hues:
+            h_df = group_df[group_df[hue_col] == h].sort_values(date_col)
+            ax.plot(h_df[date_col], h_df[value_col],
+                    color=color_map[h], marker="o", markersize=4,
+                    linewidth=2, label=h)
+
+        # Shared global y-limits
+        ax.set_ylim(y_min, y_max)
+
+        ax.set_title(group, fontsize=11, fontweight="bold", pad=6)
+        ax.axhline(100, color="red",  linestyle="--", linewidth=1.2)
         ax.axvline(pd.to_datetime(event_date), color="grey", linestyle=":", linewidth=1.2)
         ax.tick_params(axis="x", rotation=45)
+        ax.set_xlabel("Month")
 
-    g.set_titles("{col_name}")
-    g.set_axis_labels("Month", ylabel)
-    g.fig.suptitle(title, y=1.03, fontsize=14)
-    plt.tight_layout()
+        if i % cols == 0:
+            ax.set_ylabel(ylabel)
+        else:
+            ax.set_ylabel("")
+
+    # Hide unused subplots
+    for j in range(n_groups, len(axes_flat)):
+        axes_flat[j].set_visible(False)
+
+    # ------------------------------------------------------------------
+    # Shared legend below the figure
+    # ------------------------------------------------------------------
+    legend_handles = [
+        mlines.Line2D([], [], color=color_map[h], marker="o", linewidth=2,
+                      markersize=5, label=h)
+        for h in hues
+    ]
+    legend_handles += [
+        mlines.Line2D([], [], color="red",  linestyle="--", linewidth=1.2,
+                      label=f"Baseline ({baseline_label} = 100 %)"),
+        mlines.Line2D([], [], color="grey", linestyle=":",  linewidth=1.2,
+                      label="Event date (Oct 7, 2023)"),
+    ]
+
+    fig.legend(handles=legend_handles,
+               loc="lower center",
+               bbox_to_anchor=(0.5, -0.04),
+               ncol=min(len(legend_handles), 4),
+               frameon=True, fontsize=9)
+
+    fig.suptitle(title, fontsize=14)
+    fig.tight_layout(rect=[0, 0.1, 1, 0.97])
+
+    fig.legend(handles=legend_handles,
+               loc="lower center",
+               bbox_to_anchor=(0.5, 0.01),
+               ncol=min(len(legend_handles), 4),
+               frameon=True, fontsize=9)
     plt.show()
 
 
@@ -485,7 +567,7 @@ def main():
     # ---- STEP 1: Load data ----
     # Adjust paths/dates above if the data location or time window changes.
     df = load_video_data(METADATA_INPUT, METADATA_OUTPUT, CHANNEL_LIST_PATH, CLASSIFICATION_PATH,
-                          START_DATE, END_DATE, INCLUDE_SHORTS)
+                          MEDIA_PATH, START_DATE, END_DATE, INCLUDE_SHORTS)
     df = add_subscriber_normalization(df, SUBSCRIBER_SOURCE_PATH, SUBSCRIBER_COLUMN)
 
     # ---- STEP 2: Group-level trend (large channels dominate the group sum here) ----
@@ -543,7 +625,7 @@ def main():
         )
 
     # ---- STEP 5: Shorts vs. long videos ----
-    comp1, comp2, comp3 = build_shorts_comparisons(
+    comp1, comp2, comp3, comp4 = build_shorts_comparisons(
         df, KEYWORDS, GROUP_COL, BASELINE_MONTH, BASELINE_WINDOW_MONTHS,
         value_col="views_per_subscriber"
     )
@@ -575,5 +657,13 @@ def main():
         smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
     )
 
+    # Comparison 4: Keyword videos vs. non-Keyword videos (Baseline: All videos)
+    plot_shorts_comparison(
+        comp4, "published_at", "relative_pct", GROUP_COL, "series",
+        title="4. Keyword Videos vs. Non-Keyword Videos",
+        ylabel=f"relative to All Videos baseline (%)",
+        plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
+        smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
+    )
 if __name__ == "__main__":
     main()
