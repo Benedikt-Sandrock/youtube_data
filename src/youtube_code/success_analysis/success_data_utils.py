@@ -52,7 +52,7 @@ def prepare_metadata(metadata_input, metadata_output, channel_list_path, start_d
     return df
 
 
-def load_classification(classification_path):
+def load_classification(classification_path, media_path):
     """
     Load the channel-level ideology/populism scores and bucket them into categorical
     groups using the bin edges/labels defined in youtube_code.config.
@@ -65,6 +65,8 @@ def load_classification(classification_path):
     class_df["populism_group"] = pd.cut(
         class_df["populism_channel_mean"], bins=POPULISM_BINS, labels=POPULISM_LABELS, include_lowest=True
     )
+    media_df = pd.read_excel(media_path)
+    class_df = pd.merge(class_df, media_df[["channel_title", "type"]], on = "channel_title", how = "left")
     return class_df
 
 
@@ -88,7 +90,7 @@ def add_subscriber_normalization(df, subscriber_source_path, subscriber_column):
     return df
 
 
-def load_video_data(metadata_input, metadata_output, channel_list_path, classification_path,
+def load_video_data(metadata_input, metadata_output, channel_list_path, classification_path, media_path,
                      start_date, end_date, include_shorts):
     """
     Full video-level data loading pipeline:
@@ -113,7 +115,7 @@ def load_video_data(metadata_input, metadata_output, channel_list_path, classifi
         removed_shorts = len_before - len_after
         print(f"Removed {removed_shorts} shorts.")
 
-    class_df = load_classification(classification_path)
+    class_df = load_classification(classification_path, media_path)
     df = pd.merge(df, class_df[["channel_title", "ideology_group", "populism_group"]],
                   on="channel_title", how="left")
     df["published_at"] = pd.to_datetime(df["published_at"]).dt.tz_localize(None)
