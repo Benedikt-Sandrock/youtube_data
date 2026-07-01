@@ -53,11 +53,12 @@ CLASSIFICATION_PATH = OUTPUT_GEMINI / "channel_results_051.xlsx"
 MEDIA_PATH = EXTERNAL / "media_type.xlsx"
 START_DATE = "2022-10"
 END_DATE = "2026-03"
+
 # --- Inclusion of YouTube Shorts (videos below one minute)
 INCLUDE_SHORTS = True
 
 # --- Grouping column (switch to 'populism_group' to re-run everything by populism instead) ---
-GROUP_COL = "ideology_group"
+GROUP_COL = "type"
 
 # --- Subscriber normalization (STEP 2's second plot, and STEP 4's keyword analysis) ---
 SUBSCRIBER_COLUMN = "subscribers"
@@ -369,7 +370,63 @@ def build_shorts_comparisons(df, keywords, group_col, baseline_month, baseline_w
     if "has_keyword" not in df.columns:
         pattern = "|".join(re.escape(kw) for kw in keywords)
         df["has_keyword"] = df["title"].str.contains(pattern, case = False, na = False, regex = True)
-    #df[value_col] = np.log1p(df[value_col])
+    df[value_col] = np.log1p(df[value_col])
+
+
+    valid_shorts = [
+        ("center", "2024-08"),
+        ("center", "2025-06"),
+        ("center", "2025-10"),
+        ("left", "2024-11"),
+        ("left", "2024-12"),
+        ("left", "2025-05"),
+        ("right", "2023-10"),
+        ("right", "2025-05"),
+        ("right", "2025-10")
+    ]
+
+    valid_videos = [
+        ("center", "2023-10"),
+        ("center", "2024-10"),
+        ("center", "2025-07"),
+        ("left", "2023-01"),
+        ("left", "2023-10"),
+        ("left", "2024-09"),
+        ("right", "2023-02"),
+        ("right", "2023-03"),
+        ("right", "2023-10"),
+        ("right", "2024-05"),
+        ("right", "2024-12"),
+        ("right", "2025-05"),
+    ]
+
+    kdf = df[df["has_keyword"] == True]
+
+    shorts_mean_value = df[df["is_short"] == True].groupby(group_col)[value_col].mean().reset_index()
+    videos_mean_value = df[df["is_short"] == False].groupby(group_col)[value_col].mean().reset_index()
+    kw_shorts_mean_value = kdf[kdf["is_short"] == True].groupby(group_col)[value_col].mean().reset_index()
+    kw_videos_mean_value = kdf[kdf["is_short"] == False].groupby(group_col)[value_col].mean().reset_index()
+
+    with open("temp_output/view_stats.txt", "w+") as f:
+        f.write(f"{'=' * 5} Mean views per subscriber comparison {'=' * 5}\n")
+        f.write("Shorts mean logged views per subscriber:\n")
+        f.write(shorts_mean_value.to_string())
+        f.write("\n\nVideos mean logged views per subscriber:\n")
+        f.write(videos_mean_value.to_string())
+        f.write("\n\nKeyword shorts mean logged views per subscriber:\n")
+        f.write(kw_shorts_mean_value.to_string())
+        f.write("\n\nKeyword videos mean logged views per subscriber:\n")
+        f.write(kw_videos_mean_value.to_string())
+        f.write(f"\n{"="*50}")
+
+        f.seek(0)
+        print(f.read())
+
+    tdf = kdf[kdf.set_index([group_col, "month"]).index.isin(valid_shorts) & (kdf["is_short"] == True)]
+    vdf = kdf[kdf.set_index([group_col, "month"]).index.isin(valid_videos) & (kdf["is_short"] == False)]
+
+    tdf.to_csv("shorts_df.csv", index=False)
+    vdf.to_csv("videos_df.csv", index=False)
 
     def get_monthly_mean(sub_df, label_col_name, label_val):
         out = (
@@ -659,5 +716,6 @@ def main():
         plot_start=PLOT_START_DATE, event_date=EVENT_DATE, baseline_label=baseline_label,
         smooth=SMOOTH_PLOTS, smooth_span=SMOOTH_SPAN
     )
+
 if __name__ == "__main__":
     main()

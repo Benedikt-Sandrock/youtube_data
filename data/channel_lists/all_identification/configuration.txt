@@ -1,0 +1,42 @@
+Run ID: 20260630_111000
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2022-01-01 00:00:00 to 2023-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_111134
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2021-01-01 00:00:00 to 2022-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_111217
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2023-01-01 00:00:00 to 2024-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_111315
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2024-01-01 00:00:00 to 2025-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_111411
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2025-01-01 00:00:00 to 2026-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_225240
+Query: ['SPD']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2021-01-01 00:00:00 to 2022-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260630_225317
+Query: ['SPD']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2022-01-01 00:00:00 to 2024-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------

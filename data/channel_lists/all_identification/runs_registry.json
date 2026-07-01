@@ -1,0 +1,65 @@
+{
+  "20260630_111000": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2023-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:10:34"
+  },
+  "20260630_111134": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:11:50"
+  },
+  "20260630_111217": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2023-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:12:36"
+  },
+  "20260630_111315": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:13:32"
+  },
+  "20260630_111411": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:14:28"
+  },
+  "20260630_225240": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T22:52:54"
+  },
+  "20260630_225317": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T22:53:43"
+  }
+}

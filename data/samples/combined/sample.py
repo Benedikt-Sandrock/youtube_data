@@ -16,19 +16,25 @@ import pandas as pd
 # only2 = ids2 - ids1
 # print(len(intersection), len(total), len(only1), len(only2))
 
-df = pd.read_json("keyword_videos_50k_channels.json")
+# df = pd.read_json("keyword_videos_50k_channels.json")
 df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
 df3 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
 df2 = pd.concat([df2, df3])
 print(len(df2))
-ids = df["video_id"].to_list()
-print(len(ids))
-df2 = df2[df2["video_id"].isin(ids)]
+# ids = df["video_id"].to_list()
+# print(len(ids))
+# df2 = df2[df2["video_id"].isin(ids)]
+# print(len(df2))
+#
+# df2.to_csv("keyword_videos_50k_channels.csv", index=False)
+
+df2 = df2[df2["status"] != "OK"]
 print(len(df2))
+vids = df2["video_id"].to_list()
 
-df2.to_csv("keyword_videos_50k_channels.csv", index=False)
-
-
+df  = pd.read_json(RAW/"video_metadata_total.jsonl", lines= True)
+df = pd.merge(df2, df[["video_id", "channel_id"]], on = "video_id", how = "left")
+df.to_csv("videos_wo_transcript.csv", index=False)
 
 #
 #kw = load_json("keyword_videos_50k_channels.json")
