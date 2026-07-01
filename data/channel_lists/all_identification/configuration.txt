@@ -40,3 +40,27 @@ Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_list
 Search from 2022-01-01 00:00:00 to 2024-01-01 00:00:00
 Search interval: 3 month(s)
 ------------------------------------------------------------
+Run ID: 20260701_162148
+Query: ['SPD']
+Target directory: "E:\PyhcarmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2024-01-01 00:00:00 to 2026-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260701_162327
+Query: ['AfD']
+Target directory: "E:\PyhcarmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2021-01-01 00:00:00 to 2023-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260701_162355
+Query: ['AfD']
+Target directory: "E:\PyhcarmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2023-01-01 00:00:00 to 2024-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20260701_162442
+Query: ['AfD']
+Target directory: "E:\PyhcarmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2024-01-01 00:00:00 to 2026-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------

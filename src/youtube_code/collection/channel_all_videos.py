@@ -24,7 +24,7 @@ from youtube_code.utils import save_json
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"
 # ─────────────────────────────────────────────
-MODE = "NEW_CHANNELS"
+MODE = "UPDATE"
 
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 

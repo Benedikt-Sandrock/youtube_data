@@ -6,14 +6,14 @@ from datetime import datetime
 
 # Search period
 start_date = datetime(2024, 1, 1)
-final_end_date = datetime(2025, 1, 1)
+final_end_date = datetime(2026, 1, 1)
 
 # Analysis period
 published_after_analysis = "2022-10-07T00:00:00Z"
-published_before_analysis = "2026-04-27T00:00:00Z"
+published_before_analysis = "2026-06-30T00:00:00Z"
 
 # Query configuration
-query = "SPD"
+query = "AfD"
 month_interval = 3
 sample = "party_identification"
 

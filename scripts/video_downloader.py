@@ -70,7 +70,7 @@ def download_videos_clean(video_ids, output_path):
 if __name__ == "__main__":
 
     output_path = "downloads"
-    vid = ["uq2OGLUel0M"]
+    vid = ["v-8UDJzOEds"]
     download_videos_clean(vid, output_path)
 
 

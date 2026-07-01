@@ -56,7 +56,7 @@ from settings_variables import (
 from src.youtube_code.utils import load_set
 from src.youtube_code.config import API_KEY, API_KEY_C
 
-YOUTUBE = build("youtube", "v3", developerKey=API_KEY_C)
+YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
 
 # ---------------------------------------------------------------------------
