@@ -66,6 +66,7 @@ def load_classification(classification_path, media_path):
         class_df["populism_channel_mean"], bins=POPULISM_BINS, labels=POPULISM_LABELS, include_lowest=True
     )
     media_df = pd.read_excel(media_path)
+    media_df = media_df[media_df["type"] != 4]
     class_df = pd.merge(class_df, media_df[["channel_title", "type"]], on = "channel_title", how = "left")
     return class_df
 
@@ -116,7 +117,7 @@ def load_video_data(metadata_input, metadata_output, channel_list_path, classifi
         print(f"Removed {removed_shorts} shorts.")
 
     class_df = load_classification(classification_path, media_path)
-    df = pd.merge(df, class_df[["channel_title", "ideology_group", "populism_group"]],
+    df = pd.merge(df, class_df[["channel_title", "ideology_group", "populism_group", "type"]],
                   on="channel_title", how="left")
     df["published_at"] = pd.to_datetime(df["published_at"]).dt.tz_localize(None)
     return df
