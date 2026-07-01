@@ -61,5 +61,41 @@
     "search_end": "2024-01-01",
     "month_interval": 3,
     "executed_at": "2026-06-30T22:53:43"
+  },
+  "20260701_162148": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:22:28"
+  },
+  "20260701_162327": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2023-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:23:47"
+  },
+  "20260701_162355": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2023-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:24:11"
+  },
+  "20260701_162442": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:25:09"
   }
 }
