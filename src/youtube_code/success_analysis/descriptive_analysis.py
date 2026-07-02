@@ -63,7 +63,7 @@ EVENT_DATE = "2023-10-07"
 TIME_UNIT = "M"
 
 # Gruppierungen, die nacheinander geplottet werden
-GROUPINGS = ["ideology_group", "type"]
+GROUPINGS = ["ideology_group",]  # "type"
 
 # Datenquellen, analog zu deinen bestehenden Skripten
 METADATA_INPUT = RAW / "video_metadata_total.jsonl"
@@ -97,6 +97,8 @@ VIDEO_POPULISM_COL = "populism_score"
 CHANNEL_BASELINE_COL = "populism_channel_mean"
 
 VIEW_COL = "view_count"
+COMMENT_COL = "comment_count"
+LIKE_COL = "like_count"
 DATE_COL = "published_at"
 CHANNEL_COL = "channel_title"
 
@@ -125,6 +127,25 @@ GROUP_ORDER = {
     "type": None,
 }
 
+
+value_specs = [
+    {
+        "col": VIEW_COL,
+        "label": "Views",
+        "kind": "additive",
+    },
+    {
+        "col": COMMENT_COL,
+        "label": "Kommentare",
+        "kind": "additive",
+    },
+    {
+        "col": "engagement_ratio",
+        "label": "Engagement-Rate",
+        "kind": "average",
+        "is_rate": True,
+    },
+]
 
 # =============================================================================
 # HILFSFUNKTIONEN: VALIDIERUNG & LOADING
@@ -277,7 +298,7 @@ def load_and_prepare_base_data() -> pd.DataFrame:
 
     require_columns(
         df,
-        [VIDEO_ID_COL, CHANNEL_COL, DATE_COL, TITLE_COL, VIEW_COL, "ideology_group", "type"],
+        [VIDEO_ID_COL, CHANNEL_COL, DATE_COL, TITLE_COL, VIEW_COL, COMMENT_COL, LIKE_COL, "ideology_group", "type"],
         "Videodaten nach load_video_data()",
     )
 
@@ -285,6 +306,9 @@ def load_and_prepare_base_data() -> pd.DataFrame:
     df[VIDEO_ID_COL] = df[VIDEO_ID_COL].astype(str)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL]).dt.tz_localize(None)
     df[VIEW_COL] = pd.to_numeric(df[VIEW_COL], errors="coerce").fillna(0)
+    df[COMMENT_COL] = pd.to_numeric(df[COMMENT_COL], errors ="coerce").fillna(0)
+    df[LIKE_COL] = pd.to_numeric(df[LIKE_COL], errors ="coerce").fillna(0)
+    df["engagement_ratio"] = (df[COMMENT_COL] + df[LIKE_COL]) / df[VIEW_COL]
 
     # Channel-Baseline zusätzlich mergen, weil load_video_data sie in deinen Utils
     # bisher nicht in df übernimmt.
@@ -1382,43 +1406,35 @@ def plot_keyword_populism_channel_deviation(
     print(f"Keyword-Populismus-Abweichung gespeichert: {summary_path}")
 
 
-def plot_keyword_view_overperformance(
+def plot_keyword_populism_channel_deviation_channel_weighted(
     df: pd.DataFrame,
     group_col: str,
     output_dir: Path,
-    min_channel_videos_per_period: int = 5,
-    min_channel_keyword_videos_per_period: int = 1,
-    clip_lift_at: float | None = 10.0,
+    min_keyword_videos_per_channel_period: int = 1,
 ) -> None:
     """
-    Figure 7: Reichweiten-Overperformance von Keyword-Videos.
+    Kanalgewichtete Variante der Keyword-Populismus-Abweichung.
 
-    Vergleicht:
-        Anteil Keyword-Videos an allen Videos
-        vs.
-        Anteil Keyword-Views an allen Views
+    Frage:
+        Weichen Nahost-/Keyword-Videos eines typischen Kanals vom
+        normalen Populismusniveau dieses Kanals ab?
 
-    Zwei Ebenen:
-        A) Gruppenaggregiert / videogewichtet:
-            Große Kanäle dominieren. Gut für die Frage:
-            "Wie groß ist der Reichweitenanteil von Nahost in der Gruppe insgesamt?"
+    Schritt 1:
+        Für jedes Keyword-Video:
+            deviation = populism_score_clean - populism_channel_mean
 
-        B-D) Kanalbasiert / equal-weighted:
-            Jeder Kanal zählt pro Zeitraum gleich. Gut für die Frage:
-            "Performen Nahost-Videos für den durchschnittlichen Kanal überdurchschnittlich?"
+    Schritt 2:
+        Pro Kanal x Periode:
+            mean_channel_deviation = mittlere Abweichung der Keyword-Videos dieses Kanals
 
-    Kennzahlen:
-        share_keyword_videos = n_keyword_videos / n_videos
-        share_keyword_views  = keyword_views / total_views
+    Schritt 3:
+        Pro Gruppe x Periode:
+            mean_deviation_channel_weighted = Durchschnitt der Kanalwerte
+            median_deviation_channel_weighted = Median der Kanalwerte
 
-        view_lift = share_keyword_views / share_keyword_videos
-
-            > 1: Keyword-Videos erzeugen überproportional viele Views
-            = 1: proportional
-            < 1: unterproportional
-
-        overperformance_pp = share_keyword_views - share_keyword_videos
-            positive Werte: Keyword-Videos erzielen mehr View-Anteil als Video-Anteil
+    Vorteil:
+        Kanäle mit vielen Keyword-Videos dominieren die Gruppenwerte nicht automatisch.
+        Jeder Kanal zählt pro Periode einmal.
     """
 
     required_cols = [
@@ -1426,256 +1442,716 @@ def plot_keyword_view_overperformance(
         VIDEO_ID_COL,
         CHANNEL_COL,
         KEYWORD_COL,
-        VIEW_COL,
         group_col,
+        "populism_score_clean",
+        CHANNEL_BASELINE_COL,
     ]
-    require_columns(df, required_cols, "plot_keyword_view_overperformance input")
+
+    require_columns(
+        df,
+        required_cols,
+        "plot_keyword_populism_channel_deviation_channel_weighted input",
+    )
 
     period_freq, _ = get_freqs(TIME_UNIT)
 
-    work = df.dropna(subset=[group_col]).copy()
+    work = df.copy()
+    work[DATE_COL] = pd.to_datetime(work[DATE_COL]).dt.tz_localize(None)
     work[group_col] = work[group_col].astype(str)
+    work[CHANNEL_COL] = work[CHANNEL_COL].astype(str)
+
     work["period"] = work[DATE_COL].dt.to_period(period_freq).dt.to_timestamp()
-    work[VIEW_COL] = pd.to_numeric(work[VIEW_COL], errors="coerce").fillna(0)
 
-    # ------------------------------------------------------------------
-    # A) Gruppenaggregierte / videogewichtete Variante
-    # ------------------------------------------------------------------
-    group_summary = (
-        work.groupby(["period", group_col], observed=True)
-        .agg(
-            n_videos=(VIDEO_ID_COL, "count"),
-            n_keyword_videos=(KEYWORD_COL, "sum"),
-            total_views=(VIEW_COL, "sum"),
-            keyword_views=(VIEW_COL, lambda s: work.loc[s.index, VIEW_COL][work.loc[s.index, KEYWORD_COL]].sum()),
-        )
-        .reset_index()
-    )
-
-    group_summary["share_keyword_videos"] = np.where(
-        group_summary["n_videos"] > 0,
-        group_summary["n_keyword_videos"] / group_summary["n_videos"],
-        np.nan,
-    )
-
-    group_summary["share_keyword_views"] = np.where(
-        group_summary["total_views"] > 0,
-        group_summary["keyword_views"] / group_summary["total_views"],
-        np.nan,
-    )
-
-    group_summary["view_lift_group_aggregated"] = np.where(
-        group_summary["share_keyword_videos"] > 0,
-        group_summary["share_keyword_views"] / group_summary["share_keyword_videos"],
-        np.nan,
-    )
-
-    group_summary["overperformance_pp_group_aggregated"] = (
-        group_summary["share_keyword_views"] - group_summary["share_keyword_videos"]
-    )
-
-    # ------------------------------------------------------------------
-    # B) Kanalbasierte / equal-weighted Variante
-    # ------------------------------------------------------------------
-    channel_summary = (
-        work.groupby(["period", CHANNEL_COL, group_col], observed=True)
-        .agg(
-            n_videos=(VIDEO_ID_COL, "count"),
-            n_keyword_videos=(KEYWORD_COL, "sum"),
-            total_views=(VIEW_COL, "sum"),
-            keyword_views=(VIEW_COL, lambda s: work.loc[s.index, VIEW_COL][work.loc[s.index, KEYWORD_COL]].sum()),
-        )
-        .reset_index()
-    )
-
-    channel_summary["share_keyword_videos"] = np.where(
-        channel_summary["n_videos"] > 0,
-        channel_summary["n_keyword_videos"] / channel_summary["n_videos"],
-        np.nan,
-    )
-
-    channel_summary["share_keyword_views"] = np.where(
-        channel_summary["total_views"] > 0,
-        channel_summary["keyword_views"] / channel_summary["total_views"],
-        np.nan,
-    )
-
-    channel_summary["view_lift"] = np.where(
-        channel_summary["share_keyword_videos"] > 0,
-        channel_summary["share_keyword_views"] / channel_summary["share_keyword_videos"],
-        np.nan,
-    )
-
-    channel_summary["overperformance_pp"] = (
-        channel_summary["share_keyword_views"] - channel_summary["share_keyword_videos"]
-    )
-
-    # Nur Kanäle mit genug Gesamtvideos und mindestens einem Keywordvideo im Zeitraum.
-    valid_channel_summary = channel_summary[
-        (channel_summary["n_videos"] >= min_channel_videos_per_period)
-        & (channel_summary["n_keyword_videos"] >= min_channel_keyword_videos_per_period)
-        & channel_summary["view_lift"].notna()
-        & np.isfinite(channel_summary["view_lift"])
+    # Nur Keyword-Videos mit gültigem Video-Populismus und gültiger Kanal-Baseline
+    keyword_df = work[
+        work[KEYWORD_COL]
+        & work["populism_score_clean"].notna()
+        & work[CHANNEL_BASELINE_COL].notna()
+        & work[group_col].notna()
+        & work[CHANNEL_COL].notna()
     ].copy()
 
-    if clip_lift_at is not None:
-        valid_channel_summary["view_lift_plot"] = valid_channel_summary["view_lift"].clip(
-            upper=clip_lift_at
+    if keyword_df.empty:
+        print(
+            f"[Warnung] Keine gültigen Keyword-Videos für kanalgewichtete "
+            f"Populismus-Abweichung mit {group_col}."
         )
-    else:
-        valid_channel_summary["view_lift_plot"] = valid_channel_summary["view_lift"]
+        return
 
-    channel_group_summary = (
-        valid_channel_summary.groupby(["period", group_col], observed=True)
+    keyword_df["populism_channel_deviation"] = (
+        keyword_df["populism_score_clean"]
+        - keyword_df[CHANNEL_BASELINE_COL]
+    )
+
+    # ------------------------------------------------------------------
+    # 1. Kanal x Periode aggregieren
+    # ------------------------------------------------------------------
+    channel_period = (
+        keyword_df
+        .groupby(["period", group_col, CHANNEL_COL], observed=True)
         .agg(
-            mean_view_lift=("view_lift", "mean"),
-            median_view_lift=("view_lift", "median"),
-            mean_view_lift_plot=("view_lift_plot", "mean"),
-            median_view_lift_plot=("view_lift_plot", "median"),
-            mean_overperformance_pp=("overperformance_pp", "mean"),
-            median_overperformance_pp=("overperformance_pp", "median"),
-            n_channels=(CHANNEL_COL, "nunique"),
+            mean_channel_deviation=("populism_channel_deviation", "mean"),
+            median_channel_deviation=("populism_channel_deviation", "median"),
+            n_keyword_videos=(VIDEO_ID_COL, "count"),
+            mean_keyword_populism=("populism_score_clean", "mean"),
+            mean_channel_baseline=(CHANNEL_BASELINE_COL, "mean"),
         )
         .reset_index()
     )
 
+    channel_period = channel_period[
+        channel_period["n_keyword_videos"] >= min_keyword_videos_per_channel_period
+    ].copy()
+
+    if channel_period.empty:
+        print(
+            f"[Warnung] Keine Kanal-Perioden nach Filter "
+            f"min_keyword_videos_per_channel_period={min_keyword_videos_per_channel_period}."
+        )
+        return
+
     # ------------------------------------------------------------------
-    # Vollständiges Raster ergänzen
+    # 2. Gruppe x Periode aggregieren: jetzt zählt jeder Kanal einmal
     # ------------------------------------------------------------------
+    group_period = (
+        channel_period
+        .groupby(["period", group_col], observed=True)
+        .agg(
+            mean_deviation_channel_weighted=("mean_channel_deviation", "mean"),
+            median_deviation_channel_weighted=("mean_channel_deviation", "median"),
+            mean_of_channel_medians=("median_channel_deviation", "mean"),
+            n_channels=(CHANNEL_COL, "nunique"),
+            total_keyword_videos=("n_keyword_videos", "sum"),
+            median_keyword_videos_per_channel=("n_keyword_videos", "median"),
+        )
+        .reset_index()
+    )
+
+    # Vollständiges Perioden-Gruppen-Gitter, damit Linien nicht verschwinden
     grid = make_complete_period_group_grid(
-        work,
+        work.dropna(subset=[group_col]),
         group_col=group_col,
         period_freq=period_freq,
         date_col="period",
     )
 
-    group_summary = grid.merge(group_summary, on=["period", group_col], how="left")
-    channel_group_summary = grid.merge(channel_group_summary, on=["period", group_col], how="left")
+    group_period = grid.merge(
+        group_period,
+        on=["period", group_col],
+        how="left",
+    )
+
+    group_period["n_channels"] = group_period["n_channels"].fillna(0)
+    group_period["total_keyword_videos"] = group_period["total_keyword_videos"].fillna(0)
 
     groups = get_groups(work, group_col)
+    groups = [str(g) for g in groups]
     palette = make_palette(groups)
-    plot_start = pd.to_datetime(PLOT_START_DATE)
 
-    group_plot = group_summary[group_summary["period"] >= plot_start].copy()
-    channel_plot = channel_group_summary[channel_group_summary["period"] >= plot_start].copy()
+    plot_df = filter_plot_start(group_period)
 
+    # ------------------------------------------------------------------
+    # Plot
+    # ------------------------------------------------------------------
     sns.set_theme(style="whitegrid")
-    fig, axes = plt.subplots(2, 2, figsize=(17, 10), sharex=True)
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10), sharex=True)
     axes_flat = axes.flatten()
 
-    # ------------------------------------------------------------------
-    # Panel A: Gruppenaggregierter View Lift
-    # ------------------------------------------------------------------
     plot_line_metric(
         axes_flat[0],
-        group_plot,
+        plot_df,
         group_col,
-        "view_lift_group_aggregated",
-        "A) View Lift, gruppenaggregiert",
-        "Keyword-View-Anteil / Keyword-Video-Anteil",
+        "mean_deviation_channel_weighted",
+        "A) Durchschnitt der Kanal-Abweichungen",
+        "Populismus-Abweichung",
         palette,
         time_label=get_time_label(TIME_UNIT),
     )
-    axes_flat[0].axhline(1, color="black", linestyle="--", linewidth=1.1, alpha=0.8)
-
-    # ------------------------------------------------------------------
-    # Panel B: Kanalbasierter View Lift
-    # ------------------------------------------------------------------
-    y_col_lift = "median_view_lift_plot" if clip_lift_at is not None else "median_view_lift"
+    axes_flat[0].axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.7)
 
     plot_line_metric(
         axes_flat[1],
-        channel_plot,
+        plot_df,
         group_col,
-        y_col_lift,
-        "B) Median View Lift pro Kanal",
-        "Median Kanal-Lift",
+        "median_deviation_channel_weighted",
+        "B) Median der Kanal-Abweichungen",
+        "Populismus-Abweichung",
         palette,
         time_label=get_time_label(TIME_UNIT),
     )
-    axes_flat[1].axhline(1, color="black", linestyle="--", linewidth=1.1, alpha=0.8)
+    axes_flat[1].axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.7)
 
-    if clip_lift_at is not None:
-        axes_flat[1].text(
-            0.01,
-            0.02,
-            f"Für die Darstellung bei {clip_lift_at:g} gekappt; CSV enthält ungekappte Werte.",
-            transform=axes_flat[1].transAxes,
-            fontsize=8,
-            alpha=0.75,
-        )
-
-    # ------------------------------------------------------------------
-    # Panel C: Kanalbasierte Overperformance in Prozentpunkten
-    # ------------------------------------------------------------------
     plot_line_metric(
         axes_flat[2],
-        channel_plot,
-        group_col,
-        "median_overperformance_pp",
-        "C) Median Overperformance pro Kanal",
-        "Keyword-View-Anteil − Keyword-Video-Anteil",
-        palette,
-        y_formatter=mticker.FuncFormatter(percent_formatter),
-        time_label=get_time_label(TIME_UNIT),
-    )
-    axes_flat[2].axhline(0, color="black", linestyle="--", linewidth=1.1, alpha=0.8)
-
-    # ------------------------------------------------------------------
-    # Panel D: Anzahl gültiger Kanäle
-    # ------------------------------------------------------------------
-    plot_line_metric(
-        axes_flat[3],
-        channel_plot,
+        plot_df,
         group_col,
         "n_channels",
-        "D) Anzahl Kanäle mit gültigem Lift",
+        "C) Zahl eingeschlossener Kanäle",
         "Kanäle",
         palette,
-        y_formatter=mticker.FuncFormatter(compact_number_formatter),
         time_label=get_time_label(TIME_UNIT),
+    )
+
+    plot_line_metric(
+        axes_flat[3],
+        plot_df,
+        group_col,
+        "median_keyword_videos_per_channel",
+        "D) Median Keyword-Videos pro Kanal",
+        "Keyword-Videos pro Kanal",
+        palette,
+        time_label=get_time_label(TIME_UNIT),
+    )
+
+    for ax in axes_flat:
+        ax.axvline(
+            pd.to_datetime(EVENT_DATE),
+            color="black",
+            linestyle=":",
+            linewidth=1,
+            alpha=0.8,
+        )
+
+    # Gemeinsame Legende
+    handles = []
+    labels = []
+
+    for group in groups:
+        color = palette.get(group)
+        if color is None:
+            continue
+
+        handles.append(
+            plt.Line2D(
+                [],
+                [],
+                color=color,
+                marker="o",
+                linewidth=2,
+                markersize=5,
+                label=str(group),
+            )
+        )
+        labels.append(str(group))
+
+    fig.legend(
+        handles=handles,
+        labels=labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.075),
+        ncol=min(len(handles), 4),
+        frameon=True,
+        fontsize=9,
     )
 
     fig.suptitle(
-        f"Figure 7: Reichweiten-Overperformance von Keyword-Videos — gruppiert nach {group_col}",
+        f"Kanalgewichtete Keyword-Populismus-Abweichung — {group_col}",
         fontsize=14,
         fontweight="bold",
         y=0.98,
     )
 
-    fig.text(
-        0.5,
-        0.015,
-        (
-            "View Lift > 1 bedeutet: Keyword-Videos erzielen einen höheren Anteil an Views "
-            "als ihr Anteil an Videos. Kanalbasierte Werte gewichten jeden Kanal gleich."
-        ),
-        ha="center",
-        fontsize=9,
+    note = (
+        "Abweichung = Video-Populismus − Kanal-Populismus-Durchschnitt. "
+        "Erst wird pro Kanal und Periode gemittelt; danach wird über Kanäle "
+        "innerhalb der Gruppe aggregiert. Jeder Kanal zählt pro Periode einmal."
     )
 
-    add_shared_legend(fig, axes_flat, palette)
-    fig.tight_layout(rect=[0, 0.08, 1, 0.95])
+    fig.text(
+        0.01,
+        0.01,
+        note,
+        ha="left",
+        va="bottom",
+        fontsize=9,
+        color="dimgray",
+    )
+
+    fig.tight_layout(rect=[0, 0.14, 1, 0.95])
 
     save_or_show(
         fig,
-        output_dir / f"figure_7_keyword_view_overperformance_{group_col}_{TIME_UNIT}",
+        output_dir / f"figure_6b_keyword_populism_channel_deviation_channel_weighted_{group_col}_{TIME_UNIT}",
     )
 
     # ------------------------------------------------------------------
-    # CSVs speichern
+    # Daten speichern
     # ------------------------------------------------------------------
-    group_path = output_dir / f"keyword_view_overperformance_group_aggregated_{group_col}_{TIME_UNIT}.csv"
-    channel_path = output_dir / f"keyword_view_overperformance_channel_level_{group_col}_{TIME_UNIT}.csv"
-    channel_group_path = output_dir / f"keyword_view_overperformance_channel_group_summary_{group_col}_{TIME_UNIT}.csv"
+    channel_path = (
+        output_dir
+        / f"keyword_populism_channel_deviation_channel_period_{group_col}_{TIME_UNIT}.csv"
+    )
 
-    group_summary.to_csv(group_path, index=False)
-    channel_summary.to_csv(channel_path, index=False)
-    channel_group_summary.to_csv(channel_group_path, index=False)
+    group_path = (
+        output_dir
+        / f"keyword_populism_channel_deviation_channel_weighted_summary_{group_col}_{TIME_UNIT}.csv"
+    )
 
-    print(f"Gruppenaggregierte Keyword-View-Overperformance gespeichert: {group_path}")
-    print(f"Kanalbasierte Keyword-View-Overperformance gespeichert: {channel_path}")
-    print(f"Kanalbasierte Gruppenzusammenfassung gespeichert: {channel_group_path}")
+    channel_period.to_csv(channel_path, index=False)
+    group_period.to_csv(group_path, index=False)
+
+    print(f"Kanal-Perioden-Abweichungen gespeichert: {channel_path}")
+    print(f"Kanalgewichtete Gruppenzusammenfassung gespeichert: {group_path}")
+
+    print("\nKanalgewichtete Populismus-Abweichung, letzte Zeilen:")
+    print(
+        group_period
+        .dropna(subset=["mean_deviation_channel_weighted"])
+        .tail(15)
+        .to_string(index=False)
+    )
+
+
+def plot_keyword_value_overperformance(
+    df: pd.DataFrame,
+    group_col: str,
+    output_dir: Path,
+    value_specs: list[dict],
+    min_channel_videos_per_period: int = 5,
+    min_channel_keyword_videos_per_period: int = 1,
+    clip_lift_at: float | None = 10.0,
+) -> None:
+    """
+    Verallgemeinerte Overperformance-Analyse für mehrere Erfolgsmetriken.
+
+    Unterstützt zwei Arten von Metriken:
+
+    1) additive:
+        Für summierbare Größen wie:
+            - view_count
+            - comment_count
+            - like_count
+
+        Gruppenaggregierter Lift:
+            share_keyword_value / share_keyword_videos
+
+        Beispiel:
+            Wenn Keyword-Videos 5 % aller Videos sind,
+            aber 10 % aller Kommentare erhalten,
+            dann ist der Lift = 2.
+
+    2) average:
+        Für Raten oder Scores wie:
+            - engagement_ratio
+            - comment_ratio
+            - like_ratio
+
+        Lift:
+            mean_keyword_value / mean_all_value
+
+        Beispiel:
+            Wenn Keyword-Videos im Schnitt 0.04 Engagement Ratio haben
+            und alle Videos 0.02, dann ist der Lift = 2.
+
+    value_specs Beispiel:
+        [
+            {"col": "view_count", "label": "Views", "kind": "additive"},
+            {"col": "comment_count", "label": "Kommentare", "kind": "additive"},
+            {"col": "engagement_ratio", "label": "Engagement-Rate", "kind": "average", "is_rate": True},
+        ]
+    """
+
+    required_base_cols = [
+        DATE_COL,
+        VIDEO_ID_COL,
+        CHANNEL_COL,
+        KEYWORD_COL,
+        group_col,
+    ]
+
+    value_cols = [spec["col"] for spec in value_specs]
+    require_columns(df, required_base_cols + value_cols, "plot_keyword_value_overperformance input")
+
+    period_freq, _ = get_freqs(TIME_UNIT)
+
+    base = df.dropna(subset=[group_col]).copy()
+    base[group_col] = base[group_col].astype(str)
+    base[DATE_COL] = pd.to_datetime(base[DATE_COL]).dt.tz_localize(None)
+    base["period"] = base[DATE_COL].dt.to_period(period_freq).dt.to_timestamp()
+
+    groups = get_groups(base, group_col)
+    palette = make_palette(groups)
+
+    for spec in value_specs:
+        value_col = spec["col"]
+        value_label = spec.get("label", value_col)
+        kind = spec.get("kind", "additive")
+        is_rate = spec.get("is_rate", False)
+
+        if kind not in {"additive", "average"}:
+            raise ValueError(f"kind muss 'additive' oder 'average' sein. Problem bei {value_col}.")
+
+        print("\n" + "=" * 80)
+        print(f"KEYWORD-OVERPERFORMANCE | {value_label} | group_col = {group_col}")
+        print("=" * 80)
+
+        work = base.copy()
+        work[value_col] = pd.to_numeric(work[value_col], errors="coerce")
+
+        if kind == "additive":
+            work[value_col] = work[value_col].fillna(0)
+
+        # ------------------------------------------------------------------
+        # Gruppenaggregierte Analyse
+        # ------------------------------------------------------------------
+        if kind == "additive":
+            group_summary = (
+                work.groupby(["period", group_col], observed=True)
+                .agg(
+                    n_videos=(VIDEO_ID_COL, "count"),
+                    n_keyword_videos=(KEYWORD_COL, "sum"),
+                    total_value=(value_col, "sum"),
+                    keyword_value=(
+                        value_col,
+                        lambda s: work.loc[s.index, value_col][work.loc[s.index, KEYWORD_COL]].sum(),
+                    ),
+                    n_channels=(CHANNEL_COL, "nunique"),
+                )
+                .reset_index()
+            )
+
+            group_summary["share_keyword_videos"] = np.where(
+                group_summary["n_videos"] > 0,
+                group_summary["n_keyword_videos"] / group_summary["n_videos"],
+                np.nan,
+            )
+
+            group_summary["share_keyword_value"] = np.where(
+                group_summary["total_value"] > 0,
+                group_summary["keyword_value"] / group_summary["total_value"],
+                np.nan,
+            )
+
+            group_summary["value_lift_group_aggregated"] = np.where(
+                group_summary["share_keyword_videos"] > 0,
+                group_summary["share_keyword_value"] / group_summary["share_keyword_videos"],
+                np.nan,
+            )
+
+            group_summary["overperformance_diff_group_aggregated"] = (
+                group_summary["share_keyword_value"]
+                - group_summary["share_keyword_videos"]
+            )
+
+            y_label_lift = f"{value_label}-Lift"
+            y_label_diff = f"{value_label}-Anteil − Video-Anteil"
+
+        else:
+            group_summary = (
+                work.groupby(["period", group_col], observed=True)
+                .agg(
+                    n_videos=(VIDEO_ID_COL, "count"),
+                    n_keyword_videos=(KEYWORD_COL, lambda s: work.loc[s.index, KEYWORD_COL].sum()),
+                    mean_all_value=(value_col, "mean"),
+                    mean_keyword_value=(
+                        value_col,
+                        lambda s: work.loc[s.index, value_col][work.loc[s.index, KEYWORD_COL]].mean(),
+                    ),
+                    n_channels=(CHANNEL_COL, "nunique"),
+                )
+                .reset_index()
+            )
+
+            group_summary["share_keyword_videos"] = np.where(
+                group_summary["n_videos"] > 0,
+                group_summary["n_keyword_videos"] / group_summary["n_videos"],
+                np.nan,
+            )
+
+            group_summary["value_lift_group_aggregated"] = np.where(
+                group_summary["mean_all_value"] > 0,
+                group_summary["mean_keyword_value"] / group_summary["mean_all_value"],
+                np.nan,
+            )
+
+            group_summary["overperformance_diff_group_aggregated"] = (
+                group_summary["mean_keyword_value"]
+                - group_summary["mean_all_value"]
+            )
+
+            y_label_lift = f"{value_label}: Keyword / alle Videos"
+            y_label_diff = f"{value_label}: Keyword − alle Videos"
+
+        # Complete grid
+        grid = make_complete_period_group_grid(
+            work,
+            group_col=group_col,
+            period_freq=period_freq,
+            date_col="period",
+        )
+
+        group_summary = grid.merge(
+            group_summary,
+            on=["period", group_col],
+            how="left",
+        )
+
+        for col in ["n_videos", "n_keyword_videos", "n_channels"]:
+            if col in group_summary.columns:
+                group_summary[col] = group_summary[col].fillna(0)
+
+        # ------------------------------------------------------------------
+        # Kanalbasierte Analyse
+        # ------------------------------------------------------------------
+        if kind == "additive":
+            channel_summary = (
+                work.groupby(["period", CHANNEL_COL, group_col], observed=True)
+                .agg(
+                    n_videos=(VIDEO_ID_COL, "count"),
+                    n_keyword_videos=(KEYWORD_COL, "sum"),
+                    total_value=(value_col, "sum"),
+                    keyword_value=(
+                        value_col,
+                        lambda s: work.loc[s.index, value_col][work.loc[s.index, KEYWORD_COL]].sum(),
+                    ),
+                )
+                .reset_index()
+            )
+
+            channel_summary["share_keyword_videos"] = np.where(
+                channel_summary["n_videos"] > 0,
+                channel_summary["n_keyword_videos"] / channel_summary["n_videos"],
+                np.nan,
+            )
+
+            channel_summary["share_keyword_value"] = np.where(
+                channel_summary["total_value"] > 0,
+                channel_summary["keyword_value"] / channel_summary["total_value"],
+                np.nan,
+            )
+
+            channel_summary["value_lift"] = np.where(
+                channel_summary["share_keyword_videos"] > 0,
+                channel_summary["share_keyword_value"] / channel_summary["share_keyword_videos"],
+                np.nan,
+            )
+
+            channel_summary["overperformance_diff"] = (
+                channel_summary["share_keyword_value"]
+                - channel_summary["share_keyword_videos"]
+            )
+
+        else:
+            channel_summary = (
+                work.groupby(["period", CHANNEL_COL, group_col], observed=True)
+                .agg(
+                    n_videos=(VIDEO_ID_COL, "count"),
+                    n_keyword_videos=(KEYWORD_COL, lambda s: work.loc[s.index, KEYWORD_COL].sum()),
+                    mean_all_value=(value_col, "mean"),
+                    mean_keyword_value=(
+                        value_col,
+                        lambda s: work.loc[s.index, value_col][work.loc[s.index, KEYWORD_COL]].mean(),
+                    ),
+                )
+                .reset_index()
+            )
+
+            channel_summary["value_lift"] = np.where(
+                channel_summary["mean_all_value"] > 0,
+                channel_summary["mean_keyword_value"] / channel_summary["mean_all_value"],
+                np.nan,
+            )
+
+            channel_summary["overperformance_diff"] = (
+                channel_summary["mean_keyword_value"]
+                - channel_summary["mean_all_value"]
+            )
+
+        valid_channel_summary = channel_summary[
+            (channel_summary["n_videos"] >= min_channel_videos_per_period)
+            & (channel_summary["n_keyword_videos"] >= min_channel_keyword_videos_per_period)
+            & channel_summary["value_lift"].replace([np.inf, -np.inf], np.nan).notna()
+        ].copy()
+
+        if clip_lift_at is not None:
+            valid_channel_summary["value_lift_plot"] = valid_channel_summary["value_lift"].clip(
+                upper=clip_lift_at
+            )
+        else:
+            valid_channel_summary["value_lift_plot"] = valid_channel_summary["value_lift"]
+
+        channel_group_summary = (
+            valid_channel_summary
+            .groupby(["period", group_col], observed=True)
+            .agg(
+                mean_value_lift=("value_lift", "mean"),
+                median_value_lift=("value_lift", "median"),
+                mean_value_lift_plot=("value_lift_plot", "mean"),
+                median_value_lift_plot=("value_lift_plot", "median"),
+                mean_overperformance_diff=("overperformance_diff", "mean"),
+                median_overperformance_diff=("overperformance_diff", "median"),
+                n_channels=(CHANNEL_COL, "nunique"),
+            )
+            .reset_index()
+        )
+
+        channel_group_summary = grid.merge(
+            channel_group_summary,
+            on=["period", group_col],
+            how="left",
+        )
+
+        channel_group_summary["n_channels"] = channel_group_summary["n_channels"].fillna(0)
+
+        # ------------------------------------------------------------------
+        # Plot
+        # ------------------------------------------------------------------
+        plot_group = filter_plot_start(group_summary)
+        plot_channel = filter_plot_start(channel_group_summary)
+
+        sns.set_theme(style="whitegrid")
+        fig, axes = plt.subplots(2, 2, figsize=(16, 10), sharex=True)
+        axes_flat = axes.flatten()
+
+        plot_line_metric(
+            axes_flat[0],
+            plot_group,
+            group_col,
+            "value_lift_group_aggregated",
+            f"A) Gruppenaggregierter {value_label}-Lift",
+            y_label_lift,
+            palette,
+            time_label=get_time_label(TIME_UNIT),
+        )
+        axes_flat[0].axhline(1, color="black", linewidth=1, linestyle="--", alpha=0.7)
+
+        lift_metric = "median_value_lift_plot" if clip_lift_at is not None else "median_value_lift"
+
+        plot_line_metric(
+            axes_flat[1],
+            plot_channel,
+            group_col,
+            lift_metric,
+            f"B) Kanalbasierter Median-{value_label}-Lift",
+            y_label_lift,
+            palette,
+            time_label=get_time_label(TIME_UNIT),
+        )
+        axes_flat[1].axhline(1, color="black", linewidth=1, linestyle="--", alpha=0.7)
+
+        diff_formatter = None
+        if kind == "additive" or is_rate:
+            diff_formatter = mticker.FuncFormatter(percent_formatter)
+
+        plot_line_metric(
+            axes_flat[2],
+            plot_channel,
+            group_col,
+            "median_overperformance_diff",
+            f"C) Kanalbasierte Median-Differenz",
+            y_label_diff,
+            palette,
+            y_formatter=diff_formatter,
+            time_label=get_time_label(TIME_UNIT),
+        )
+        axes_flat[2].axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.7)
+
+        plot_line_metric(
+            axes_flat[3],
+            plot_channel,
+            group_col,
+            "n_channels",
+            "D) Zahl eingeschlossener Kanäle",
+            "Kanäle",
+            palette,
+            time_label=get_time_label(TIME_UNIT),
+        )
+
+        # ------------------------------------------------------------------
+        # Gemeinsame Legende
+        # ------------------------------------------------------------------
+        handles = []
+        labels = []
+
+        for group in groups:
+            if group in palette:
+                handles.append(
+                    plt.Line2D(
+                        [],
+                        [],
+                        color=palette[group],
+                        marker="o",
+                        linewidth=2,
+                        markersize=5,
+                        label=str(group),
+                    )
+                )
+                labels.append(str(group))
+
+        fig.legend(
+            handles=handles,
+            labels=labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.055),
+            ncol=min(len(handles), 4),
+            frameon=True,
+            fontsize=9,
+        )
+
+        fig.suptitle(
+            f"Keyword-Overperformance: {value_label} — {group_col}",
+            fontsize=14,
+            fontweight="bold",
+            y=0.98,
+        )
+
+        note = (
+            f"Kind: {kind}. "
+            f"Panel A ist gruppenaggregiert; Panels B/C sind kanalbasiert. "
+            f"Eingeschlossen in B/C: mindestens {min_channel_videos_per_period} Videos "
+            f"und {min_channel_keyword_videos_per_period} Keyword-Video(s) pro Kanal-Periode."
+        )
+        if clip_lift_at is not None:
+            note += f" Lift-Werte in Panel B bei {clip_lift_at} gekappt."
+
+        fig.text(
+            0.01,
+            0.01,
+            note,
+            ha="left",
+            va="bottom",
+            fontsize=9,
+            color="dimgray",
+        )
+
+        fig.tight_layout(rect=[0, 0.12, 1, 0.95])
+
+        safe_value_label = (
+            value_col
+            .replace(" ", "_")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+        )
+
+        save_or_show(
+            fig,
+            output_dir / f"figure_keyword_overperformance_{safe_value_label}_{group_col}_{TIME_UNIT}",
+        )
+
+        # ------------------------------------------------------------------
+        # Save data
+        # ------------------------------------------------------------------
+        group_path = (
+            output_dir
+            / f"keyword_overperformance_group_aggregated_{safe_value_label}_{group_col}_{TIME_UNIT}.csv"
+        )
+        channel_path = (
+            output_dir
+            / f"keyword_overperformance_channel_level_{safe_value_label}_{group_col}_{TIME_UNIT}.csv"
+        )
+        channel_group_path = (
+            output_dir
+            / f"keyword_overperformance_channel_group_summary_{safe_value_label}_{group_col}_{TIME_UNIT}.csv"
+        )
+
+        group_summary.to_csv(group_path, index=False)
+        channel_summary.to_csv(channel_path, index=False)
+        channel_group_summary.to_csv(channel_group_path, index=False)
+
+        print(f"Gruppenaggregierte Daten gespeichert: {group_path}")
+        print(f"Kanalbasierte Daten gespeichert: {channel_path}")
+        print(f"Kanalbasierte Gruppenzusammenfassung gespeichert: {channel_group_path}")
 
 
 def plot_channel_view_lift_boxplot(
@@ -3143,6 +3619,13 @@ def main() -> None:
             min_keyword_videos_per_period=3,
         )
 
+        plot_keyword_populism_channel_deviation_channel_weighted(
+            df,
+            group_col=group_col,
+            output_dir=OUTPUT_DIR,
+            min_keyword_videos_per_channel_period=1,
+        )
+
         plot_figure_3_success(
             group_summary,
             group_col=group_col,
@@ -3150,10 +3633,11 @@ def main() -> None:
             output_dir=OUTPUT_DIR,
         )
 
-        plot_keyword_view_overperformance(
+        plot_keyword_value_overperformance(
             df,
             group_col=group_col,
             output_dir=OUTPUT_DIR,
+            value_specs=value_specs,
             min_channel_videos_per_period=5,
             min_channel_keyword_videos_per_period=1,
             clip_lift_at=10.0,
