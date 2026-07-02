@@ -63,7 +63,7 @@ EVENT_DATE = "2023-10-07"
 TIME_UNIT = "M"
 
 # Gruppierungen, die nacheinander geplottet werden
-GROUPINGS = ["ideology_group",]  # "type"
+GROUPINGS = ["populism_group", "ideology_group", "type"] # ["ideology_group", "type"]  # "type"
 
 # Datenquellen, analog zu deinen bestehenden Skripten
 METADATA_INPUT = RAW / "video_metadata_total.jsonl"
@@ -104,6 +104,7 @@ CHANNEL_COL = "channel_title"
 
 # Output
 OUTPUT_DIR = OUTPUT_GEMINI / "nahost_descriptive_figures"
+GEN_FIGURES = False
 SAVE_FIGURES = True
 SHOW_FIGURES = False
 FIG_DPI = 300
@@ -653,6 +654,643 @@ def build_group_period_summary(
     )
 
     return summary.sort_values(["period", group_col]).reset_index(drop=True)
+
+
+
+def export_keyword_activity_anomaly_master_dataset(
+    df: pd.DataFrame,
+    output_dir: Path,
+    group_cols: list[str] | None = None,
+    min_keyword_videos_for_top: int = 1,
+) -> None:
+    """
+    Exportiert einen kombinierten Kanal-Perioden-Datensatz zur Auffälligkeitsanalyse.
+
+    Ziel:
+        Monate/Kanäle identifizieren, in denen auffällig viele Keyword-Videos
+        von stark populistischen Kanälen veröffentlicht wurden.
+
+    Anders als export_keyword_activity_anomaly_dataset(...) arbeitet diese Funktion
+    nicht mit genau einer group_col, sondern behält mehrere Gruppenspalten gleichzeitig,
+    z. B. ideology_group, type und populism_group.
+
+    Wichtigster Export:
+        keyword_activity_anomaly_channel_period_ALL_GROUPS_<TIME_UNIT>.csv
+
+    Enthält pro Kanal x Periode:
+        - Gruppenzugehörigkeiten
+        - Zahl aller Videos
+        - Zahl der Keyword-Videos
+        - Keyword-Video-Anteil
+        - Views und Keyword-Views
+        - Keyword-View-Lift
+        - Kanal-Populismus-Baseline
+        - mittlerer Populismus der Keyword-Videos
+        - Abweichung der Keyword-Videos vom Kanal-Durchschnitt
+        - einfacher Auffälligkeits-Score
+
+    Der Auffälligkeits-Score ist nur eine Sortierhilfe:
+        log1p(n_keyword_videos) * channel_populism_mean
+
+    Interpretation:
+        Hohe Werte entstehen, wenn ein Kanal in einer Periode viele Keyword-Videos
+        hochlädt und zugleich eine hohe Kanal-Populismus-Baseline hat.
+    """
+
+    if group_cols is None:
+        group_cols = ["ideology_group", "type", "populism_group"]
+
+    # Nur vorhandene Gruppenspalten verwenden
+    group_cols = [col for col in group_cols if col in df.columns]
+
+    required_cols = [
+        DATE_COL,
+        VIDEO_ID_COL,
+        CHANNEL_COL,
+        KEYWORD_COL,
+        VIEW_COL,
+        "populism_score_clean",
+        CHANNEL_BASELINE_COL,
+        *group_cols,
+    ]
+
+    require_columns(
+        df,
+        required_cols,
+        "export_keyword_activity_anomaly_master_dataset input",
+    )
+
+    period_freq, _ = get_freqs(TIME_UNIT)
+
+    work = df.copy()
+
+    work[DATE_COL] = pd.to_datetime(work[DATE_COL], errors="coerce").dt.tz_localize(None)
+    work[CHANNEL_COL] = work[CHANNEL_COL].astype(str)
+
+    for col in group_cols:
+        work[col] = work[col].astype(str)
+
+    work[VIEW_COL] = pd.to_numeric(work[VIEW_COL], errors="coerce").fillna(0)
+
+    work["populism_score_clean"] = pd.to_numeric(
+        work["populism_score_clean"],
+        errors="coerce",
+    )
+
+    work[CHANNEL_BASELINE_COL] = pd.to_numeric(
+        work[CHANNEL_BASELINE_COL],
+        errors="coerce",
+    )
+
+    work = work[
+        work[DATE_COL].notna()
+        & work[CHANNEL_COL].notna()
+    ].copy()
+
+    work["period"] = work[DATE_COL].dt.to_period(period_freq).dt.to_timestamp()
+    work["is_keyword"] = work[KEYWORD_COL].astype(bool)
+
+    # Hilfsspalten für saubere Aggregation
+    work["keyword_video_count"] = work["is_keyword"].astype(int)
+
+    work["keyword_views"] = np.where(
+        work["is_keyword"],
+        work[VIEW_COL],
+        0,
+    )
+
+    work["keyword_populism_score"] = np.where(
+        work["is_keyword"],
+        work["populism_score_clean"],
+        np.nan,
+    )
+
+    work["keyword_channel_populism"] = np.where(
+        work["is_keyword"],
+        work[CHANNEL_BASELINE_COL],
+        np.nan,
+    )
+
+    # Optional verfügbare Erfolgsmetriken erkennen
+    optional_numeric_cols = []
+
+    for candidate in [
+        "like_count",
+        "comment_count",
+        "favorite_count",
+        "engagement_ratio",
+        "comment_ratio",
+        "like_ratio",
+    ]:
+        if candidate in work.columns:
+            work[candidate] = pd.to_numeric(work[candidate], errors="coerce")
+            optional_numeric_cols.append(candidate)
+
+    # Keyword-Versionen optionaler Metriken
+    for col in optional_numeric_cols:
+        if col.endswith("_ratio") or col == "engagement_ratio":
+            # Raten nicht summieren; für Keyword-Videos später mitteln
+            work[f"keyword_{col}"] = np.where(
+                work["is_keyword"],
+                work[col],
+                np.nan,
+            )
+        else:
+            # additive Metriken, z. B. likes/comments
+            work[col] = work[col].fillna(0)
+            work[f"keyword_{col}"] = np.where(
+                work["is_keyword"],
+                work[col],
+                0,
+            )
+
+    # Gruppenspalten pro Kanal-Periode behalten
+    group_aggs = {
+        col: (col, "first")
+        for col in group_cols
+    }
+
+    # Optionale Aggregationen
+    optional_aggs = {}
+
+    if "comment_count" in optional_numeric_cols:
+        optional_aggs.update(
+            {
+                "total_comments": ("comment_count", "sum"),
+                "keyword_comments": ("keyword_comment_count", "sum"),
+            }
+        )
+
+    if "like_count" in optional_numeric_cols:
+        optional_aggs.update(
+            {
+                "total_likes": ("like_count", "sum"),
+                "keyword_likes": ("keyword_like_count", "sum"),
+            }
+        )
+
+    if "engagement_ratio" in optional_numeric_cols:
+        optional_aggs.update(
+            {
+                "mean_engagement_ratio_all": ("engagement_ratio", "mean"),
+                "mean_engagement_ratio_keyword": ("keyword_engagement_ratio", "mean"),
+            }
+        )
+
+    if "comment_ratio" in optional_numeric_cols:
+        optional_aggs.update(
+            {
+                "mean_comment_ratio_all": ("comment_ratio", "mean"),
+                "mean_comment_ratio_keyword": ("keyword_comment_ratio", "mean"),
+            }
+        )
+
+    if "like_ratio" in optional_numeric_cols:
+        optional_aggs.update(
+            {
+                "mean_like_ratio_all": ("like_ratio", "mean"),
+                "mean_like_ratio_keyword": ("keyword_like_ratio", "mean"),
+            }
+        )
+
+    # ------------------------------------------------------------------
+    # 1. Kanal x Periode Master-Datensatz
+    # ------------------------------------------------------------------
+    channel_period = (
+        work
+        .groupby(["period", CHANNEL_COL], observed=True)
+        .agg(
+            n_videos_total=(VIDEO_ID_COL, "count"),
+            n_keyword_videos=("keyword_video_count", "sum"),
+            total_views=(VIEW_COL, "sum"),
+            keyword_views=("keyword_views", "sum"),
+            mean_video_populism_all=("populism_score_clean", "mean"),
+            median_video_populism_all=("populism_score_clean", "median"),
+            mean_video_populism_keyword=("keyword_populism_score", "mean"),
+            median_video_populism_keyword=("keyword_populism_score", "median"),
+            channel_populism_mean=(CHANNEL_BASELINE_COL, "mean"),
+            mean_keyword_channel_populism=("keyword_channel_populism", "mean"),
+            **group_aggs,
+            **optional_aggs,
+        )
+        .reset_index()
+    )
+
+    # ------------------------------------------------------------------
+    # 2. Abgeleitete Kennzahlen
+    # ------------------------------------------------------------------
+    channel_period["share_keyword_videos"] = np.where(
+        channel_period["n_videos_total"] > 0,
+        channel_period["n_keyword_videos"] / channel_period["n_videos_total"],
+        np.nan,
+    )
+
+    channel_period["share_keyword_views"] = np.where(
+        channel_period["total_views"] > 0,
+        channel_period["keyword_views"] / channel_period["total_views"],
+        np.nan,
+    )
+
+    channel_period["keyword_view_lift"] = np.where(
+        channel_period["share_keyword_videos"] > 0,
+        channel_period["share_keyword_views"] / channel_period["share_keyword_videos"],
+        np.nan,
+    )
+
+    channel_period["keyword_view_overperformance_pp"] = (
+        channel_period["share_keyword_views"]
+        - channel_period["share_keyword_videos"]
+    )
+
+    channel_period["keyword_populism_deviation_from_channel"] = (
+        channel_period["mean_video_populism_keyword"]
+        - channel_period["channel_populism_mean"]
+    )
+
+    channel_period["keyword_populism_median_deviation_from_channel"] = (
+        channel_period["median_video_populism_keyword"]
+        - channel_period["channel_populism_mean"]
+    )
+
+    # Kommentare: additive Overperformance
+    if {"total_comments", "keyword_comments"}.issubset(channel_period.columns):
+        channel_period["share_keyword_comments"] = np.where(
+            channel_period["total_comments"] > 0,
+            channel_period["keyword_comments"] / channel_period["total_comments"],
+            np.nan,
+        )
+
+        channel_period["keyword_comment_lift"] = np.where(
+            channel_period["share_keyword_videos"] > 0,
+            channel_period["share_keyword_comments"]
+            / channel_period["share_keyword_videos"],
+            np.nan,
+        )
+
+        channel_period["keyword_comment_overperformance_pp"] = (
+            channel_period["share_keyword_comments"]
+            - channel_period["share_keyword_videos"]
+        )
+
+    # Likes: additive Overperformance
+    if {"total_likes", "keyword_likes"}.issubset(channel_period.columns):
+        channel_period["share_keyword_likes"] = np.where(
+            channel_period["total_likes"] > 0,
+            channel_period["keyword_likes"] / channel_period["total_likes"],
+            np.nan,
+        )
+
+        channel_period["keyword_like_lift"] = np.where(
+            channel_period["share_keyword_videos"] > 0,
+            channel_period["share_keyword_likes"]
+            / channel_period["share_keyword_videos"],
+            np.nan,
+        )
+
+        channel_period["keyword_like_overperformance_pp"] = (
+            channel_period["share_keyword_likes"]
+            - channel_period["share_keyword_videos"]
+        )
+
+    # Engagement-Ratio: Average-Lift
+    if {
+        "mean_engagement_ratio_all",
+        "mean_engagement_ratio_keyword",
+    }.issubset(channel_period.columns):
+        channel_period["keyword_engagement_ratio_lift"] = np.where(
+            channel_period["mean_engagement_ratio_all"] > 0,
+            channel_period["mean_engagement_ratio_keyword"]
+            / channel_period["mean_engagement_ratio_all"],
+            np.nan,
+        )
+
+        channel_period["keyword_engagement_ratio_diff"] = (
+            channel_period["mean_engagement_ratio_keyword"]
+            - channel_period["mean_engagement_ratio_all"]
+        )
+
+    if {
+        "mean_comment_ratio_all",
+        "mean_comment_ratio_keyword",
+    }.issubset(channel_period.columns):
+        channel_period["keyword_comment_ratio_lift"] = np.where(
+            channel_period["mean_comment_ratio_all"] > 0,
+            channel_period["mean_comment_ratio_keyword"]
+            / channel_period["mean_comment_ratio_all"],
+            np.nan,
+        )
+
+        channel_period["keyword_comment_ratio_diff"] = (
+            channel_period["mean_comment_ratio_keyword"]
+            - channel_period["mean_comment_ratio_all"]
+        )
+
+    if {
+        "mean_like_ratio_all",
+        "mean_like_ratio_keyword",
+    }.issubset(channel_period.columns):
+        channel_period["keyword_like_ratio_lift"] = np.where(
+            channel_period["mean_like_ratio_all"] > 0,
+            channel_period["mean_like_ratio_keyword"]
+            / channel_period["mean_like_ratio_all"],
+            np.nan,
+        )
+
+        channel_period["keyword_like_ratio_diff"] = (
+            channel_period["mean_like_ratio_keyword"]
+            - channel_period["mean_like_ratio_all"]
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Auffälligkeits-Scores
+    # ------------------------------------------------------------------
+    channel_period["keyword_activity_populism_score"] = (
+        np.log1p(channel_period["n_keyword_videos"])
+        * channel_period["channel_populism_mean"]
+    )
+
+    channel_period["keyword_views_populism_score"] = (
+        np.log1p(channel_period["keyword_views"])
+        * channel_period["channel_populism_mean"]
+    )
+
+    if "keyword_comments" in channel_period.columns:
+        channel_period["keyword_comments_populism_score"] = (
+            np.log1p(channel_period["keyword_comments"])
+            * channel_period["channel_populism_mean"]
+        )
+
+    if "keyword_engagement_ratio_lift" in channel_period.columns:
+        channel_period["keyword_engagement_populism_score"] = (
+            channel_period["keyword_engagement_ratio_lift"]
+            * channel_period["channel_populism_mean"]
+        )
+
+    # ------------------------------------------------------------------
+    # 4. Top-Datensätze
+    # ------------------------------------------------------------------
+    top_channel_period = channel_period[
+        channel_period["n_keyword_videos"] >= min_keyword_videos_for_top
+    ].copy()
+
+    top_channel_period = top_channel_period.sort_values(
+        [
+            "keyword_activity_populism_score",
+            "n_keyword_videos",
+            "channel_populism_mean",
+            "keyword_views",
+        ],
+        ascending=[False, False, False, False],
+    )
+
+    top_keyword_views = top_channel_period.sort_values(
+        [
+            "keyword_views_populism_score",
+            "keyword_views",
+            "channel_populism_mean",
+            "n_keyword_videos",
+        ],
+        ascending=[False, False, False, False],
+    )
+
+    if "keyword_comments_populism_score" in top_channel_period.columns:
+        top_keyword_comments = top_channel_period.sort_values(
+            [
+                "keyword_comments_populism_score",
+                "keyword_comments",
+                "channel_populism_mean",
+                "n_keyword_videos",
+            ],
+            ascending=[False, False, False, False],
+        )
+    else:
+        top_keyword_comments = None
+
+    if "keyword_engagement_populism_score" in top_channel_period.columns:
+        top_keyword_engagement = top_channel_period.sort_values(
+            [
+                "keyword_engagement_populism_score",
+                "keyword_engagement_ratio_lift",
+                "channel_populism_mean",
+                "n_keyword_videos",
+            ],
+            ascending=[False, False, False, False],
+        )
+    else:
+        top_keyword_engagement = None
+
+    # ------------------------------------------------------------------
+    # 5. Gruppen-Perioden-Zusammenfassungen für alle Gruppenspalten
+    # ------------------------------------------------------------------
+    group_summaries = {}
+
+    for group_col in group_cols:
+        group_period = (
+            channel_period
+            .groupby(["period", group_col], observed=True)
+            .agg(
+                n_channels_total=(CHANNEL_COL, "nunique"),
+                n_channels_with_keyword=(
+                    CHANNEL_COL,
+                    lambda s: channel_period.loc[s.index]
+                    .query("n_keyword_videos > 0")[CHANNEL_COL]
+                    .nunique(),
+                ),
+                n_videos_total=("n_videos_total", "sum"),
+                n_keyword_videos=("n_keyword_videos", "sum"),
+                total_views=("total_views", "sum"),
+                keyword_views=("keyword_views", "sum"),
+                mean_channel_populism_unweighted=("channel_populism_mean", "mean"),
+                median_channel_populism_unweighted=("channel_populism_mean", "median"),
+                mean_keyword_video_populism=("mean_video_populism_keyword", "mean"),
+                median_keyword_video_populism=("median_video_populism_keyword", "median"),
+                mean_keyword_populism_deviation=(
+                    "keyword_populism_deviation_from_channel",
+                    "mean",
+                ),
+                median_keyword_populism_deviation=(
+                    "keyword_populism_deviation_from_channel",
+                    "median",
+                ),
+            )
+            .reset_index()
+        )
+
+        group_period["share_keyword_videos"] = np.where(
+            group_period["n_videos_total"] > 0,
+            group_period["n_keyword_videos"] / group_period["n_videos_total"],
+            np.nan,
+        )
+
+        group_period["share_keyword_views"] = np.where(
+            group_period["total_views"] > 0,
+            group_period["keyword_views"] / group_period["total_views"],
+            np.nan,
+        )
+
+        group_period["keyword_view_lift"] = np.where(
+            group_period["share_keyword_videos"] > 0,
+            group_period["share_keyword_views"]
+            / group_period["share_keyword_videos"],
+            np.nan,
+        )
+
+        group_period["keyword_view_overperformance_pp"] = (
+            group_period["share_keyword_views"]
+            - group_period["share_keyword_videos"]
+        )
+
+        keyword_rows = channel_period[
+            channel_period["n_keyword_videos"] > 0
+        ].copy()
+
+        weighted_by_keyword_videos = (
+            keyword_rows
+            .groupby(["period", group_col], observed=True)
+            .apply(
+                lambda x: np.average(
+                    x["channel_populism_mean"],
+                    weights=x["n_keyword_videos"],
+                )
+                if x["n_keyword_videos"].sum() > 0
+                else np.nan
+            )
+            .reset_index(name="mean_channel_populism_weighted_by_keyword_videos")
+        )
+
+        weighted_by_keyword_views = (
+            keyword_rows
+            .groupby(["period", group_col], observed=True)
+            .apply(
+                lambda x: np.average(
+                    x["channel_populism_mean"],
+                    weights=x["keyword_views"].clip(lower=0),
+                )
+                if x["keyword_views"].sum() > 0
+                else np.nan
+            )
+            .reset_index(name="mean_channel_populism_weighted_by_keyword_views")
+        )
+
+        group_period = group_period.merge(
+            weighted_by_keyword_videos,
+            on=["period", group_col],
+            how="left",
+        )
+
+        group_period = group_period.merge(
+            weighted_by_keyword_views,
+            on=["period", group_col],
+            how="left",
+        )
+
+        group_period["keyword_activity_populism_score"] = (
+            np.log1p(group_period["n_keyword_videos"])
+            * group_period["mean_channel_populism_weighted_by_keyword_videos"]
+        )
+
+        group_summaries[group_col] = group_period
+
+    # ------------------------------------------------------------------
+    # 6. Speichern
+    # ------------------------------------------------------------------
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    master_path = (
+        output_dir
+        / f"keyword_activity_anomaly_channel_period_ALL_GROUPS_{TIME_UNIT}.csv"
+    )
+
+    top_activity_path = (
+        output_dir
+        / f"keyword_activity_anomaly_top_activity_ALL_GROUPS_{TIME_UNIT}.csv"
+    )
+
+    top_views_path = (
+        output_dir
+        / f"keyword_activity_anomaly_top_views_ALL_GROUPS_{TIME_UNIT}.csv"
+    )
+
+    channel_period.to_csv(master_path, index=False)
+    top_channel_period.to_csv(top_activity_path, index=False)
+    top_keyword_views.to_csv(top_views_path, index=False)
+
+    print(f"Master-Datensatz Kanal x Periode gespeichert: {master_path}")
+    print(f"Top-Auffälligkeiten Aktivität gespeichert: {top_activity_path}")
+    print(f"Top-Auffälligkeiten Views gespeichert: {top_views_path}")
+
+    if top_keyword_comments is not None:
+        top_comments_path = (
+            output_dir
+            / f"keyword_activity_anomaly_top_comments_ALL_GROUPS_{TIME_UNIT}.csv"
+        )
+        top_keyword_comments.to_csv(top_comments_path, index=False)
+        print(f"Top-Auffälligkeiten Kommentare gespeichert: {top_comments_path}")
+
+    if top_keyword_engagement is not None:
+        top_engagement_path = (
+            output_dir
+            / f"keyword_activity_anomaly_top_engagement_ALL_GROUPS_{TIME_UNIT}.csv"
+        )
+        top_keyword_engagement.to_csv(top_engagement_path, index=False)
+        print(f"Top-Auffälligkeiten Engagement gespeichert: {top_engagement_path}")
+
+    for group_col, group_period in group_summaries.items():
+        group_path = (
+            output_dir
+            / f"keyword_activity_anomaly_group_period_{group_col}_{TIME_UNIT}.csv"
+        )
+
+        group_top_path = (
+            output_dir
+            / f"keyword_activity_anomaly_top_group_period_{group_col}_{TIME_UNIT}.csv"
+        )
+
+        group_period.to_csv(group_path, index=False)
+
+        group_period_top = group_period[
+            group_period["n_keyword_videos"] >= min_keyword_videos_for_top
+        ].sort_values(
+            [
+                "keyword_activity_populism_score",
+                "n_keyword_videos",
+                "mean_channel_populism_weighted_by_keyword_videos",
+                "keyword_views",
+            ],
+            ascending=[False, False, False, False],
+        )
+
+        group_period_top.to_csv(group_top_path, index=False)
+
+        print(f"Gruppen-Perioden-Datensatz gespeichert: {group_path}")
+        print(f"Top-Gruppen-Perioden gespeichert: {group_top_path}")
+
+    # ------------------------------------------------------------------
+    # 7. Kurzer Konsolen-Output
+    # ------------------------------------------------------------------
+    print("\nTop 20 Kanal-Monats-Auffälligkeiten nach Aktivität x Kanal-Populismus:")
+    display_cols = [
+        "period",
+        CHANNEL_COL,
+        *group_cols,
+        "n_keyword_videos",
+        "share_keyword_videos",
+        "keyword_views",
+        "keyword_view_lift",
+        "channel_populism_mean",
+        "mean_video_populism_keyword",
+        "keyword_populism_deviation_from_channel",
+        "keyword_activity_populism_score",
+    ]
+
+    display_cols = [col for col in display_cols if col in top_channel_period.columns]
+
+    print(
+        top_channel_period[display_cols]
+        .head(20)
+        .to_string(index=False)
+    )
+
 
 
 # =============================================================================
@@ -2479,6 +3117,9 @@ def plot_keyword_view_audience_shift(
         - 3 = alternative Medien
         - Alternative Share = type 3 keyword views / all keyword views
         - Alternative/Mainstream Ratio = type 3 / (type 1 + type 2)
+
+    Für populism_group:
+        - low vs. moderate/high
     """
 
     required_cols = [
@@ -2638,6 +3279,39 @@ def plot_keyword_view_audience_shift(
         special_ratio_title = "D) Verhältnis Alternative / Mainstream"
         special_share_ylabel = "Alternative / alle Keyword-Views"
         special_ratio_ylabel = "Alternative / ÖRR+traditionelle"
+
+
+    elif group_col == "populism_group":
+
+        # populism_group: low vs. moderate/high
+        for col in ["low", "moderate", "high"]:
+            if col not in special.columns:
+                special[col] = 0
+        special["edge_views"] = (
+                special["moderate"].fillna(0)
+                + special["high"].fillna(0)
+        )
+
+        special["center_views"] = special["low"].fillna(0)
+        special["all_views"] = special["edge_views"] + special["center_views"]
+        special["edge_share"] = np.where(
+            special["all_views"] > 0,
+            special["edge_views"] / special["all_views"],
+            np.nan,
+        )
+
+        special["edge_center_ratio"] = np.where(
+            special["center_views"] > 0,
+            special["edge_views"] / special["center_views"],
+            np.nan,
+        )
+
+        special_share_col = "edge_share"
+        special_ratio_col = "edge_center_ratio"
+        special_share_title = "C) Anteil moderate/high an allen Keyword-Views"
+        special_ratio_title = "D) Verhältnis moderate/high / low"
+        special_share_ylabel = "(moderate + high) / alle Keyword-Views"
+        special_ratio_ylabel = "(moderate + high) / low"
 
     else:
         print(
@@ -3597,102 +4271,110 @@ def main() -> None:
         print(f"Channel-period panel gespeichert: {channel_panel_path}")
         print(f"Group-period summary gespeichert: {group_summary_path}")
 
+        export_keyword_activity_anomaly_master_dataset(
+            df,
+            output_dir=OUTPUT_DIR,
+            group_cols=["ideology_group", "type", "populism_group"],
+            min_keyword_videos_for_top=1,
+        )
+
         # Figures
-        plot_figure_1_agenda(
-            group_summary,
-            group_col=group_col,
-            time_label=time_label,
-            output_dir=OUTPUT_DIR,
-        )
+        if GEN_FIGURES:
+            plot_figure_1_agenda(
+                group_summary,
+                group_col=group_col,
+                time_label=time_label,
+                output_dir=OUTPUT_DIR,
+            )
 
-        plot_figure_2_populism(
-            group_summary,
-            group_col=group_col,
-            time_label=time_label,
-            output_dir=OUTPUT_DIR,
-        )
+            plot_figure_2_populism(
+                group_summary,
+                group_col=group_col,
+                time_label=time_label,
+                output_dir=OUTPUT_DIR,
+            )
 
-        plot_keyword_populism_channel_deviation(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            min_keyword_videos_per_period=3,
-        )
+            plot_keyword_populism_channel_deviation(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                min_keyword_videos_per_period=3,
+            )
 
-        plot_keyword_populism_channel_deviation_channel_weighted(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            min_keyword_videos_per_channel_period=1,
-        )
+            plot_keyword_populism_channel_deviation_channel_weighted(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                min_keyword_videos_per_channel_period=1,
+            )
 
-        plot_figure_3_success(
-            group_summary,
-            group_col=group_col,
-            time_label=time_label,
-            output_dir=OUTPUT_DIR,
-        )
+            plot_figure_3_success(
+                group_summary,
+                group_col=group_col,
+                time_label=time_label,
+                output_dir=OUTPUT_DIR,
+            )
 
-        plot_keyword_value_overperformance(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            value_specs=value_specs,
-            min_channel_videos_per_period=5,
-            min_channel_keyword_videos_per_period=1,
-            clip_lift_at=10.0,
-        )
+            plot_keyword_value_overperformance(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                value_specs=value_specs,
+                min_channel_videos_per_period=5,
+                min_channel_keyword_videos_per_period=1,
+                clip_lift_at=10.0,
+            )
 
-        plot_channel_view_lift_boxplot(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            min_pre_videos=20,
-            min_post_videos=20,
-            min_pre_keyword_videos=1,
-            min_post_keyword_videos=1,
-            clip_lift_at=10.0,
-        )
+            plot_channel_view_lift_boxplot(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                min_pre_videos=20,
+                min_post_videos=20,
+                min_pre_keyword_videos=1,
+                min_post_keyword_videos=1,
+                clip_lift_at=10.0,
+            )
 
-        plot_optional_channel_spread(
-            group_summary,
-            group_col=group_col,
-            time_label=time_label,
-            output_dir=OUTPUT_DIR,
-        )
+            plot_optional_channel_spread(
+                group_summary,
+                group_col=group_col,
+                time_label=time_label,
+                output_dir=OUTPUT_DIR,
+            )
 
-        plot_channel_change_boxplot(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            min_pre_videos=20,
-            min_post_videos=20,
-        )
+            plot_channel_change_boxplot(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                min_pre_videos=20,
+                min_post_videos=20,
+            )
 
-        plot_keyword_view_audience_shift(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            min_keyword_views_per_period=1,
-        )
+            plot_keyword_view_audience_shift(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                min_keyword_views_per_period=1,
+            )
 
-        run_populism_success_panel_regressions(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            only_keyword_videos=True,
-            min_views=0,
-        )
+            run_populism_success_panel_regressions(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                only_keyword_videos=True,
+                min_views=0,
+            )
 
-        run_populism_success_by_group_panel_regressions(
-            df,
-            group_col=group_col,
-            output_dir=OUTPUT_DIR,
-            only_keyword_videos=True,
-            min_views=0,
-            min_videos_per_group=30,
-            min_channels_per_group=3,
-        )
+            run_populism_success_by_group_panel_regressions(
+                df,
+                group_col=group_col,
+                output_dir=OUTPUT_DIR,
+                only_keyword_videos=True,
+                min_views=0,
+                min_videos_per_group=30,
+                min_channels_per_group=3,
+            )
 
     print("\nFertig.")
 
