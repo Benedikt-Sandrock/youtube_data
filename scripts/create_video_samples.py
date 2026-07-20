@@ -18,21 +18,23 @@ import pandas as pd
 from datetime import datetime, timezone
 from collections import defaultdict
 
-from youtube_code.config import SAMPLES, RAW, KEYWORDS, CHANNEL_LISTS, TRANSCRIPTS
+from youtube_code.config import SAMPLES, RAW, KEYWORDS_MIDDLE_EAST, KEYWORDS_RUSSIA_UKRAINE, CHANNEL_LISTS, TRANSCRIPTS
 from youtube_code.utils import load_set
 
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
 ### CENTRAL CONFIGURATION ###
-sample_name = "combined"   # ["conflict_over_time", "party_identification"]
+KEYWORDS = KEYWORDS_RUSSIA_UKRAINE
 
-all_videos_file_name = "all_videos_50k_channels.json"
+sample_name = "russia"   # ["conflict_over_time", "party_identification"]
+
+all_videos_file_name = "all_videos_russia_ukraine.json"
 output_file_name_sampled = "sampled_50k_channels.json"
 output_file_name_keyword = "keyword_videos_50k_channels.json"
 
 
-REFERENCE_DATE = datetime(2023, 10, 7, tzinfo=timezone.utc)
+REFERENCE_DATE = datetime(2022, 2, 24, tzinfo=timezone.utc)
 FILE_ALL_VIDEOS = SAMPLES / f"{sample_name}" / all_videos_file_name
 METADATA_PATH = RAW / "video_metadata_total.jsonl"
 OUTPUT_FILE = SAMPLES / sample_name / output_file_name_sampled
@@ -41,11 +43,11 @@ MAX_PER_GROUP = 20
 PRIORITIZE_POLITICS = False
 SEED = 42
 
-CHANNEL_LIST = CHANNEL_LISTS / f"{sample_name}" / "channel_list.json"
+CHANNEL_LIST = CHANNEL_LISTS / f"all_identification" / "german_channels_10k.json"
 OUTPUT_KEYWORD_VIDEOS = SAMPLES / f"{sample_name}" / output_file_name_keyword
 
-COT_SAMPLE_VIDEOS = SAMPLES / "conflict_over_time" / "sampled_50k_channels.json"
-TRANSCRIPTS_PATH = TRANSCRIPTS / "all_transcripts.csv"
+COT_SAMPLE_VIDEOS = SAMPLES / "russia" / "sampled_50k_channels.json"
+TRANSCRIPTS_PATH = TRANSCRIPTS / "no_file.csv"
 
 
 def get_all_videos(channel_list_path, output_path, metadata_path):

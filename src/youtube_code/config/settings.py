@@ -17,9 +17,13 @@ LOCATION = "us-central1"
 
 
 # General lists/variables
-KEYWORDS = ["nahe osten", "naher osten", "nahen osten", "nahost", "shani louk", "israël",
+KEYWORDS_MIDDLE_EAST = ["nahe osten", "naher osten", "nahen osten", "nahost", "shani louk", "israël",
             "israel", "palästina", "palästin", "gaza", "hamas", "IDF", "Jerusalem",
             "netanjahu", "netanyahu", "hisbollah", "mossad"]
+
+KEYWORDS_RUSSIA_UKRAINE = ["russland", "ukraine", "putin", "selenskyj", "zelensky",
+                           "kiew", "moskau", "ukrain", "russisch",]
+# how to capture videos like "Europa: Aufrüsten für den Frieden?"
 
 IDEOLOGY_BINS = [-0.1, 4.5, 6, 10.1]
 IDEOLOGY_BINS_STRICT = [-0.1, 4, 6.5, 10.1]
