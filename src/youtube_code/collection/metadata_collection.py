@@ -19,7 +19,7 @@ VIDEOS_INPUT_PATH = RAW / "sample_russia_ukraine.json"
 CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
 
 if DETAILED:
-    VIDEOS_METADATA_PATH = RAW / "video_metadata_detailed_total.json"
+    VIDEOS_METADATA_PATH = RAW / "video_metadata_detailed_total.jsonl"
 else:
     VIDEOS_METADATA_PATH = RAW / "video_metadata_total.jsonl"
 

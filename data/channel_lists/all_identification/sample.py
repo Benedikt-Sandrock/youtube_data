@@ -1,5 +1,3 @@
-from idlelib.iomenu import encoding
-
 import pandas as pd
 from youtube_code.config import RAW, CHANNEL_LISTS
 import json

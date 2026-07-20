@@ -8,8 +8,7 @@ import pandas as pd
 
 from youtube_code.config import RAW, SAMPLES
 
-
-# Default configuration. Every value can also be overridden via CLI arguments.
+# === CONFIGURATION ===
 DETAILED_METADATA_FILE = RAW / "video_metadata_detailed_total.jsonl"
 ALL_VIDEOS_FILE = SAMPLES / "russia" / "all_videos_russia_ukraine.json"
 OUTPUT_DIRECTORY = SAMPLES / "russia"
@@ -94,10 +93,9 @@ def create_description_sample(
     output_rows = [
         {
             "video_id": video_id,
-            "description": descriptions_by_id[video_id],
+            "description": descriptions_by_id.get(video_id),
         }
         for video_id in sampled_video_ids
-        if video_id in descriptions_by_id
     ]
 
     output_directory.mkdir(parents=True, exist_ok=True)
