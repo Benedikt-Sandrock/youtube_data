@@ -16,7 +16,7 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES
 STOP_WORD = "blocking"
 SPEED_DOWNLOAD = False
 
-VIDEO_LIST = SAMPLES / "combined" / "keyword_videos_50k_channels.json"
+VIDEO_LIST = SAMPLES / "russia" / "russia_vids.json"
 #FILE_PATH_ALL = [TRANSCRIPTS / "all_transcripts.csv", TRANSCRIPTS /"all_transcripts_2.csv"]
 OUTPUT_FILE = TRANSCRIPTS / "all_transcripts_segments.csv"
 FILE_PATH_BACKUP = TRANSCRIPTS / "all_transcripts_backup.csv"

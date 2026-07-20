@@ -10,7 +10,7 @@ from youtube_code.config import RAW, API_KEY_C
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
 channel_metadata = True
-video_metadata = True
+video_metadata = False
 DETAILED = False
 
 VIDEOS_INPUT_PATH = RAW / "videos_total.json"

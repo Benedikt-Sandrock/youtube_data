@@ -24,3 +24,9 @@ __pycache__
 /data/samples/**/*.json
 /data/samples/**/*.csv
 /outputs/llm/gemini/nahost_descriptive_figures/
+/data/channel_lists/party_identification/channel_identification/
+/src/youtube_code/transcript_analysis/id_files_done/
+/data/raw/videos_total.json
+/data/transcripts/all_transcripts.csv
+/data/transcripts/all_transcripts_2.csv
+/data/transcripts/all_transcripts_segments.csv

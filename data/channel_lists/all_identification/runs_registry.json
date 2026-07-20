@@ -97,5 +97,59 @@
     "search_end": "2026-01-01",
     "month_interval": 3,
     "executed_at": "2026-07-01T16:25:09"
+  },
+  "20260702_203504": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:36:07"
+  },
+  "20260702_203720": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:37:41"
+  },
+  "20260702_203800": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:38:29"
+  },
+  "20260705_000728": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:08:05"
+  },
+  "20260705_000854": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:09:11"
+  },
+  "20260705_001039": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:11:20"
   }
 }

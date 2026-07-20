@@ -17,22 +17,22 @@ import json
 import os
 
 from settings_variables import published_before_analysis, published_after_analysis
-from youtube_code.config import API_KEY, RAW, CHANNEL_LISTS
+from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS
 from youtube_code.utils import save_json
 
 # ─────────────────────────────────────────────
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"
 # ─────────────────────────────────────────────
-MODE = "UPDATE"
+MODE = "NEW_CHANNELS"
 
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
 # ─────────────────────────────────────────────
 # Paths
 # ─────────────────────────────────────────────
-VIDEOS_TOTAL_FILE = RAW / "videos_total.json"
-CHANNEL_INPUT     = CHANNEL_LISTS / "party_identification" / "channel_list.json"
+VIDEOS_TOTAL_FILE = RAW / "sample_russia_ukraine.json"
+CHANNEL_INPUT     = CHANNEL_LISTS / "all_identification" / "german_channels_10k.json"
 CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 
 # Language-classification settings
@@ -340,11 +340,12 @@ if __name__ == "__main__":
             c["channel_id"] for c in classified
             if c["channel_id"] in set(new_channel_ids) and c.get("is_german")
         }
-        print(f"Of which German: {len(german_new_channel_ids)}")
+        print(f"German channels to check: {len(german_new_channel_ids)}")
 
+        channel_counter = 1
         for cid in german_new_channel_ids:
             try:
-                print(f"New channel ID: {cid}")
+                print(f"New channel ID: {cid} ({channel_counter}/{len(german_new_channel_ids)}")
                 channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
                 print(f"  Videos found: {len(channel_videos)}")
                 if channel_videos:
@@ -363,6 +364,8 @@ if __name__ == "__main__":
                     break
                 print(f"  Error at {cid}: {e}")
                 continue
+
+            channel_counter += 1
 
     elif MODE == "UPDATE":
         # ── Bestehende Kanäle auf neue Videos prüfen ──

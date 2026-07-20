@@ -1,0 +1,25 @@
+===== Mean views per subscriber comparison =====
+Shorts mean logged views per subscriber:
+   type  views_per_subscriber
+0   1.0              0.111110
+1   2.0              0.067155
+2   3.0              0.112781
+
+Videos mean logged views per subscriber:
+   type  views_per_subscriber
+0   1.0              0.086831
+1   2.0              0.051483
+2   3.0              0.136955
+
+Keyword shorts mean logged views per subscriber:
+   type  views_per_subscriber
+0   1.0              0.049684
+1   2.0              0.036601
+2   3.0              0.082531
+
+Keyword videos mean logged views per subscriber:
+   type  views_per_subscriber
+0   1.0              0.049372
+1   2.0              0.039732
+2   3.0              0.108672
+==================================================
