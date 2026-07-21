@@ -36,10 +36,11 @@ all_videos_file_name = "all_videos_russia_ukraine.json"
 output_file_name_sampled = "sampled_50k_channels.json"
 output_file_name_keyword = "keyword_videos_50k_channels.json"
 output_file_name_summary = "summary_statistics_50k_channels.json"
-
+no_shorts_output = "videos_wo_shorts_russia_ukraine.json"
 
 REFERENCE_DATE = datetime(2022, 2, 24, tzinfo=timezone.utc)
 FILE_ALL_VIDEOS = SAMPLES / f"{sample_name}" / all_videos_file_name
+OUTPUT_NO_SHORTS = SAMPLES / f"{sample_name}" / no_shorts_output
 METADATA_PATH = RAW / "video_metadata_total.jsonl"
 OUTPUT_FILE = SAMPLES / sample_name / output_file_name_sampled
 OUTPUT_SUMMARY_FILE = SAMPLES / sample_name / output_file_name_summary
@@ -561,7 +562,7 @@ def build_summary_statistics(
     }
 
 
-def get_random_sample(input_file, output_file, exclude_keywords, n_videos, prioritize_politics = False, seed = 42):
+def get_random_sample(input_file, output_no_shorts, output_file, exclude_keywords, n_videos, prioritize_politics = False, seed = 42):
     # Loading and adding time delta
     print(f"Loading data from: {input_file}")
     data = load_data(input_file)
@@ -580,6 +581,10 @@ def get_random_sample(input_file, output_file, exclude_keywords, n_videos, prior
     data, keyword_videos = filter_by_keywords(data, exclude_keywords)
     print(f"  → {before - len(data)} videos removed by keyword filter.")
     print(f"  → {len(data)} videos remaining.")
+
+    with open(output_no_shorts, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    print(f"\nAll videos w/o shorts saved to: '{output_no_shorts}'")
 
     # Sampling
     sample = sample_videos(
@@ -618,4 +623,4 @@ def get_random_sample(input_file, output_file, exclude_keywords, n_videos, prior
 if __name__ == "__main__":
     get_all_videos(CHANNEL_LIST, FILE_ALL_VIDEOS, METADATA_PATH)
 
-    get_random_sample(FILE_ALL_VIDEOS, OUTPUT_FILE, KEYWORDS, N_VIDEOS_PER_CHANNEL, PRIORITIZE_POLITICS, SEED)
+    get_random_sample(FILE_ALL_VIDEOS, OUTPUT_NO_SHORTS, OUTPUT_FILE, KEYWORDS, N_VIDEOS_PER_CHANNEL, PRIORITIZE_POLITICS, SEED)

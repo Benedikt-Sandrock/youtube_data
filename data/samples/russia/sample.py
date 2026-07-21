@@ -1,6 +1,114 @@
 import pandas as pd
-from youtube_code.config import SAMPLES, RAW
-from youtube_code.utils import load_json, save_json
+from pathlib import Path
+from youtube_code.config import RAW
 
-vdf =  load_json(RAW / "sample_russia_ukraine.json")
 
+INPUT_SAMPLE = Path("videos_wo_shorts_russia_ukraine.json")
+METADATA_FILE = RAW / "video_metadata_detailed_total.jsonl"
+OUTPUT_FILE = Path("videos_wo_shorts_description.jsonl")
+
+READ_CHUNK_SIZE = 100_000
+WRITE_CHUNK_SIZE = 50_000
+
+
+# --------------------------------------------------
+# 1. Sample laden
+# --------------------------------------------------
+df = pd.read_json(INPUT_SAMPLE)
+
+df["video_id"] = df["video_id"].astype(str)
+
+print(f"Videos im Sample: {len(df):,}")
+
+sample_video_ids = set(df["video_id"])
+
+
+# --------------------------------------------------
+# 2. Metadaten blockweise lesen
+# --------------------------------------------------
+matched_chunks = []
+
+for chunk_number, chunk in enumerate(
+    pd.read_json(
+        METADATA_FILE,
+        lines=True,
+        chunksize=READ_CHUNK_SIZE,
+    ),
+    start=1,
+):
+    chunk = chunk[["video_id", "description"]].copy()
+    chunk["video_id"] = chunk["video_id"].astype(str)
+
+    matched = chunk[chunk["video_id"].isin(sample_video_ids)]
+
+    if not matched.empty:
+        matched_chunks.append(matched)
+
+    print(
+        f"Chunk {chunk_number}: "
+        f"{len(chunk):,} gelesen, "
+        f"{len(matched):,} Treffer"
+    )
+
+
+# --------------------------------------------------
+# 3. Beschreibungen zusammenführen
+# --------------------------------------------------
+if matched_chunks:
+    descriptions = pd.concat(
+        matched_chunks,
+        ignore_index=True,
+    )
+
+    descriptions = descriptions.drop_duplicates(
+        subset="video_id",
+        keep="last",
+    )
+else:
+    descriptions = pd.DataFrame(
+        columns=["video_id", "description"]
+    )
+
+print(f"Gefundene Beschreibungen: {len(descriptions):,}")
+
+
+# --------------------------------------------------
+# 4. Merge
+# --------------------------------------------------
+df = df.merge(
+    descriptions,
+    on="video_id",
+    how="left",
+    validate="many_to_one",
+)
+
+print(f"Videos nach Merge: {len(df):,}")
+print(
+    f"Fehlende Beschreibungen: "
+    f"{df['description'].isna().sum():,}"
+)
+
+
+# --------------------------------------------------
+# 5. Blockweise als JSONL speichern
+# --------------------------------------------------
+OUTPUT_FILE.unlink(missing_ok=True)
+
+for start in range(0, len(df), WRITE_CHUNK_SIZE):
+    end = min(start + WRITE_CHUNK_SIZE, len(df))
+
+    df.iloc[start:end].to_json(
+        OUTPUT_FILE,
+        orient="records",
+        lines=True,
+        force_ascii=False,
+        date_format="iso",
+        mode="a",
+    )
+
+    print(
+        f"Gespeichert: "
+        f"{end:,} / {len(df):,}"
+    )
+
+print(f"Datei gespeichert: {OUTPUT_FILE}")

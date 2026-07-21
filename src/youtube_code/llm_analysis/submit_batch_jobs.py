@@ -35,41 +35,89 @@ def get_prompt_number(prompt_key: str) -> str:
         return "0"
 
 
-def csv_to_jsonl(csv_path, jsonl_path, system_prompt, thinking_budget: int | None = None):
+def build_input_text(row: pd.Series, input_mode: str) -> str | None:
+    title = str(row.get("title", "") or "").strip()
+    description = str(row.get("description", "") or "").strip()
+    transcript = str(row.get("transcript", "") or "").strip()
+
+    if input_mode == "title":
+        if not title:
+            return None
+        return f"Titel:\n{title}"
+
+    if input_mode == "title_description":
+        if not title and not description:
+            return None
+        return (
+            f"Titel:\n{title}\n\n"
+            f"Beschreibung:\n{description}"
+        )
+
+    if input_mode == "transcript":
+        if not transcript:
+            return None
+        return f"Hier ist das Transkript:\n\n{transcript}"
+
+    raise ValueError(f"Unknown input_mode: {input_mode}")
+
+
+def csv_to_jsonl(
+    csv_path,
+    jsonl_path,
+    system_prompt,
+    input_mode: str,
+    thinking_budget: int | None = None,
+):
     print(f"Converting CSV to JSONL -> {jsonl_path}")
     df = pd.read_csv(csv_path)
 
+    written_requests = 0
+
     with open(jsonl_path, "w", encoding="utf-8") as f:
         for _, row in df.iterrows():
-            v_id = str(row["video_id"])
-            transcript = str(row.get("transcript", ""))
+            video_id = str(row["video_id"])
+            input_text = build_input_text(row, input_mode)
 
-            if not transcript.strip():
+            if input_text is None:
                 continue
 
             generation_config = {
                 "responseMimeType": "application/json",
                 "temperature": 0,
             }
+
             if thinking_budget is not None:
-                generation_config["thinkingConfig"] = {"thinkingBudget": thinking_budget}
+                generation_config["thinkingConfig"] = {
+                    "thinkingBudget": thinking_budget
+                }
 
             api_request = {
-                "custom_id": v_id,
+                "custom_id": video_id,
                 "request": {
                     "contents": [
                         {
                             "role": "user",
-                            "parts": [{"text": f"{system_prompt}\n\nHier ist das Transkript:\n\n{transcript}"}],
+                            "parts": [
+                                {
+                                    "text": (
+                                        f"{system_prompt}\n\n"
+                                        f"{input_text}"
+                                    )
+                                }
+                            ],
                         }
                     ],
                     "generationConfig": generation_config,
                 },
             }
-            f.write(json.dumps(api_request, ensure_ascii=False) + "\n")
 
-    print(f"File {jsonl_path} was successfully created.")
-    return True
+            f.write(
+                json.dumps(api_request, ensure_ascii=False) + "\n"
+            )
+            written_requests += 1
+
+    print(f"{written_requests} requests written to {jsonl_path}.")
+    return written_requests
 
 
 def start_batch_job(jsonl_path, model):
@@ -99,6 +147,7 @@ def run_all_prompts(
     dataset_id: str,
     dataset_version: str,
     target_variable: str,
+    input_mode: str = "transcript",
     validation_basis: str = "manual",
     model_name: str = "gemini_25_flash",
     thinking_budget: int | None = None,
@@ -154,7 +203,7 @@ def run_all_prompts(
 
         try:
             if not dry_run:
-                csv_to_jsonl(csv_path, jsonl_path, system_prompt, thinking_budget)
+                csv_to_jsonl(csv_path, jsonl_path, system_prompt, input_mode, thinking_budget)
                 job_id = start_batch_job(jsonl_path, model_alias)
             else:
                 print(f"[DRY RUN] Would create {jsonl_path} and submit job.")
@@ -212,6 +261,7 @@ if __name__ == "__main__":
         prompt_keys=PROMPTS_TO_RUN,
         prompts=prompts,
         dataset_id= csv_file.stem,
+        input_mode= "transcript",
         dataset_version="v1",
         target_variable="populism_score",
         validation_basis="all_statements",  # ["manual", "all_statements"]
