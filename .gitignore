@@ -31,3 +31,5 @@ __pycache__
 /data/transcripts/all_transcripts_2.csv
 /data/transcripts/all_transcripts_segments.csv
 /data/raw/video_metadata_detailed_total.jsonl
+/data/samples/russia/videos_wo_shorts_description.jsonl
+/data/samples/russia/fdescription_training_sample_42.xlsx

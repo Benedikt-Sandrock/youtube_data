@@ -4,17 +4,9 @@ from pathlib import Path
 from youtube_code.config import SAMPLES
 
 
-INPUT_FILE = (
-    SAMPLES
-    / "russia"
-    / "videos_wo_shorts_description.jsonl"
-)
+INPUT_FILE = (SAMPLES / "russia" / "videos_wo_shorts_description.jsonl")
 
-STATE_FILE = (
-    SAMPLES
-    / "russia"
-    / "politics_screening_state.csv"
-)
+STATE_FILE = (SAMPLES / "russia" / "politics_screening_state.csv")
 
 REFERENCE_DATE = "2022-02-24T00:00:00Z"
 MONTHS_BEFORE = 3
@@ -435,6 +427,7 @@ def initialize_screening_state(
         )
 
     print(f"Saved to {state_path}.")
+
 
 
 if __name__ == "__main__":

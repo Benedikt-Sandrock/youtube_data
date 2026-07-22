@@ -1,0 +1,18 @@
+from youtube_code.config import SAMPLES
+
+SCREENING_DIR = SAMPLES / "russia"
+
+DESCRIPTIONS_FILE = SCREENING_DIR / "videos_wo_shorts_description.jsonl"
+
+STATE_FILE = (SCREENING_DIR / "politics_screening_state.csv")
+
+BATCH_DIR = SCREENING_DIR / "batches"
+RESULTS_DIR = SCREENING_DIR / "results"
+OUTPUT_DIR = SCREENING_DIR / "output"
+
+REFERENCE_DATE = "2022-02-24T00:00:00Z"
+WINDOW_MONTHS = 3
+
+TARGET_POLITICAL_VIDEOS = 20
+INITIAL_BATCH_SIZE_PER_CHANNEL = 10
+MAX_BATCH_SIZE_PER_CHANNEL = 30
