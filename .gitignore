@@ -33,3 +33,4 @@ __pycache__
 /data/raw/video_metadata_detailed_total.jsonl
 /data/samples/russia/videos_wo_shorts_description.jsonl
 /data/samples/russia/fdescription_training_sample_42.xlsx
+/outputs/llm/title_classification/run*
