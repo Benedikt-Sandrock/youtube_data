@@ -14,7 +14,7 @@ from registry.run_registry import RunRegistry
 # CONFIGURATION
 # =========================================
 
-REGISTRY_PATH = "registry/runs_registry.csv"
+REGISTRY_PATH = "registry/runs_registry_old.csv"
 CONVERT = False  # Mapping auf 5-/6-Punkte-Skala
 
 # Statt eines fixen seed_number/MAIN_FILE: welche Runs sollen verglichen werden?

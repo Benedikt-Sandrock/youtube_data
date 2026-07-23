@@ -1,18 +1,21 @@
 import os
 import json
+import uuid
+from pathlib import Path
+
 import pandas as pd
 from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, EXPLORATION, SAMPLES
-from registry.run_registry import RunRegistry
-
+from .registry.run_registry import RunRegistry
+from youtube_code.politics_screening.screening_config import REGISTRY_PATH
 # ===============================================
 # CONFIG
 # ===============================================
 
-REGISTRY_PATH = "registry/runs_registry.csv"
 BATCH_INPUT_JSONL_TEMPLATE = "batch_input_{prompt_number}_{model_name}.jsonl"
+DEFAULT_MANIFEST_DIR = Path("batch_manifests")
 
 MODEL_ALIASES = {
     "gemini_25_flash": "gemini-2.5-flash",
@@ -61,19 +64,245 @@ def build_input_text(row: pd.Series, input_mode: str) -> str | None:
     raise ValueError(f"Unknown input_mode: {input_mode}")
 
 
+def build_grouped_title_response_schema(group_size: int) -> dict:
+    """Response schema for one request containing several titles."""
+    return {
+        "type": "OBJECT",
+        "properties": {
+            "classifications": {
+                "type": "ARRAY",
+                "minItems": group_size,
+                "maxItems": group_size,
+                "items": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "item_id": {
+                            "type": "STRING",
+                        },
+                        "politics_title": {
+                            "type": "INTEGER",
+                        },
+                    },
+                    "required": [
+                        "item_id",
+                        "politics_title",
+                    ],
+                    "propertyOrdering": [
+                        "item_id",
+                        "politics_title",
+                    ],
+                },
+            }
+        },
+        "required": ["classifications"],
+        "propertyOrdering": ["classifications"],
+    }
+
+
+def prepare_title_data(
+    df: pd.DataFrame,
+    grouping_seed: int,
+) -> pd.DataFrame:
+    required_columns = {"video_id", "title"}
+    missing = required_columns - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"Missing columns for title classification: {sorted(missing)}"
+        )
+
+    data = df.copy()
+    data = data.dropna(subset=["video_id", "title"])
+    data["video_id"] = data["video_id"].astype("string").str.strip()
+    data["title"] = data["title"].astype("string").str.strip()
+    data = data.loc[
+        data["video_id"].ne("") & data["title"].ne("")
+    ].copy()
+
+    duplicated = data["video_id"].duplicated(keep=False)
+    if duplicated.any():
+        duplicate_ids = sorted(
+            data.loc[duplicated, "video_id"].unique().tolist()
+        )
+        raise ValueError(
+            "Duplicate video IDs are not allowed: "
+            f"{duplicate_ids[:10]}"
+        )
+
+    # Fixed random order prevents groups from being dominated by neighbouring
+    # rows or by one channel, while remaining completely reproducible.
+    return data.sample(
+        frac=1,
+        random_state=grouping_seed,
+    ).reset_index(drop=True)
+
+
+def grouped_titles_to_jsonl(
+    df: pd.DataFrame,
+    jsonl_path: Path,
+    manifest_path: Path,
+    system_prompt: str,
+    titles_per_request: int,
+    grouping_seed: int,
+    thinking_budget: int | None,
+) -> tuple[int, int]:
+    if titles_per_request < 2:
+        raise ValueError("titles_per_request must be at least 2 here.")
+
+    data = prepare_title_data(df, grouping_seed)
+    if data.empty:
+        raise ValueError("No valid videos with titles found.")
+
+    manifest_rows = []
+    written_requests = 0
+
+    with jsonl_path.open("w", encoding="utf-8") as output_file:
+        for start in range(0, len(data), titles_per_request):
+            group = data.iloc[start:start + titles_per_request]
+            request_id = f"title_group_{written_requests + 1:06d}"
+
+            group_items = [
+                {
+                    "item_id": f"item_{position:02d}",
+                    "video_id": str(row.video_id),
+                    "title": str(row.title),
+                }
+                for position, row in enumerate(
+                    group.itertuples(index=False),
+                    start=1,
+                )
+            ]
+
+            # The model sees only a short identifier. The real YouTube ID is
+            # retained exclusively in the manifest and never has to be copied
+            # by the model.
+            videos = [
+                {
+                    "item_id": item["item_id"],
+                    "title": item["title"],
+                }
+                for item in group_items
+            ]
+
+            input_text = json.dumps(
+                {"videos": videos},
+                ensure_ascii=False,
+                indent=2,
+            )
+
+            generation_config = {
+                "responseMimeType": "application/json",
+                "responseSchema": build_grouped_title_response_schema(
+                    group_size=len(videos)
+                ),
+                "temperature": 0,
+            }
+
+            label_schema = (
+                generation_config["responseSchema"]
+                ["properties"]["classifications"]
+                ["items"]["properties"]["politics_title"]
+            )
+
+            if label_schema != {"type": "INTEGER"}:
+                raise ValueError(
+                    "Invalid politics_title schema: "
+                    f"{label_schema!r}"
+                )
+
+            if thinking_budget is not None:
+                generation_config["thinkingConfig"] = {
+                    "thinkingBudget": thinking_budget
+                }
+
+            api_request = {
+                "custom_id": request_id,
+                "request": {
+                    "contents": [
+                        {
+                            "role": "user",
+                            "parts": [
+                                {
+                                    "text": (
+                                        f"{system_prompt}\n\n"
+                                        "EINGABE:\n"
+                                        f"{input_text}"
+                                    )
+                                }
+                            ],
+                        }
+                    ],
+                    "generationConfig": generation_config,
+                },
+            }
+            output_file.write(
+                json.dumps(api_request, ensure_ascii=False) + "\n"
+            )
+
+            for position, item in enumerate(group_items, start=1):
+                manifest_rows.append(
+                    {
+                        "request_id": request_id,
+                        "position": position,
+                        "item_id": item["item_id"],
+                        "video_id": item["video_id"],
+                        "title": item["title"],
+                        "titles_per_request": titles_per_request,
+                        "grouping_seed": grouping_seed,
+                    }
+                )
+
+            written_requests += 1
+
+    pd.DataFrame(manifest_rows).to_csv(
+        manifest_path,
+        index=False,
+        encoding="utf-8-sig",
+    )
+
+    print(
+        f"{len(data)} videos written as {written_requests} grouped requests."
+    )
+    print(f"Manifest saved temporarily to {manifest_path}.")
+    return written_requests, len(data)
+
+
 def csv_to_jsonl(
     csv_path,
     jsonl_path,
     system_prompt,
     input_mode: str,
     thinking_budget: int | None = None,
+    titles_per_request: int = 1,
+    grouping_seed: int = 42,
+    manifest_path: str | Path | None = None,
 ):
     print(f"Converting CSV to JSONL -> {jsonl_path}")
     df = pd.read_csv(csv_path)
 
+    jsonl_path = Path(jsonl_path)
+
+    if input_mode == "title" and titles_per_request > 1:
+        if manifest_path is None:
+            manifest_path = jsonl_path.with_suffix(".manifest.csv")
+        return grouped_titles_to_jsonl(
+            df=df,
+            jsonl_path=jsonl_path,
+            manifest_path=Path(manifest_path),
+            system_prompt=system_prompt,
+            titles_per_request=titles_per_request,
+            grouping_seed=grouping_seed,
+            thinking_budget=thinking_budget,
+        )
+
+    if titles_per_request != 1:
+        raise ValueError(
+            "Grouped requests are currently only implemented for "
+            "input_mode='title'."
+        )
+
     written_requests = 0
 
-    with open(jsonl_path, "w", encoding="utf-8") as f:
+    with jsonl_path.open("w", encoding="utf-8") as f:
         for _, row in df.iterrows():
             video_id = str(row["video_id"])
             input_text = build_input_text(row, input_mode)
@@ -117,20 +346,26 @@ def csv_to_jsonl(
             written_requests += 1
 
     print(f"{written_requests} requests written to {jsonl_path}.")
-    return written_requests
+    return written_requests, written_requests
 
 
 def start_batch_job(jsonl_path, model):
+    jsonl_path = Path(jsonl_path)
     print(f"Uploading {jsonl_path} to GCS...")
     storage_client = storage.Client(project=PROJECT_ID)
     bucket = storage_client.bucket(BUCKET_NAME)
 
-    blob_name = f"batch_inputs/{jsonl_path}"
+    upload_id = uuid.uuid4().hex
+    blob_name = (
+        f"batch_inputs/{jsonl_path.stem}_"
+        f"{upload_id}{jsonl_path.suffix}"
+    )
     blob = bucket.blob(blob_name)
-    blob.upload_from_filename(jsonl_path)
+    blob.upload_from_filename(str(jsonl_path))
 
     gcs_uri = f"gs://{BUCKET_NAME}/{blob_name}"
     print("File successfully uploaded.")
+    print(f"Batch input URI: {gcs_uri}")
 
     print("Starting batch job...")
     job = client.batches.create(model=model, src=gcs_uri)
@@ -152,6 +387,10 @@ def run_all_prompts(
     model_name: str = "gemini_25_flash",
     thinking_budget: int | None = None,
     prompt_version: str = "v1",
+    items_per_request: int = 1,
+    grouping_seed: int = 42,
+    batch_input_dir: str | Path = ".",
+    manifest_dir: str | Path = DEFAULT_MANIFEST_DIR,
     dry_run: bool = False,
 ):
     """
@@ -166,13 +405,23 @@ def run_all_prompts(
         - thinking_budget: wird direkt ins JSONL übernommen UND in der Registry
           gespeichert, damit du später nach Thinking Budget filtern kannst
     """
-    model_alias = MODEL_ALIASES.get(model_name, "unknown_model")
+    if model_name not in MODEL_ALIASES:
+        raise ValueError(
+            f"Unknown model name '{model_name}'. "
+            f"Available aliases: {sorted(MODEL_ALIASES)}"
+        )
+    model_alias = MODEL_ALIASES[model_name]
     if isinstance(prompt_keys, str):
         prompt_keys = [prompt_keys]
-    list_name = f"{prompts=}".split("=")[0]
+    if items_per_request < 1:
+        raise ValueError("items_per_request must be at least 1.")
+
+    manifest_dir = Path(manifest_dir)
+    batch_input_dir = Path(batch_input_dir)
+    batch_input_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(csv_path)
-    transcripts = len(df)
+    input_rows = len(df)
 
     print(f"\n{'=' * 60}")
     print(f"Input: '{csv_path}'")
@@ -180,11 +429,18 @@ def run_all_prompts(
     print(f"Model: {model_alias} | Thinking budget: {thinking_budget}")
     print(f"Target variable: {target_variable} | Validation basis: {validation_basis}")
     print(f"Prompts to run: {len(prompt_keys)} -> {prompt_keys}")
-    print(f"Number of transcripts to be rated: {transcripts}")
+    print(f"Number of input rows: {input_rows}")
+    print(f"Items per model request: {items_per_request}")
+    print(f"Grouping seed: {grouping_seed}")
     print(f"Dry run: {dry_run}")
     print(f"{'=' * 60}\n")
 
-    answer = input("Start all jobs? [Y/n] ")
+    confirmation_text = (
+        "Create dry-run files? [Y/n] "
+        if dry_run
+        else "Start all jobs? [Y/n] "
+    )
+    answer = input(confirmation_text)
     if answer.strip().lower() != "y":
         print("Aborted.")
         return
@@ -195,19 +451,56 @@ def run_all_prompts(
     for i, prompt_key in enumerate(prompt_keys, 1):
         prompt_number = get_prompt_number(prompt_key)
         system_prompt = prompts[prompt_key]
-        jsonl_path = BATCH_INPUT_JSONL_TEMPLATE.format(
-            prompt_number=prompt_number, model_name=model_name
+        jsonl_path = batch_input_dir / BATCH_INPUT_JSONL_TEMPLATE.format(
+            prompt_number=prompt_number,
+            model_name=model_name,
+        )
+        temporary_manifest_path = Path(jsonl_path).with_suffix(
+            ".manifest.csv"
         )
 
         print(f"\n[{i}/{len(prompt_keys)}] Processing {prompt_key}")
 
         try:
+            request_count, video_count = csv_to_jsonl(
+                csv_path=csv_path,
+                jsonl_path=jsonl_path,
+                system_prompt=system_prompt,
+                input_mode=input_mode,
+                thinking_budget=thinking_budget,
+                titles_per_request=items_per_request,
+                grouping_seed=grouping_seed,
+                manifest_path=temporary_manifest_path,
+            )
+
             if not dry_run:
-                csv_to_jsonl(csv_path, jsonl_path, system_prompt, input_mode, thinking_budget)
                 job_id = start_batch_job(jsonl_path, model_alias)
             else:
-                print(f"[DRY RUN] Would create {jsonl_path} and submit job.")
-                job_id = f"dry-run-job-{prompt_number}"
+                print(
+                    f"[DRY RUN] Created {jsonl_path}; no job was submitted."
+                )
+                manifest_dir.mkdir(parents=True, exist_ok=True)
+                final_manifest_path = None
+                if temporary_manifest_path.exists():
+                    final_manifest_path = manifest_dir / (
+                        f"dry_run_{prompt_number}_{model_name}_manifest.csv"
+                    )
+                    temporary_manifest_path.replace(final_manifest_path)
+                    print(f"Manifest saved to {final_manifest_path}.")
+
+                results[prompt_key] = {
+                    "run_id": None,
+                    "job_id": None,
+                    "status": "dry_run",
+                    "requests": request_count,
+                    "videos": video_count,
+                    "manifest_path": (
+                        str(final_manifest_path)
+                        if final_manifest_path is not None
+                        else None
+                    ),
+                }
+                continue
 
             run_id = registry.add_run(
                 prompt_id=prompt_key,
@@ -223,7 +516,27 @@ def run_all_prompts(
                 status="submitted",
             )
 
-            results[prompt_key] = {"run_id": run_id, "job_id": job_id, "status": "submitted"}
+            final_manifest_path = None
+            if temporary_manifest_path.exists():
+                manifest_dir.mkdir(parents=True, exist_ok=True)
+                final_manifest_path = (
+                    manifest_dir / f"{run_id}_manifest.csv"
+                )
+                temporary_manifest_path.replace(final_manifest_path)
+                print(f"Manifest saved to {final_manifest_path}.")
+
+            results[prompt_key] = {
+                "run_id": run_id,
+                "job_id": job_id,
+                "status": "submitted",
+                "requests": request_count,
+                "videos": video_count,
+                "manifest_path": (
+                    str(final_manifest_path)
+                    if final_manifest_path is not None
+                    else None
+                ),
+            }
             print(f"Registry entry created: {run_id}")
 
         except Exception as e:
@@ -232,11 +545,15 @@ def run_all_prompts(
             results[prompt_key] = {"run_id": None, "job_id": None, "status": f"Error: {e}"}
 
     print(f"\n{'=' * 60}")
-    print(f"Summary: {len(prompt_keys) - len(failed)}/{len(prompt_keys)} jobs submitted successfully.")
+    action = "prepared in dry run" if dry_run else "submitted"
+    print(
+        f"Summary: {len(prompt_keys) - len(failed)}/{len(prompt_keys)} "
+        f"jobs {action} successfully."
+    )
     if failed:
         print(f"Failed: {failed}")
     for key, info in results.items():
-        status_icon = "✓" if info["status"] == "submitted" else "✗"
+        status_icon = "✓" if info["status"] in {"submitted", "dry_run"} else "✗"
         print(f"  {status_icon} {key}: {info.get('run_id')} ({info.get('job_id')})")
     print(f"{'=' * 60}\n")
 

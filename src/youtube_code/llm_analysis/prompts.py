@@ -1,3 +1,16 @@
+"""
+PROMPTS 01-08: Ideology and populism
+    - prompt_5_adjusted: "PROMPT_051
+PROMPTS 11-18: Ideology
+PROMPTS 21-28: Populism
+    - prompts_populism_creator: Exclusively rating statements of the creator
+    - prompts_populism_all: Rating all statements made in the video
+PROMPTS 31-32: Title classification (political vs. non-political)
+
+PROMPT_99_SENTIMENT: Sentiment towards different actors in the context of the conflict in the Middle East
+"""
+
+
 prompts_both = {
     # Base prompt (000)
     "PROMPT_01": """
@@ -885,6 +898,262 @@ Wichtig: Eine reine Schilderung, dass ein Akteur Opfer von Gewalt wird, ist NICH
 
 Antworte AUSSCHLIESSLICH mit einem JSON-Objekt, keine Erklärung, kein Markdown:
 {"israel_regierung": ..., "palaestinenser_zivil": ..., "hamas": ..., "westliche_staaten": ...}
+"""
+}
+
+prompts_title_classification = {
+    "PROMPT_31": """Du klassifizierst YouTube-Videos anhand ihres Titels.
+
+ZIEL
+
+Entscheide, ob das Transkript des Videos wahrscheinlich relevante Informationen
+für die politische Links-rechts-Positionierung des Kanals enthält.
+
+Es geht nicht darum, die politische Richtung anhand des Titels zu bestimmen.
+Es geht nur darum, zu entscheiden, ob sich das Herunterladen und spätere
+Analysieren des Transkripts wahrscheinlich lohnt.
+
+LABELS
+
+"1" = relevant
+
+Verwende "1", wenn der Titel bereits ausreichend erkennen lässt, dass das
+Video wahrscheinlich politische oder ideologisch auswertbare Inhalte behandelt.
+
+Dazu gehören insbesondere:
+
+- Parteien, Politiker, Regierungen, Wahlen und politische Institutionen
+- konkrete politische Maßnahmen, Gesetze oder staatliche Regulierung
+- Außenpolitik, Krieg und internationale politische Konflikte
+- Migration, Klima-, Wirtschafts-, Sozial- oder Bildungspolitik
+- Verteilung, Steuern, Sozialstaat, Markt, Kapitalismus oder staatliche Eingriffe
+- Bürgerrechte, gesellschaftliche Gleichstellung und politisierte Identitätsfragen
+- politisch relevante Medien-, Eliten- oder Institutionenkritik
+- normative gesellschaftliche Debatten, wenn ein politischer oder ideologischer
+  Bezug aus dem Titel erkennbar ist
+
+Auch neutrale Nachrichtenberichterstattung erhält "1", wenn ihr Gegenstand
+politisch relevant ist. Der Titel muss selbst keine politische Meinung enthalten.
+
+"0" = nicht relevant
+
+Verwende "0", wenn aus dem Titel klar hervorgeht, dass das Video wahrscheinlich
+keine verwertbaren politischen oder ideologischen Aussagen enthält.
+
+Dazu gehören insbesondere:
+
+- Sport, Gaming, Musik und reine Unterhaltung
+- Produktvorstellungen, technische Anleitungen und Alltagstipps
+- reine Aktienkurs-, Börsen- oder Marktanalysen ohne erkennbaren politischen,
+  gesellschaftlichen oder normativen Bezug
+- Unfall-, Brand-, Wetter- oder Kriminalitätsmeldungen ohne politische Dimension
+- private oder rein persönliche Inhalte
+- rein fachliche, religiöse, medizinische oder wissenschaftliche Inhalte ohne
+  erkennbaren gesellschaftspolitischen oder ideologischen Bezug
+
+"-1" = anhand des Titels unsicher
+
+Verwende "-1", wenn der Titel allein nicht ausreicht, um zuverlässig zwischen
+"0" und "1" zu entscheiden.
+
+Das gilt insbesondere bei:
+
+- sehr allgemeinen, emotionalen oder reißerischen Titeln ohne erkennbares Thema
+- mehrdeutigen Begriffen
+- Wirtschafts-, Gesellschafts-, Religions- oder Medizinthemen, die politisch
+  eingeordnet werden könnten, bei denen dies aus dem Titel aber nicht hervorgeht
+- Titeln, deren Relevanz stark vom konkreten Inhalt oder Kontext abhängt
+
+Nutze "-1" bewusst. Rate nicht, wenn Titel und Thema zu wenig Informationen
+enthalten. Diese Videos werden anschließend anhand ihrer Beschreibung geprüft.
+
+ENTSCHEIDUNGSREGELN
+
+1. Verwende ausschließlich den jeweiligen Titel.
+2. Nutze kein Wissen über den Kanal oder den Urheber.
+3. Bewerte jedes Video unabhängig von allen anderen Videos der Gruppe.
+4. Vergleiche die Titel nicht miteinander.
+5. Es gibt keine vorgegebene Verteilung der Labels. Alle Videos einer Gruppe
+   dürfen dasselbe Label erhalten.
+6. Übernimm jede video_id exakt und unverändert.
+7. Gib für jede eingesendete video_id genau eine Klassifikation zurück.
+8. Behalte die Reihenfolge der Videos bei.
+9. Gib keine Erklärungen und keinen zusätzlichen Text aus.
+
+BEISPIELE
+
+Titel: "Bundestag streitet über eine Vermögensteuer"
+Label: "1"
+
+Titel: "Warum der Sozialstaat Leistung bestraft"
+Label: "1"
+
+Titel: "Soll Fleisch wegen des Klimas stärker besteuert werden?"
+Label: "1"
+
+Titel: "DAX vor Handelsstart: Diese Marken sind heute wichtig"
+Label: "0"
+
+Titel: "Die Höhepunkte des Champions-League-Spiels"
+Label: "0"
+
+Titel: "Feuerwehr löscht Brand in einer Lagerhalle"
+Label: "0"
+
+Titel: "Jetzt wird es wirklich vollkommen lächerlich"
+Label: "-1"
+
+Titel: "Die Wahrheit über die moderne Medizin"
+Label: "-1"
+
+Titel: "Krypto-ETF vor dem endgültigen Durchbruch?"
+Label: "-1"
+
+Du erhältst unter EINGABE ein JSON-Objekt mit einer Liste namens "videos".
+Klassifiziere alle darin enthaltenen Videos entsprechend diesen Regeln.""",
+
+
+"PROMPT_32" : """
+Du klassifizierst YouTube-Videos ausschließlich anhand ihres Titels.
+
+ZIEL
+
+Entscheide, ob das Transkript des Videos wahrscheinlich relevante Informationen
+für die politische Links-rechts-Positionierung des Kanals enthält.
+
+Es geht nicht darum, anhand des Titels bereits die politische Richtung zu
+bestimmen. Entscheide nur, ob das Video für eine spätere politische oder
+ideologische Transkriptanalyse relevant sein dürfte.
+
+LABELS
+
+1 = politisch oder ideologisch relevant
+
+Verwende 1, wenn der Titel hinreichend erkennen lässt, dass das Video
+wahrscheinlich politische, gesellschaftspolitische oder ideologisch
+auswertbare Inhalte behandelt.
+
+Dazu gehören insbesondere:
+
+- Parteien, Politiker, Regierungen, Wahlen und politische Institutionen
+- Gesetze, politische Maßnahmen und staatliche Regulierung
+- Außenpolitik, Krieg, Sanktionen und internationale politische Konflikte
+- Migration, Klima-, Sozial-, Bildungs- oder Gesundheitspolitik
+- Steuern, Sozialstaat, öffentliche Ausgaben und wirtschaftspolitische Eingriffe
+- Arbeitsmarktpolitik, Verteilung, Ungleichheit und Eigentumspolitik
+- Kapitalismus, Sozialismus, Marktwirtschaft oder staatliche Wirtschaftsordnung
+- Bürgerrechte, Gleichstellung und politisierte Identitätsfragen
+- politisch relevante Kritik an Medien, Eliten oder Institutionen
+- gesellschaftliche Konflikte mit erkennbarem politischen oder ideologischen Bezug
+
+Auch neutrale Nachrichtenberichterstattung erhält 1, wenn ihr Gegenstand
+politisch relevant ist. Der Titel muss keine politische Meinung enthalten.
+
+
+0 = nicht politisch oder ideologisch relevant
+
+Verwende 0, wenn aus dem Titel ausreichend klar hervorgeht, dass der erkennbare
+Hauptgegenstand wahrscheinlich keine für die politische Links-rechts-
+Positionierung verwertbaren Aussagen enthält.
+
+Dazu gehören insbesondere:
+
+- Sport, Gaming, Musik und reine Unterhaltung
+- Produktvorstellungen, Kaufberatung, technische Anleitungen und Alltagstipps
+- Aktien-, Börsen-, Krypto-, Rohstoff- oder Marktanalysen ohne erkennbaren
+  politischen, gesellschaftlichen oder wirtschaftspolitischen Bezug
+- Werbung, Affiliate-Inhalte und reine Investmentinformationen
+- Unfall-, Brand-, Wetter- oder Kriminalitätsmeldungen ohne politische Dimension
+- medizinische, religiöse oder wissenschaftliche Fachinhalte ohne erkennbaren
+  gesellschaftspolitischen oder ideologischen Bezug
+- Selbsthilfe-, Erziehungs- und Ratgeberinhalte ohne politischen Kontext
+
+-1 = anhand des Titels unsicher
+
+Verwende -1, wenn der Titel allein nicht ausreicht, um zuverlässig zwischen
+0 und 1 zu entscheiden.
+
+Das gilt insbesondere bei:
+
+- sehr allgemeinen, emotionalen oder reißerischen Titeln ohne erkennbares Thema
+- Zitaten oder Ereignisschilderungen, deren politischer Kontext unklar bleibt
+- mehrdeutigen Begriffen und unklaren Anspielungen
+- gesellschaftlichen, religiösen, medizinischen oder kulturellen Debatten, deren
+  politische oder ideologische Dimension aus dem Titel nicht hervorgeht
+- Wirtschaftsthemen, die möglicherweise Fragen der wirtschaftlichen Ordnung,
+  Verteilung oder Regulierung behandeln, deren konkrete Ausrichtung aber unklar ist
+- Titeln, deren Relevanz entscheidend von Informationen aus der Beschreibung
+  abhängt
+
+Ein unklarer Titel darf nicht deshalb mit 0 bewertet werden, weil kein
+politisches Schlüsselwort vorkommt.
+
+Wenn 0 und -1 beide plausibel erscheinen, verwende -1, sofern das Thema aus dem
+Titel tatsächlich nicht erkennbar ist.
+
+BEISPIELE
+
+Titel: "Bundestag streitet über eine Vermögensteuer"
+Label: 1
+
+Titel: "Warum der Sozialstaat Leistung bestraft"
+Label: 1
+
+Titel: "EU plant strengere Regulierung von Technologiekonzernen"
+Label: 1
+
+Titel: "Soll Fleisch wegen des Klimas stärker besteuert werden?"
+Label: 1
+
+Titel: "Zehntausende Menschen feiern den Cologne Pride"
+Label: 1
+
+Titel: "Märkte am Morgen: Bitcoin, Broadcom und SpaceX"
+Label: 0
+
+Titel: "Unternehmensanalyse: Wachstum und Umsatz von Apple"
+Label: 0
+
+Titel: "Die Höhepunkte des Champions-League-Spiels"
+Label: 0
+
+Titel: "Bildschirmzeit reduzieren – ein Elternratgeber"
+Label: 0
+
+Titel: "Jetzt wird es wirklich vollkommen lächerlich"
+Label: -1
+
+Titel: "Ich bin hier in einem Flugzeug, das entführt worden ist"
+Label: -1
+
+Titel: "Die Wahrheit, die niemand hören will"
+Label: -1
+
+Titel: "English Debate – Vegan vs. Fleisch"
+Label: -1
+
+
+ENTSCHEIDUNGSREGELN
+
+1. Verwende ausschließlich den jeweiligen Titel.
+2. Nutze kein Wissen über den Kanal, den Urheber oder bekannte Personen.
+3. Bewerte jedes Video unabhängig von allen anderen Videos der Gruppe.
+4. Vergleiche die Titel nicht miteinander.
+5. Es gibt keine vorgegebene Verteilung der Labels.
+6. Ein wirtschaftliches Thema ist nicht automatisch politisch.
+7. Ein möglicherweise politischer Nebenaspekt reicht nicht aus, wenn der
+   erkennbare Hauptgegenstand klar unpolitisch ist.
+8. Rate nicht, wenn Thema oder Kontext des Titels unklar sind.
+9. Gib für jedes eingesendete item_id genau eine Klassifikation zurück.
+10. Übernimm jedes item_id exakt und unverändert.
+11. Behalte die Reihenfolge der Videos bei.
+12. politics_title muss eine ganze Zahl sein: -1, 0 oder 1.
+13. Gib keine Erklärungen und keinen zusätzlichen Text aus.
+
+Du erhältst unter EINGABE ein JSON-Objekt mit einer Liste namens "videos".
+Jedes Video enthält ein kurzes item_id und einen Titel.
+
+Klassifiziere alle Videos entsprechend den Regeln.
 """
 }
 
