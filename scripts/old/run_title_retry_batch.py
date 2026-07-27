@@ -14,9 +14,7 @@ from youtube_code.politics_screening.screening_config import (
 
 from pathlib import Path
 RETRY_INPUT_FILE = Path(
-    r"E:\PyhcarmProjects\youtube_data"
-    r"\outputs\llm\title_classification"
-    r"\run_0003_retry.csv"
+    r"/outputs/llm/title_classification/run_0003_retry.csv"
 )
 
 PROMPT_KEY = "PROMPT_31"

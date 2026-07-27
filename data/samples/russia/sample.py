@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from youtube_code.config import RAW
-
+import json
 
 INPUT_SAMPLE = Path("videos_wo_shorts_russia_ukraine.json")
 METADATA_FILE = RAW / "video_metadata_detailed_total.jsonl"
@@ -147,4 +147,11 @@ def create_random_sample(input_file, output_file, columns,random_seed,  sample_s
     sample.to_csv(output_file, index = False)
 
 
-create_random_sample(OUTPUT_FILE, SAMPLE_OUTPUT, EXPORT_COLS, RANDOM_SEED)
+# create_random_sample(OUTPUT_FILE, SAMPLE_OUTPUT, EXPORT_COLS, RANDOM_SEED)
+
+df = pd.read_csv("final_selection/final_video_selection_primary.csv")
+df = df[df["politics_final"] == 1]
+video_ids= df["video_id"].to_list()
+
+with open("final_selection/ids_to_download.json", "w") as f:
+    json.dump(video_ids, f, ensure_ascii = False, indent = 2)
