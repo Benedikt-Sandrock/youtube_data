@@ -34,3 +34,4 @@ __pycache__
 /data/samples/russia/videos_wo_shorts_description.jsonl
 /data/samples/russia/fdescription_training_sample_42.xlsx
 /outputs/llm/title_classification/run*
+/outputs/llm/description_classification/

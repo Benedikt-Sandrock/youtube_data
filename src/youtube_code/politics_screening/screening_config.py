@@ -6,7 +6,8 @@ from youtube_code.config import SAMPLES, LLM
 PROJECT_ROOT = Path(__file__).parent.parent
 
 SCREENING_DIR = SAMPLES / "russia"
-TRAINING_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_41.csv"
+TRAINING_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
+DESCRIPTION_VALIDATION_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
 
 MAIN_VIDEO_FILE = SCREENING_DIR / "videos_wo_shorts_description.jsonl"
 KEYWORD_VIDEOS_FILE = SCREENING_DIR / "keyword_videos_50k_channels.json"
@@ -32,7 +33,6 @@ EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO = True
 KEYWORD_ACTIVITY_SCOPE = "entire_dataset"
 
 
-DESCRIPTION_VALIDATION_SAMPLE_FILE = SCREENING_DIR / "description_validation_sample_41.csv"
 DESCRIPTIONS_PER_REQUEST = 5
 MAX_DESCRIPTION_CHARS = 5000
 
@@ -50,7 +50,7 @@ REGISTRY_PATH = PROJECT_ROOT / "llm_analysis" / "registry" / "runs_registry.csv"
 
 # Das Rundenskript wird Kandidaten adaptiv nachziehen. Diese Werte begrenzen
 # nur die Anzahl neuer Kandidaten je Kanal und Periode in einer Runde.
-MIN_CANDIDATES_PER_PERIOD = 5
+MIN_CANDIDATES_PER_PERIOD_PER_ROUND = 5
 INITIAL_CANDIDATES_PER_PERIOD = 15
 MAX_CANDIDATES_PER_PERIOD_PER_ROUND = 30
 

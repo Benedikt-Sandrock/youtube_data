@@ -17,6 +17,7 @@ from youtube_code.politics_screening.screening_config import REGISTRY_PATH
 BATCH_INPUT_JSONL_TEMPLATE = "batch_input_{prompt_number}_{model_name}.jsonl"
 DEFAULT_MANIFEST_DIR = Path("batch_manifests")
 DEFAULT_MAX_DESCRIPTION_CHARS = 5_000
+DEFAULT_PREVIOUS_TITLE_LABEL_COLUMN = "politics_title_model"
 
 MODEL_ALIASES = {
     "gemini_25_flash": "gemini-2.5-flash",
@@ -44,6 +45,82 @@ def clean_text(value) -> str:
     if value is None or pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def select_title_uncertain_rows(
+    df: pd.DataFrame,
+    previous_title_label_column: str,
+) -> pd.DataFrame:
+    """
+    Select exactly the videos deferred by the preceding title screening.
+
+    The column must contain a complete Prompt-32 result with labels -1/0/1.
+    Missing or invalid labels are treated as a pipeline error rather than
+    silently excluding videos from the description stage.
+    """
+    if not previous_title_label_column:
+        raise ValueError(
+            "previous_title_label_column must be specified for "
+            "input_mode='title_description'."
+        )
+    if previous_title_label_column not in df.columns:
+        raise ValueError(
+            "The title-description filter column "
+            f"{previous_title_label_column!r} is missing. Available columns: "
+            f"{sorted(df.columns.tolist())}"
+        )
+
+    raw_labels = df[previous_title_label_column]
+    numeric_labels = pd.to_numeric(
+        raw_labels,
+        errors="coerce",
+    )
+
+    invalid_nonmissing = raw_labels.notna() & numeric_labels.isna()
+    if invalid_nonmissing.any():
+        invalid_values = (
+            raw_labels.loc[invalid_nonmissing]
+            .astype(str)
+            .unique()
+            .tolist()
+        )
+        raise ValueError(
+            f"{previous_title_label_column!r} contains non-numeric labels: "
+            f"{sorted(invalid_values)[:10]}"
+        )
+
+    if numeric_labels.isna().any():
+        raise ValueError(
+            f"{previous_title_label_column!r} contains "
+            f"{int(numeric_labels.isna().sum()):,} missing title labels. "
+            "Prompt 32 must be complete before Prompt 33 is submitted."
+        )
+
+    numeric_labels = numeric_labels.astype(int)
+    invalid_labels = ~numeric_labels.isin([-1, 0, 1])
+    if invalid_labels.any():
+        invalid_values = sorted(
+            numeric_labels.loc[invalid_labels].unique().tolist()
+        )
+        raise ValueError(
+            f"{previous_title_label_column!r} contains invalid labels: "
+            f"{invalid_values}. Expected only -1, 0, or 1."
+        )
+
+    selected = df.loc[numeric_labels.eq(-1)].copy()
+    print(
+        "Title-description filter: "
+        f"{len(selected):,}/{len(df):,} rows selected because "
+        f"{previous_title_label_column} == -1."
+    )
+
+    if selected.empty:
+        raise ValueError(
+            "No title-uncertain videos were found. There is nothing to "
+            "submit to Prompt 33."
+        )
+
+    return selected
 
 
 def build_input_text(
@@ -376,6 +453,9 @@ def csv_to_jsonl(
     grouping_seed: int = 42,
     manifest_path: str | Path | None = None,
     max_description_chars: int = DEFAULT_MAX_DESCRIPTION_CHARS,
+    previous_title_label_column: str = (
+        DEFAULT_PREVIOUS_TITLE_LABEL_COLUMN
+    ),
 ):
     print(f"Converting CSV to JSONL -> {jsonl_path}")
     df = pd.read_csv(
@@ -383,6 +463,12 @@ def csv_to_jsonl(
         dtype={"video_id": "string"},
         low_memory=False,
     )
+
+    if input_mode == "title_description":
+        df = select_title_uncertain_rows(
+            df=df,
+            previous_title_label_column=previous_title_label_column,
+        )
 
     jsonl_path = Path(jsonl_path)
 
@@ -510,6 +596,9 @@ def run_all_prompts(
     batch_input_dir: str | Path = ".",
     manifest_dir: str | Path = DEFAULT_MANIFEST_DIR,
     max_description_chars: int = DEFAULT_MAX_DESCRIPTION_CHARS,
+    previous_title_label_column: str = (
+        DEFAULT_PREVIOUS_TITLE_LABEL_COLUMN
+    ),
     dry_run: bool = False,
 ):
     """
@@ -541,8 +630,19 @@ def run_all_prompts(
     batch_input_dir = Path(batch_input_dir)
     batch_input_dir.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(
+        csv_path,
+        dtype={"video_id": "string"},
+        low_memory=False,
+    )
     input_rows = len(df)
+    rows_to_submit = input_rows
+    if input_mode == "title_description":
+        description_input = select_title_uncertain_rows(
+            df=df,
+            previous_title_label_column=previous_title_label_column,
+        )
+        rows_to_submit = len(description_input)
 
     print(f"\n{'=' * 60}")
     print(f"Input: '{csv_path}'")
@@ -551,8 +651,13 @@ def run_all_prompts(
     print(f"Target variable: {target_variable} | Validation basis: {validation_basis}")
     print(f"Prompts to run: {len(prompt_keys)} -> {prompt_keys}")
     print(f"Number of input rows: {input_rows}")
+    print(f"Number of rows to submit: {rows_to_submit}")
     print(f"Items per model request: {items_per_request}")
     if input_mode == "title_description":
+        print(
+            "Previous title label column: "
+            f"{previous_title_label_column} (only -1 is submitted)"
+        )
         print(
             "Maximum description length per video: "
             f"{max_description_chars:,} characters"
@@ -599,6 +704,9 @@ def run_all_prompts(
                 grouping_seed=grouping_seed,
                 manifest_path=temporary_manifest_path,
                 max_description_chars=max_description_chars,
+                previous_title_label_column=(
+                    previous_title_label_column
+                ),
             )
 
             if not dry_run:

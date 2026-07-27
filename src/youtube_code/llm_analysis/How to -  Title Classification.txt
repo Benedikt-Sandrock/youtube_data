@@ -1,0 +1,12 @@
+0. (only once in the beginning) Run prepare_politics_screening.py
+
+1. create_screening_round.py
+2. Prompt-32-Produktionsrun absenden
+3. download_results.py
+4. update_screening_state.py, MODE="title", DRY_RUN=True
+5. update_screening_state.py, MODE="title", DRY_RUN=False
+6. erzeugte description_candidates mit Prompt 33 absenden
+7. download_results.py
+8. update_screening_state.py, MODE="description", DRY_RUN=True
+9. update_screening_state.py, MODE="description", DRY_RUN=False
+10. create_screening_round.py für die nächste Runde

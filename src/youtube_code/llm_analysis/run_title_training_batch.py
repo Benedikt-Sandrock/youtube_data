@@ -40,7 +40,7 @@ def main():
 
     run_all_prompts(
         csv_path=DESCRIPTION_VALIDATION_SAMPLE_FILE,
-        prompt_keys=["PROMPT_33"],
+        prompt_keys=[PROMPT_KEY],
         prompts=selected_prompts,
         dataset_id=DESCRIPTION_VALIDATION_SAMPLE_FILE.stem,
         dataset_version="v1",
@@ -56,6 +56,7 @@ def main():
         manifest_dir=MANIFEST_DIR,
         max_description_chars=5_000,
         dry_run=False,
+        previous_title_label_column="politics_title",
     )
 
 

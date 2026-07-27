@@ -36,7 +36,7 @@ from youtube_code.politics_screening.screening_config import (
 
 # First inspect the printed plan with DRY_RUN=True. Change it to False only
 # after the counts and the sample rows look plausible.
-DRY_RUN = True
+DRY_RUN = False
 
 
 REQUIRED_COLUMNS = {

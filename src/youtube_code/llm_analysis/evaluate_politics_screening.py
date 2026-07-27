@@ -31,12 +31,12 @@ from youtube_code.politics_screening.screening_config import (
 #                  deferred by the title model
 # "pipeline"    -> combined PROMPT_32/PROMPT_33 result against
 #                  politics_final_manual for the complete manual sample
-EVALUATION_MODE = "title"
+EVALUATION_MODE = "pipeline"
 
-TITLE_RUN_ID = "run_0005"
-DESCRIPTION_RUN_ID = "run_0000"
+TITLE_RUN_ID = "run_0008"
+DESCRIPTION_RUN_ID = "run_0011"
 
-MANUAL_LABEL_VERSION = "v3"
+MANUAL_LABEL_VERSION = "v2"
 MANUAL_FILE = TRAINING_SAMPLE_FILE
 
 # The existing filename is retained so earlier title evaluations remain in
