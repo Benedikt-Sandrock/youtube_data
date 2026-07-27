@@ -14,7 +14,16 @@ from registry.run_registry import RunRegistry
 # CONFIG
 # ============================================================
 
-RESULTS_DIR = LLM / "title_classification"
+RESULTS_DIRS = {
+    "politics_title": LLM / "title_classification",
+    "politics_title_desc": LLM / "description_classification",
+}
+# Preserve the previous location for older/non-screening run types.
+DEFAULT_RESULTS_DIR = LLM / "title_classification"
+SUPPORTED_GROUPED_TARGETS = {
+    "politics_title",
+    "politics_title_desc",
+}
 SAVE_FORMAT = "CSV"
 
 registry = RunRegistry(REGISTRY_PATH)
@@ -120,6 +129,11 @@ def save_dataframe(
     else:
         df.to_excel(output_path, index=False)
     print(f"  Saved: {output_path}")
+
+
+def get_results_dir(target_variable: str) -> Path:
+    """Choose a separate output folder for every screening stage."""
+    return RESULTS_DIRS.get(target_variable, DEFAULT_RESULTS_DIR)
 
 
 # ============================================================
@@ -258,10 +272,63 @@ def load_group_manifest(manifest_path: Path) -> pd.DataFrame:
     return manifest
 
 
+def resolve_grouped_target_variable(
+    manifest: pd.DataFrame,
+    registry_target_variable: str | None,
+) -> str:
+    """
+    Resolve the label column and guard against mixing runs/manifests.
+
+    New manifests contain target_variable. Older title manifests do not, so
+    they remain compatible through the registry value (or politics_title as
+    the final legacy fallback).
+    """
+    requested_target = str(registry_target_variable or "").strip()
+    manifest_target = ""
+
+    if "target_variable" in manifest.columns:
+        manifest_targets = {
+            str(value).strip()
+            for value in manifest["target_variable"]
+            if str(value).strip()
+        }
+        if len(manifest_targets) > 1:
+            raise ValueError(
+                "Manifest contains multiple target variables: "
+                f"{sorted(manifest_targets)}"
+            )
+        if manifest_targets:
+            manifest_target = next(iter(manifest_targets))
+
+    if (
+        requested_target
+        and manifest_target
+        and requested_target != manifest_target
+    ):
+        raise ValueError(
+            "Target-variable mismatch between registry and manifest: "
+            f"{requested_target!r} != {manifest_target!r}."
+        )
+
+    target_variable = (
+        manifest_target
+        or requested_target
+        or "politics_title"
+    )
+    if target_variable not in SUPPORTED_GROUPED_TARGETS:
+        raise ValueError(
+            f"Unsupported grouped target variable: {target_variable!r}. "
+            f"Supported values: {sorted(SUPPORTED_GROUPED_TARGETS)}"
+        )
+
+    return target_variable
+
+
 def validate_group_response_with_item_ids(
     request_id: str,
     parsed_response: dict,
     expected_group: pd.DataFrame,
+    target_variable: str,
 ) -> tuple[list[dict], list[str], list[str]]:
     """Validate a grouped response through short manifest item IDs."""
     errors = []
@@ -290,7 +357,7 @@ def validate_group_response_with_item_ids(
             continue
 
         item_id = str(item.get("item_id", "")).strip()
-        raw_label = item.get("politics_title")
+        raw_label = item.get(target_variable)
 
         if not item_id:
             errors.append(
@@ -316,7 +383,7 @@ def validate_group_response_with_item_ids(
         returned_rows.append(
             {
                 "item_id": item_id,
-                "politics_title": label,
+                target_variable: label,
                 "request_id": request_id,
                 "response_position": response_position,
             }
@@ -376,7 +443,7 @@ def validate_group_response_with_item_ids(
                 "item_id": manifest_row.item_id,
                 "returned_item_id": response_row["item_id"],
                 "item_id_corrected": False,
-                "politics_title": response_row["politics_title"],
+                target_variable: response_row[target_variable],
                 "request_id": request_id,
                 "group_position": int(manifest_row.position),
                 "response_position": response_row["response_position"],
@@ -391,6 +458,7 @@ def validate_group_response(
     request_id: str,
     parsed_response: dict,
     expected_group: pd.DataFrame,
+    target_variable: str,
 ) -> tuple[list[dict], list[str], list[str]]:
     """Validate a legacy grouped response containing real video IDs."""
     errors = []
@@ -419,7 +487,7 @@ def validate_group_response(
             continue
 
         video_id = str(item.get("video_id", "")).strip()
-        raw_label = item.get("politics_title")
+        raw_label = item.get(target_variable)
 
         if not video_id:
             errors.append(
@@ -447,7 +515,7 @@ def validate_group_response(
                 "video_id": video_id,
                 "returned_video_id": video_id,
                 "video_id_corrected": False,
-                "politics_title": label,
+                target_variable: label,
                 "request_id": request_id,
                 "response_position": response_position,
             }
@@ -548,7 +616,7 @@ def validate_group_response(
                 "item_id": pd.NA,
                 "returned_item_id": pd.NA,
                 "item_id_corrected": False,
-                "politics_title": response_row["politics_title"],
+                target_variable: response_row[target_variable],
                 "request_id": request_id,
                 "group_position": int(manifest_row.position),
                 "response_position": response_row["response_position"],
@@ -559,9 +627,10 @@ def validate_group_response(
     return accepted_rows, [], correction_notes
 
 
-def parse_grouped_title_results(
+def parse_grouped_results(
     records: list[dict],
     manifest: pd.DataFrame,
+    target_variable: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Explode valid grouped responses to one row per video.
@@ -654,6 +723,7 @@ def parse_grouped_title_results(
                 request_id=request_id,
                 parsed_response=parsed_response,
                 expected_group=expected_group,
+                target_variable=target_variable,
             )
         except (ValueError, KeyError, IndexError, TypeError) as error:
             group_rows = []
@@ -708,7 +778,7 @@ def parse_grouped_title_results(
             "item_id",
             "returned_item_id",
             "item_id_corrected",
-            "politics_title",
+            target_variable,
             "request_id",
             "group_position",
             "response_position",
@@ -738,13 +808,17 @@ def parse_grouped_title_results(
     ]
     if "item_id" in manifest.columns:
         retry_columns.append("item_id")
+    retry_columns.extend(["video_id", "title"])
     retry_columns.extend(
-        [
-            "video_id",
-            "title",
+        column
+        for column in [
+            "items_per_request",
             "titles_per_request",
             "grouping_seed",
+            "input_mode",
+            "target_variable",
         ]
+        if column in manifest.columns
     )
 
     retry_df = (
@@ -764,11 +838,19 @@ def save_grouped_results(
     manifest_path: Path,
     output_path: Path,
     save_format: str,
+    registry_target_variable: str | None,
 ) -> dict:
     manifest = load_group_manifest(manifest_path)
-    results_df, validation_df, retry_df = parse_grouped_title_results(
+    target_variable = resolve_grouped_target_variable(
+        manifest=manifest,
+        registry_target_variable=registry_target_variable,
+    )
+    print(f"  Validating response field: {target_variable}")
+
+    results_df, validation_df, retry_df = parse_grouped_results(
         records=records,
         manifest=manifest,
+        target_variable=target_variable,
     )
 
     save_dataframe(results_df, output_path, save_format)
@@ -845,18 +927,21 @@ def saving_results(
     output_path: str | Path,
     save_format: str,
     manifest_path: Path | None = None,
+    target_variable: str | None = None,
 ) -> dict:
     records = download_batch_records(output_uris)
     output_path = Path(output_path)
 
     grouped_request_detected = any(
-        str(record.get("custom_id", "")).startswith("title_group_")
+        str(record.get("custom_id", "")).startswith(
+            ("title_group_", "title_description_group_")
+        )
         for record in records
     )
 
     if grouped_request_detected and manifest_path is None:
         raise ValueError(
-            "Grouped title responses were detected, but no matching "
+            "Grouped screening responses were detected, but no matching "
             "manifest was found."
         )
 
@@ -867,6 +952,7 @@ def saving_results(
             manifest_path=manifest_path,
             output_path=output_path,
             save_format=save_format,
+            registry_target_variable=target_variable,
         )
 
     print("  No group manifest found; using single-request parser.")
@@ -902,16 +988,24 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
     """Check a registered job, download and validate finished output."""
     run = registry.get_run(run_id)
     job_id = run["job_id"]
+    raw_target_variable = run.get("target_variable", "")
+    target_variable = (
+        ""
+        if pd.isna(raw_target_variable)
+        else str(raw_target_variable).strip()
+    )
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    results_dir = get_results_dir(target_variable)
+    results_dir.mkdir(parents=True, exist_ok=True)
     extension = "csv" if save_format == "CSV" else "xlsx"
-    output_path = RESULTS_DIR / f"{run_id}.{extension}"
+    output_path = results_dir / f"{run_id}.{extension}"
     manifest_path = MANIFEST_DIR / f"{run_id}_manifest.csv"
 
     print(
         f"\n[{run_id}] Prompt: {run['prompt_id']} | "
         f"Model: {run['model']} | Dataset: "
-        f"{run['dataset_id']} ({run['dataset_version']})"
+        f"{run['dataset_id']} ({run['dataset_version']}) | "
+        f"Target: {target_variable or 'not specified'}"
     )
 
     try:
@@ -960,6 +1054,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
             manifest_path=(
                 manifest_path if manifest_path.exists() else None
             ),
+            target_variable=target_variable,
         )
     except Exception as error:
         print(f"  Download or validation failed: {error}")

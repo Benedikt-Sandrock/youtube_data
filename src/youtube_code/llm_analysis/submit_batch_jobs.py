@@ -16,6 +16,7 @@ from youtube_code.politics_screening.screening_config import REGISTRY_PATH
 
 BATCH_INPUT_JSONL_TEMPLATE = "batch_input_{prompt_number}_{model_name}.jsonl"
 DEFAULT_MANIFEST_DIR = Path("batch_manifests")
+DEFAULT_MAX_DESCRIPTION_CHARS = 5_000
 
 MODEL_ALIASES = {
     "gemini_25_flash": "gemini-2.5-flash",
@@ -38,10 +39,25 @@ def get_prompt_number(prompt_key: str) -> str:
         return "0"
 
 
-def build_input_text(row: pd.Series, input_mode: str) -> str | None:
-    title = str(row.get("title", "") or "").strip()
-    description = str(row.get("description", "") or "").strip()
-    transcript = str(row.get("transcript", "") or "").strip()
+def clean_text(value) -> str:
+    """Convert missing table values to an empty string."""
+    if value is None or pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
+def build_input_text(
+    row: pd.Series,
+    input_mode: str,
+    max_description_chars: int = DEFAULT_MAX_DESCRIPTION_CHARS,
+) -> str | None:
+    title = clean_text(row.get("title"))
+    description = clean_text(row.get("description"))
+    transcript = clean_text(row.get("transcript"))
+
+    if max_description_chars < 1:
+        raise ValueError("max_description_chars must be at least 1.")
+    description = description[:max_description_chars]
 
     if input_mode == "title":
         if not title:
@@ -64,8 +80,44 @@ def build_input_text(row: pd.Series, input_mode: str) -> str | None:
     raise ValueError(f"Unknown input_mode: {input_mode}")
 
 
-def build_grouped_title_response_schema(group_size: int) -> dict:
-    """Response schema for one request containing several titles."""
+def validate_grouped_mode_and_target(
+    input_mode: str,
+    target_variable: str,
+):
+    expected_targets = {
+        "title": "politics_title",
+        "title_description": "politics_title_desc",
+    }
+    if input_mode not in expected_targets:
+        raise ValueError(
+            "Grouped requests are only supported for "
+            "input_mode='title' or 'title_description'."
+        )
+
+    expected_target = expected_targets[input_mode]
+    if target_variable != expected_target:
+        raise ValueError(
+            f"input_mode={input_mode!r} requires "
+            f"target_variable={expected_target!r}, got "
+            f"{target_variable!r}."
+        )
+
+
+def build_grouped_response_schema(
+    group_size: int,
+    target_variable: str,
+) -> dict:
+    """Structured response schema for a grouped screening request."""
+    if group_size < 1:
+        raise ValueError("group_size must be at least 1.")
+    if target_variable not in {
+        "politics_title",
+        "politics_title_desc",
+    }:
+        raise ValueError(
+            f"Unsupported grouped target variable: {target_variable!r}."
+        )
+
     return {
         "type": "OBJECT",
         "properties": {
@@ -79,17 +131,17 @@ def build_grouped_title_response_schema(group_size: int) -> dict:
                         "item_id": {
                             "type": "STRING",
                         },
-                        "politics_title": {
+                        target_variable: {
                             "type": "INTEGER",
                         },
                     },
                     "required": [
                         "item_id",
-                        "politics_title",
+                        target_variable,
                     ],
                     "propertyOrdering": [
                         "item_id",
-                        "politics_title",
+                        target_variable,
                     ],
                 },
             }
@@ -99,21 +151,43 @@ def build_grouped_title_response_schema(group_size: int) -> dict:
     }
 
 
-def prepare_title_data(
+def prepare_grouped_screening_data(
     df: pd.DataFrame,
+    input_mode: str,
+    target_variable: str,
     grouping_seed: int,
+    max_description_chars: int,
 ) -> pd.DataFrame:
+    validate_grouped_mode_and_target(
+        input_mode=input_mode,
+        target_variable=target_variable,
+    )
+
     required_columns = {"video_id", "title"}
+    if input_mode == "title_description":
+        required_columns.add("description")
+
     missing = required_columns - set(df.columns)
     if missing:
         raise ValueError(
-            f"Missing columns for title classification: {sorted(missing)}"
+            "Missing columns for grouped screening: "
+            f"{sorted(missing)}"
         )
+    if max_description_chars < 1:
+        raise ValueError("max_description_chars must be at least 1.")
 
     data = df.copy()
-    data = data.dropna(subset=["video_id", "title"])
-    data["video_id"] = data["video_id"].astype("string").str.strip()
-    data["title"] = data["title"].astype("string").str.strip()
+    data["video_id"] = data["video_id"].map(clean_text).astype("string")
+    data["title"] = data["title"].map(clean_text).astype("string")
+
+    if input_mode == "title_description":
+        data["description"] = (
+            data["description"]
+            .map(clean_text)
+            .astype("string")
+            .str.slice(0, max_description_chars)
+        )
+
     data = data.loc[
         data["video_id"].ne("") & data["title"].ne("")
     ].copy()
@@ -136,52 +210,70 @@ def prepare_title_data(
     ).reset_index(drop=True)
 
 
-def grouped_titles_to_jsonl(
+def grouped_screening_to_jsonl(
     df: pd.DataFrame,
     jsonl_path: Path,
     manifest_path: Path,
     system_prompt: str,
-    titles_per_request: int,
+    input_mode: str,
+    target_variable: str,
+    items_per_request: int,
     grouping_seed: int,
     thinking_budget: int | None,
+    max_description_chars: int,
 ) -> tuple[int, int]:
-    if titles_per_request < 2:
-        raise ValueError("titles_per_request must be at least 2 here.")
+    if items_per_request < 2:
+        raise ValueError("items_per_request must be at least 2 here.")
 
-    data = prepare_title_data(df, grouping_seed)
+    data = prepare_grouped_screening_data(
+        df=df,
+        input_mode=input_mode,
+        target_variable=target_variable,
+        grouping_seed=grouping_seed,
+        max_description_chars=max_description_chars,
+    )
     if data.empty:
-        raise ValueError("No valid videos with titles found.")
+        raise ValueError("No valid videos for grouped screening found.")
 
     manifest_rows = []
     written_requests = 0
+    request_prefix = (
+        "title_group"
+        if input_mode == "title"
+        else "title_description_group"
+    )
 
     with jsonl_path.open("w", encoding="utf-8") as output_file:
-        for start in range(0, len(data), titles_per_request):
-            group = data.iloc[start:start + titles_per_request]
-            request_id = f"title_group_{written_requests + 1:06d}"
+        for start in range(0, len(data), items_per_request):
+            group = data.iloc[start:start + items_per_request]
+            request_id = f"{request_prefix}_{written_requests + 1:06d}"
 
-            group_items = [
-                {
+            group_items = []
+            for position, row in enumerate(
+                group.itertuples(index=False),
+                start=1,
+            ):
+                item = {
                     "item_id": f"item_{position:02d}",
                     "video_id": str(row.video_id),
                     "title": str(row.title),
                 }
-                for position, row in enumerate(
-                    group.itertuples(index=False),
-                    start=1,
-                )
-            ]
+                if input_mode == "title_description":
+                    item["description"] = str(row.description)
+                group_items.append(item)
 
             # The model sees only a short identifier. The real YouTube ID is
             # retained exclusively in the manifest and never has to be copied
             # by the model.
-            videos = [
-                {
+            videos = []
+            for item in group_items:
+                video = {
                     "item_id": item["item_id"],
                     "title": item["title"],
                 }
-                for item in group_items
-            ]
+                if input_mode == "title_description":
+                    video["description"] = item["description"]
+                videos.append(video)
 
             input_text = json.dumps(
                 {"videos": videos},
@@ -191,8 +283,9 @@ def grouped_titles_to_jsonl(
 
             generation_config = {
                 "responseMimeType": "application/json",
-                "responseSchema": build_grouped_title_response_schema(
-                    group_size=len(videos)
+                "responseSchema": build_grouped_response_schema(
+                    group_size=len(videos),
+                    target_variable=target_variable,
                 ),
                 "temperature": 0,
             }
@@ -200,12 +293,12 @@ def grouped_titles_to_jsonl(
             label_schema = (
                 generation_config["responseSchema"]
                 ["properties"]["classifications"]
-                ["items"]["properties"]["politics_title"]
+                ["items"]["properties"][target_variable]
             )
 
             if label_schema != {"type": "INTEGER"}:
                 raise ValueError(
-                    "Invalid politics_title schema: "
+                    f"Invalid {target_variable} schema: "
                     f"{label_schema!r}"
                 )
 
@@ -246,8 +339,13 @@ def grouped_titles_to_jsonl(
                         "item_id": item["item_id"],
                         "video_id": item["video_id"],
                         "title": item["title"],
-                        "titles_per_request": titles_per_request,
+                        # Retained for compatibility with the existing
+                        # download/validation scripts.
+                        "titles_per_request": items_per_request,
+                        "items_per_request": items_per_request,
                         "grouping_seed": grouping_seed,
+                        "input_mode": input_mode,
+                        "target_variable": target_variable,
                     }
                 )
 
@@ -260,7 +358,8 @@ def grouped_titles_to_jsonl(
     )
 
     print(
-        f"{len(data)} videos written as {written_requests} grouped requests."
+        f"{len(data)} videos written as {written_requests} grouped "
+        f"{input_mode} requests."
     )
     print(f"Manifest saved temporarily to {manifest_path}.")
     return written_requests, len(data)
@@ -271,41 +370,60 @@ def csv_to_jsonl(
     jsonl_path,
     system_prompt,
     input_mode: str,
+    target_variable: str,
     thinking_budget: int | None = None,
-    titles_per_request: int = 1,
+    items_per_request: int = 1,
     grouping_seed: int = 42,
     manifest_path: str | Path | None = None,
+    max_description_chars: int = DEFAULT_MAX_DESCRIPTION_CHARS,
 ):
     print(f"Converting CSV to JSONL -> {jsonl_path}")
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(
+        csv_path,
+        dtype={"video_id": "string"},
+        low_memory=False,
+    )
 
     jsonl_path = Path(jsonl_path)
 
-    if input_mode == "title" and titles_per_request > 1:
+    if (
+        input_mode in {"title", "title_description"}
+        and items_per_request > 1
+    ):
         if manifest_path is None:
             manifest_path = jsonl_path.with_suffix(".manifest.csv")
-        return grouped_titles_to_jsonl(
+        return grouped_screening_to_jsonl(
             df=df,
             jsonl_path=jsonl_path,
             manifest_path=Path(manifest_path),
             system_prompt=system_prompt,
-            titles_per_request=titles_per_request,
+            input_mode=input_mode,
+            target_variable=target_variable,
+            items_per_request=items_per_request,
             grouping_seed=grouping_seed,
             thinking_budget=thinking_budget,
+            max_description_chars=max_description_chars,
         )
 
-    if titles_per_request != 1:
+    if items_per_request != 1:
         raise ValueError(
-            "Grouped requests are currently only implemented for "
-            "input_mode='title'."
+            "Grouped requests are only implemented for input_mode='title' "
+            "or 'title_description'."
         )
 
     written_requests = 0
 
     with jsonl_path.open("w", encoding="utf-8") as f:
         for _, row in df.iterrows():
-            video_id = str(row["video_id"])
-            input_text = build_input_text(row, input_mode)
+            video_id = clean_text(row.get("video_id"))
+            if not video_id:
+                continue
+
+            input_text = build_input_text(
+                row=row,
+                input_mode=input_mode,
+                max_description_chars=max_description_chars,
+            )
 
             if input_text is None:
                 continue
@@ -391,6 +509,7 @@ def run_all_prompts(
     grouping_seed: int = 42,
     batch_input_dir: str | Path = ".",
     manifest_dir: str | Path = DEFAULT_MANIFEST_DIR,
+    max_description_chars: int = DEFAULT_MAX_DESCRIPTION_CHARS,
     dry_run: bool = False,
 ):
     """
@@ -415,6 +534,8 @@ def run_all_prompts(
         prompt_keys = [prompt_keys]
     if items_per_request < 1:
         raise ValueError("items_per_request must be at least 1.")
+    if max_description_chars < 1:
+        raise ValueError("max_description_chars must be at least 1.")
 
     manifest_dir = Path(manifest_dir)
     batch_input_dir = Path(batch_input_dir)
@@ -431,6 +552,11 @@ def run_all_prompts(
     print(f"Prompts to run: {len(prompt_keys)} -> {prompt_keys}")
     print(f"Number of input rows: {input_rows}")
     print(f"Items per model request: {items_per_request}")
+    if input_mode == "title_description":
+        print(
+            "Maximum description length per video: "
+            f"{max_description_chars:,} characters"
+        )
     print(f"Grouping seed: {grouping_seed}")
     print(f"Dry run: {dry_run}")
     print(f"{'=' * 60}\n")
@@ -467,10 +593,12 @@ def run_all_prompts(
                 jsonl_path=jsonl_path,
                 system_prompt=system_prompt,
                 input_mode=input_mode,
+                target_variable=target_variable,
                 thinking_budget=thinking_budget,
-                titles_per_request=items_per_request,
+                items_per_request=items_per_request,
                 grouping_seed=grouping_seed,
                 manifest_path=temporary_manifest_path,
+                max_description_chars=max_description_chars,
             )
 
             if not dry_run:

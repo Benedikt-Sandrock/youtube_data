@@ -1,17 +1,24 @@
+import hashlib
+import json
 import pandas as pd
 from pathlib import Path
 
-from youtube_code.config import SAMPLES
+from youtube_code.politics_screening.screening_config import (
+    MAIN_VIDEO_FILE,
+    EXCLUDED_CHANNELS_FILE,
+    EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO,
+    KEYWORD_ACTIVITY_SCOPE,
+    KEYWORD_VIDEOS_FILE,
+    READ_CHUNK_SIZE,
+    REFERENCE_DATE,
+    SELECTION_SEED,
+    STATE_FILE,
+    TARGET_POLITICAL_PER_PERIOD,
+    TARGET_WITH_BUFFER_PER_PERIOD,
+    WINDOW_MONTHS,
+)
 
-
-INPUT_FILE = (SAMPLES / "russia" / "videos_wo_shorts_description.jsonl")
-
-STATE_FILE = (SAMPLES / "russia" / "politics_screening_state.csv")
-
-REFERENCE_DATE = "2022-02-24T00:00:00Z"
-MONTHS_BEFORE = 3
-
-READ_CHUNK_SIZE = 50_000
+INPUT_FILE = MAIN_VIDEO_FILE
 
 REQUIRED_COLUMNS = [
     "video_id",
@@ -35,6 +42,173 @@ def parse_reference_date(reference_date: str) -> pd.Timestamp:
         return reference.tz_localize("UTC")
 
     return reference.tz_convert("UTC")
+
+
+def load_keyword_videos(keyword_videos_path: Path) -> pd.DataFrame:
+    """
+    Load the separate keyword-video file.
+
+    Both a JSON list and JSONL are accepted. Only the columns needed for
+    channel eligibility and documentation are retained.
+    """
+    if not keyword_videos_path.exists():
+        raise FileNotFoundError(
+            "Keyword channel filtering requires this file, but it was not "
+            f"found: {keyword_videos_path}"
+        )
+
+    with open(keyword_videos_path, "r", encoding="utf-8") as file:
+        first_character = ""
+        while not first_character:
+            character = file.read(1)
+            if not character:
+                break
+            if not character.isspace():
+                first_character = character
+        file.seek(0)
+
+        if first_character == "[":
+            records = json.load(file)
+        else:
+            records = [
+                json.loads(line)
+                for line in file
+                if line.strip()
+            ]
+
+    keyword_videos = pd.DataFrame(records)
+    required = {"channel_id", "published_at"}
+    missing = required - set(keyword_videos.columns)
+    if missing:
+        raise ValueError(
+            "Keyword-video file is missing columns: "
+            f"{sorted(missing)}"
+        )
+
+    columns = ["channel_id", "published_at"]
+    if "video_id" in keyword_videos.columns:
+        columns.insert(0, "video_id")
+
+    keyword_videos = keyword_videos[columns].copy()
+    keyword_videos["channel_id"] = keyword_videos["channel_id"].astype(
+        "string"
+    )
+    keyword_videos["published_at"] = pd.to_datetime(
+        keyword_videos["published_at"],
+        utc=True,
+        errors="coerce",
+    )
+    keyword_videos = keyword_videos.dropna(
+        subset=["channel_id", "published_at"]
+    )
+
+    if "video_id" in keyword_videos.columns:
+        keyword_videos["video_id"] = keyword_videos["video_id"].astype(
+            "string"
+        )
+        keyword_videos = keyword_videos.drop_duplicates(
+            subset="video_id",
+            keep="last",
+        )
+    else:
+        keyword_videos = keyword_videos.drop_duplicates()
+
+    return keyword_videos
+
+
+def add_keyword_activity_to_channel_activity(
+    channel_activity: pd.DataFrame,
+    keyword_videos: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Include keyword videos when estimating the first and last observed video.
+
+    This matters because INPUT_FILE may intentionally contain only
+    non-keyword videos. Without this union, a channel's observed start could
+    be shifted forward when its earliest upload is a keyword video.
+    """
+    if keyword_videos.empty:
+        return channel_activity
+
+    keyword_activity = (
+        keyword_videos.groupby("channel_id")["published_at"]
+        .agg(
+            channel_start_date="min",
+            channel_last_video="max",
+        )
+    )
+
+    combined = pd.concat([channel_activity, keyword_activity])
+    combined = (
+        combined.groupby(level=0)
+        .agg(
+            channel_start_date=("channel_start_date", "min"),
+            channel_last_video=("channel_last_video", "max"),
+        )
+        .sort_index()
+    )
+    combined.index = combined.index.astype("string")
+    combined.index.name = "channel_id"
+    return combined
+
+
+def add_keyword_eligibility(
+    channel_windows: pd.DataFrame,
+    keyword_videos: pd.DataFrame,
+    activity_scope: str,
+) -> pd.DataFrame:
+    """
+    Count keyword videos per channel in the configured eligibility scope.
+    """
+    valid_scopes = {"channel_window", "entire_dataset"}
+    if activity_scope not in valid_scopes:
+        raise ValueError(
+            "keyword_activity_scope must be one of "
+            f"{sorted(valid_scopes)}, got {activity_scope!r}."
+        )
+
+    windows = channel_windows.copy()
+
+    if keyword_videos.empty:
+        counts = pd.Series(dtype="int64")
+    elif activity_scope == "entire_dataset":
+        counts = keyword_videos.groupby("channel_id").size()
+    else:
+        keyword_with_window = keyword_videos.merge(
+            windows[["window_start", "window_end"]],
+            left_on="channel_id",
+            right_index=True,
+            how="inner",
+            validate="many_to_one",
+        )
+        keyword_with_window = keyword_with_window.loc[
+            keyword_with_window["published_at"].ge(
+                keyword_with_window["window_start"]
+            )
+            & keyword_with_window["published_at"].lt(
+                keyword_with_window["window_end"]
+            )
+        ]
+        counts = keyword_with_window.groupby("channel_id").size()
+
+    windows["keyword_video_count_in_scope"] = (
+        counts.reindex(windows.index, fill_value=0)
+        .astype("int32")
+    )
+    windows["has_keyword_video_in_scope"] = (
+        windows["keyword_video_count_in_scope"].gt(0)
+    )
+    return windows
+
+
+def stable_random_key(video_id: str, seed: int) -> int:
+    """Return a reproducible pseudo-random key without global RNG state."""
+    value = f"{seed}|{video_id}".encode("utf-8")
+    return int.from_bytes(
+        hashlib.blake2b(value, digest_size=8).digest(),
+        byteorder="big",
+        signed=False,
+    )
 
 
 def scan_channel_activity(
@@ -205,26 +379,86 @@ def initialize_screening_state(
     input_json: Path,
     state_path: Path,
     reference_date: str,
-    months_before: int = 3,
+    keyword_videos_path: Path,
+    excluded_channels_path: Path,
+    observation_months: int = 3,
+    target_political_per_period: int = 10,
+    target_with_buffer_per_period: int = 12,
+    exclude_channels_without_keyword_video: bool = True,
+    keyword_activity_scope: str = "channel_window",
+    selection_seed: int = 42,
     chunk_size: int = 50_000,
 ):
+    if target_political_per_period < 1:
+        raise ValueError("target_political_per_period must be at least 1.")
+    if target_with_buffer_per_period < target_political_per_period:
+        raise ValueError(
+            "target_with_buffer_per_period must be greater than or equal to "
+            "target_political_per_period."
+        )
+
     reference = parse_reference_date(reference_date)
+
+    print("Loading separate keyword-video file.")
+    keyword_videos = load_keyword_videos(keyword_videos_path)
+    print(f"{len(keyword_videos):,} valid keyword videos loaded.")
 
     print("First pass: determining each channel's first observed video.")
     channel_activity, dataset_last_observed = scan_channel_activity(
         input_json=input_json,
         chunk_size=chunk_size,
     )
+    channel_activity = add_keyword_activity_to_channel_activity(
+        channel_activity=channel_activity,
+        keyword_videos=keyword_videos,
+    )
+    if not keyword_videos.empty:
+        dataset_last_observed = max(
+            dataset_last_observed,
+            keyword_videos["published_at"].max(),
+        )
 
     channel_windows = build_channel_windows(
         channel_activity=channel_activity,
         reference=reference,
-        months=months_before,
+        months=observation_months,
         dataset_last_observed=dataset_last_observed,
     )
+    channel_windows = add_keyword_eligibility(
+        channel_windows=channel_windows,
+        keyword_videos=keyword_videos,
+        activity_scope=keyword_activity_scope,
+    )
+
+    channel_windows["excluded_by_keyword_filter"] = (
+        ~channel_windows["has_keyword_video_in_scope"]
+        & exclude_channels_without_keyword_video
+    )
+
+    excluded_channels = channel_windows.loc[
+        ~channel_windows["has_keyword_video_in_scope"]
+    ].reset_index()
+    excluded_channels_path.parent.mkdir(parents=True, exist_ok=True)
+    excluded_channels.to_csv(
+        excluded_channels_path,
+        index=False,
+        date_format="%Y-%m-%dT%H:%M:%SZ",
+    )
+
+    if exclude_channels_without_keyword_video:
+        eligible_channel_windows = channel_windows.loc[
+            channel_windows["has_keyword_video_in_scope"]
+        ].copy()
+    else:
+        eligible_channel_windows = channel_windows.copy()
+
+    if eligible_channel_windows.empty:
+        raise ValueError(
+            "No eligible channels remain after the keyword activity filter."
+        )
 
     regular_window_start = reference - pd.DateOffset(
-        months=months_before
+        months=observation_months
     )
     print(
         "Established channels: selecting videos from "
@@ -232,7 +466,22 @@ def initialize_screening_state(
     )
     print(
         "New channels: selecting the first "
-        f"{months_before} months from their first observed video."
+        f"{observation_months} months from their first observed video."
+    )
+    print(
+        "Monthly target: "
+        f"{target_political_per_period} political videos plus "
+        f"{target_with_buffer_per_period - target_political_per_period} "
+        "reserve videos."
+    )
+    print(
+        "Keyword channel filter: "
+        f"{'enabled' if exclude_channels_without_keyword_video else 'disabled'} "
+        f"(scope={keyword_activity_scope})."
+    )
+    print(
+        f"{len(eligible_channel_windows):,} eligible channels; "
+        f"{len(excluded_channels):,} channels without keyword videos in scope."
     )
 
     merge_columns = [
@@ -242,9 +491,11 @@ def initialize_screening_state(
         "window_end",
         "window_type",
         "dataset_covers_window_end",
+        "keyword_video_count_in_scope",
+        "has_keyword_video_in_scope",
     ] + [
         f"period_{period_number}_end"
-        for period_number in range(1, months_before + 1)
+        for period_number in range(1, observation_months + 1)
     ]
 
     filtered_chunks = []
@@ -276,7 +527,7 @@ def initialize_screening_state(
         chunk["channel_id"] = chunk["channel_id"].astype("string")
 
         chunk = chunk.merge(
-            channel_windows[merge_columns],
+            eligible_channel_windows[merge_columns],
             left_on="channel_id",
             right_index=True,
             how="inner",
@@ -308,7 +559,7 @@ def initialize_screening_state(
 
     period_labels = [
         f"period_{period_number}"
-        for period_number in range(1, months_before + 1)
+        for period_number in range(1, observation_months + 1)
     ]
     df["time_period"] = pd.Series(
         pd.NA,
@@ -343,9 +594,22 @@ def initialize_screening_state(
         .astype("string")
     )
 
+    # Reproducible random order within each channel-period. This prevents
+    # systematic selection of only the newest videos in a month.
+    df["_random_order"] = df["video_id"].map(
+        lambda video_id: stable_random_key(
+            video_id=str(video_id),
+            seed=selection_seed,
+        )
+    )
     df = df.sort_values(
-        ["channel_id", "time_period", "published_at"],
-        ascending=[True, True, False],
+        [
+            "channel_id",
+            "time_period",
+            "_random_order",
+            "published_at",
+        ],
+        ascending=[True, True, True, False],
     )
     df["rank_within_period"] = (
         df.groupby(
@@ -357,12 +621,11 @@ def initialize_screening_state(
         .astype("int32")
     )
 
-    # Interleave periods: newest video from every period first, followed by
-    # the second-newest video from every period, and so on. Within the same
-    # rank, the most recently published video comes first.
+    # Interleave periods: first randomized video from each period, followed
+    # by the second randomized video from each period, and so on.
     df = df.sort_values(
-        ["channel_id", "rank_within_period", "published_at"],
-        ascending=[True, True, False],
+        ["channel_id", "rank_within_period", "time_period"],
+        ascending=[True, True, True],
     )
     df["candidate_rank"] = (
         df.groupby("channel_id", sort=False)
@@ -372,9 +635,16 @@ def initialize_screening_state(
 
     helper_columns = [
         f"period_{period_number}_end"
-        for period_number in range(1, months_before + 1)
-    ]
+        for period_number in range(1, observation_months + 1)
+    ] + ["_random_order"]
     df = df.drop(columns=helper_columns)
+
+    df["target_political_per_period"] = (
+        target_political_per_period
+    )
+    df["target_with_buffer_per_period"] = (
+        target_with_buffer_per_period
+    )
 
     for column in LABEL_COLUMNS:
         df[column] = pd.Series(
@@ -382,6 +652,22 @@ def initialize_screening_state(
             index=df.index,
             dtype="Int8",
         )
+
+    df["screening_round"] = pd.Series(
+        pd.NA,
+        index=df.index,
+        dtype="Int16",
+    )
+    df["selected_for_transcript"] = pd.Series(
+        pd.NA,
+        index=df.index,
+        dtype="boolean",
+    )
+    df["is_transcript_reserve"] = pd.Series(
+        pd.NA,
+        index=df.index,
+        dtype="boolean",
+    )
 
     state_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(
@@ -392,10 +678,10 @@ def initialize_screening_state(
 
     selected_channel_ids = set(df["channel_id"].dropna())
     selected_channels = len(selected_channel_ids)
-    channels_without_candidates = channel_windows.index[
-        ~channel_windows.index.isin(selected_channel_ids)
+    channels_without_candidates = eligible_channel_windows.index[
+        ~eligible_channel_windows.index.isin(selected_channel_ids)
     ]
-    established_without_candidates = channel_windows.loc[
+    established_without_candidates = eligible_channel_windows.loc[
         channels_without_candidates,
         "window_type",
     ].eq("established_pre_reference").sum()
@@ -405,6 +691,10 @@ def initialize_screening_state(
     print(
         f"{established_without_candidates:,} established channels had no "
         "video in the pre-reference window."
+    )
+    print(
+        "Channels without a keyword video in the configured scope were "
+        f"saved to {excluded_channels_path}."
     )
     print("Channels by window type:")
     print(
@@ -441,6 +731,15 @@ if __name__ == "__main__":
             input_json=INPUT_FILE,
             state_path=STATE_FILE,
             reference_date=REFERENCE_DATE,
-            months_before=MONTHS_BEFORE,
+            keyword_videos_path=KEYWORD_VIDEOS_FILE,
+            excluded_channels_path=EXCLUDED_CHANNELS_FILE,
+            observation_months=WINDOW_MONTHS,
+            target_political_per_period=TARGET_POLITICAL_PER_PERIOD,
+            target_with_buffer_per_period=TARGET_WITH_BUFFER_PER_PERIOD,
+            exclude_channels_without_keyword_video=(
+                EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO
+            ),
+            keyword_activity_scope=KEYWORD_ACTIVITY_SCOPE,
+            selection_seed=SELECTION_SEED,
             chunk_size=READ_CHUNK_SIZE,
         )

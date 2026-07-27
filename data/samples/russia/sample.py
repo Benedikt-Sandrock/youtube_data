@@ -115,12 +115,12 @@ def merge_description_to_videos():
 
 
 SAMPLE_SIZE = 200
-RANDOM_SEED = 41
+RANDOM_SEED = 40
 
 EXPORT_COLS = ["video_id", "title", "description"]
-SAMPLE_OUTPUT = f"description_training_sample_{RANDOM_SEED}.xlsx"
+SAMPLE_OUTPUT = f"description_training_sample_{RANDOM_SEED}.csv"
 
-def create_random_sample(input_file, output_file, columns, sample_size = 200, random_seed = 42, chunksize = 50_000):
+def create_random_sample(input_file, output_file, columns,random_seed,  sample_size = 200, chunksize = 50_000):
     sampled_chunks = []
 
     for chunk_number, chunk in enumerate(
@@ -144,7 +144,7 @@ def create_random_sample(input_file, output_file, columns, sample_size = 200, ra
         random_state = random_seed
     )
 
-    sample.to_excel(output_file, index = False)
+    sample.to_csv(output_file, index = False)
 
 
-create_random_sample(OUTPUT_FILE, SAMPLE_OUTPUT, EXPORT_COLS)
+create_random_sample(OUTPUT_FILE, SAMPLE_OUTPUT, EXPORT_COLS, RANDOM_SEED)

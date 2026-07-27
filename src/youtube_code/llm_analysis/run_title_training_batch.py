@@ -10,10 +10,12 @@ from youtube_code.politics_screening.screening_config import (
     MANIFEST_DIR,
     TITLES_PER_REQUEST,
     TRAINING_SAMPLE_FILE,
+    DESCRIPTION_VALIDATION_SAMPLE_FILE,
+    DESCRIPTIONS_PER_REQUEST
 )
 
 
-PROMPT_KEY = "PROMPT_31"
+PROMPT_KEY = "PROMPT_33"
 MODEL_NAME = "gemini_25_flash"
 
 # Keep this True until the generated JSONL and manifest have been checked.
@@ -37,22 +39,23 @@ def main():
     }
 
     run_all_prompts(
-        csv_path=TRAINING_SAMPLE_FILE,
-        prompt_keys=[PROMPT_KEY],
+        csv_path=DESCRIPTION_VALIDATION_SAMPLE_FILE,
+        prompt_keys=["PROMPT_33"],
         prompts=selected_prompts,
-        dataset_id=TRAINING_SAMPLE_FILE.stem,
+        dataset_id=DESCRIPTION_VALIDATION_SAMPLE_FILE.stem,
         dataset_version="v1",
-        target_variable="politics_title",
-        input_mode="title",
+        target_variable="politics_title_desc",
+        input_mode="title_description",
         validation_basis="manual",
-        model_name=MODEL_NAME,
+        model_name="gemini_25_flash",
         thinking_budget=0,
         prompt_version="v1",
-        items_per_request=TITLES_PER_REQUEST,
-        grouping_seed=GROUPING_SEED,
+        items_per_request=5,
+        grouping_seed=42,
         batch_input_dir=BATCH_INPUT_DIR,
         manifest_dir=MANIFEST_DIR,
-        dry_run=DRY_RUN,
+        max_description_chars=5_000,
+        dry_run=False,
     )
 
 
