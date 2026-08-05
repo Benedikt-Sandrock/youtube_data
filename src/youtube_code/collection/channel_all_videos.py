@@ -26,13 +26,13 @@ from youtube_code.utils import save_json
 # ─────────────────────────────────────────────
 MODE = "NEW_CHANNELS"
 
-YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
+YOUTUBE = build("youtube", "v3", developerKey=API_KEY_C)
 
 # ─────────────────────────────────────────────
 # Paths
 # ─────────────────────────────────────────────
-VIDEOS_TOTAL_FILE = RAW / "sample_russia_ukraine.json"
-CHANNEL_INPUT     = CHANNEL_LISTS / "all_identification" / "german_channels_10k.json"
+VIDEOS_TOTAL_FILE = RAW / "sample_50k_channels_russia_ukraine.json"
+CHANNEL_INPUT     = CHANNEL_LISTS / "all_identification" / "german_channels_50k.json"
 CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 
 # Language-classification settings
@@ -345,7 +345,7 @@ if __name__ == "__main__":
         channel_counter = 1
         for cid in german_new_channel_ids:
             try:
-                print(f"New channel ID: {cid} ({channel_counter}/{len(german_new_channel_ids)}")
+                print(f"New channel ID: {cid} ({channel_counter}/{len(german_new_channel_ids)})")
                 channel_videos = get_channel_videos(cid, published_after_analysis, published_before_analysis)
                 print(f"  Videos found: {len(channel_videos)}")
                 if channel_videos:

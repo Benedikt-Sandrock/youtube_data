@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from youtube_code.config import SAMPLES, LLM
+from youtube_code.config import SAMPLES, LLM, RAW
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -9,10 +9,11 @@ SCREENING_DIR = SAMPLES / "russia"
 TRAINING_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
 DESCRIPTION_VALIDATION_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
 
+# MAIN_VIDEO_FILE = RAW / "video_metadata_total.jsonl"
 MAIN_VIDEO_FILE = SCREENING_DIR / "videos_wo_shorts_description.jsonl"
 KEYWORD_VIDEOS_FILE = SCREENING_DIR / "keyword_videos_50k_channels.json"
 
-STATE_FILE = SCREENING_DIR / "politics_screening_state.csv"
+STATE_FILE = SCREENING_DIR / "longitudinal_screening_state.csv"
 EXCLUDED_CHANNELS_FILE = SCREENING_DIR / "channels_without_keyword_video.csv"
 
 REFERENCE_DATE = "2022-02-24T00:00:00Z"
@@ -25,7 +26,7 @@ TARGET_POLITICAL_PER_PERIOD = 10
 TARGET_WITH_BUFFER_PER_PERIOD = 12
 
 # Keyword-Kanäle
-EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO = True
+EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO = False
 
 # "channel_window": mindestens ein Keyword-Video im individuellen
 #                   Drei-Monats-Fenster des Kanals.
@@ -36,7 +37,7 @@ KEYWORD_ACTIVITY_SCOPE = "entire_dataset"
 DESCRIPTIONS_PER_REQUEST = 5
 MAX_DESCRIPTION_CHARS = 5000
 
-BATCH_DIR = SCREENING_DIR / "batches"
+BATCH_DIR = SCREENING_DIR / "batches_longitudinal"
 SCREENING_ROUND_DIR = BATCH_DIR / "screening_rounds"
 SCREENING_ROUND_SUMMARY_DIR = BATCH_DIR / "screening_round_summaries"
 
@@ -64,3 +65,11 @@ GROUPING_SEED = 42
 SELECTION_SEED = 42
 
 READ_CHUNK_SIZE = 50_000
+
+
+### LONGITUDINAL SCREENING ###
+INTERVAL_START = -12
+INTERVAL_SIZE = 3
+
+TARGET_POLITICAL_PER_INTERVAL = 10
+TARGET_WITH_BUFFER_PER_INTERVAL = 12

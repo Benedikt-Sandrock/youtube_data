@@ -15,8 +15,8 @@ from registry.run_registry import RunRegistry
 # ============================================================
 
 RESULTS_DIRS = {
-    "politics_title": LLM / "title_classification",
-    "politics_title_desc": LLM / "description_classification",
+    "politics_title": LLM /"longitudinal" / "title_classification",
+    "politics_title_desc": LLM /"longitudinal" / "description_classification",
 }
 # Preserve the previous location for older/non-screening run types.
 DEFAULT_RESULTS_DIR = LLM / "title_classification"

@@ -1,5 +1,4 @@
-"""
-Submit one production politics-screening batch to Vertex AI.
+"""Submit one production politics-screening batch to Vertex AI.
 
 Set ``MODE`` to:
 
@@ -52,7 +51,7 @@ MODE = "title"
 
 # Keep True until the generated JSONL, manifest, counts, and sample inputs
 # have been inspected. Then change only this setting to False.
-DRY_RUN = True
+DRY_RUN = False
 
 # False prevents duplicate production runs for the same round and stage.
 # Set True only for a deliberate retry after inspecting the existing run.
@@ -100,7 +99,7 @@ def get_mode_settings(mode: str) -> ModeSettings:
                 {
                     "video_id",
                     "channel_id",
-                    "time_period",
+                    "interval_label",
                     "title",
                     "screening_round",
                 }
@@ -120,7 +119,7 @@ def get_mode_settings(mode: str) -> ModeSettings:
                 {
                     "video_id",
                     "channel_id",
-                    "time_period",
+                    "interval_label",
                     "title",
                     "description",
                     "politics_title",
@@ -250,7 +249,7 @@ def load_candidate_file(
                 "channel_id": "string",
                 "title": "string",
                 "description": "string",
-                "time_period": "string",
+                "interval_label": "string",
             },
             low_memory=False,
         ),
@@ -554,9 +553,9 @@ def print_preflight(
             f"{settings.previous_title_label_column}"
         )
 
-    print("\nVideos by period:")
+    print("\nVideos by interval:")
     print(
-        candidates["time_period"]
+        candidates["interval_label"]
         .value_counts()
         .sort_index()
         .to_string()
@@ -565,7 +564,7 @@ def print_preflight(
     preview_columns = [
         "video_id",
         "channel_id",
-        "time_period",
+        "interval_label",
         "title",
     ]
     if settings.input_mode == "title_description":

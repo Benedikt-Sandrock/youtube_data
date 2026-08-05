@@ -4,18 +4,18 @@ Uses the file with all videos ("video_total.json") to collect (new) metadata for
 
 from googleapiclient.discovery import build
 from youtube_code.utils import get_channel_metadata, get_video_metadata, load_json
-from youtube_code.config import RAW, SAMPLES, API_KEY_C, API_KEY
+from youtube_code.config import RAW, SAMPLES, API_KEY_C, API_KEY, CHANNEL_LISTS
 
 api_keys = [API_KEY_C, API_KEY]
 
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
-channel_metadata = False
-video_metadata = True
+channel_metadata = True
+video_metadata = False
 DETAILED = True
 
-VIDEOS_INPUT_PATH = SAMPLES / "russia" / "videos_wo_shorts_russia_ukraine.json"
+VIDEOS_INPUT_PATH = RAW / "sample_russia_ukraine.json"
 CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
 
 if DETAILED:
@@ -31,7 +31,9 @@ YOUTUBE = build("youtube", "v3", developerKey=api_keys[1])
 data = load_json(VIDEOS_INPUT_PATH)
 
 video_ids = [v["video_id"] for v in data]
-channel_ids = {v["channel_id"] for v in data}
+
+channel_ids = load_json(CHANNEL_LISTS / "all_identification" / "all_channel_ids_discovered.json")
+# channel_ids = {v["channel_id"] for v in data}
 
 
 if channel_metadata:
