@@ -8,7 +8,7 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, EXPLORATION, SAMPLES
-from .registry.run_registry import RunRegistry
+from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.politics_screening.screening_config import REGISTRY_PATH
 # ===============================================
 # CONFIG
@@ -801,26 +801,37 @@ def run_all_prompts(
 # ===============================================
 
 if __name__ == "__main__":
-    # --- Specify prompts to import ---
-    from youtube_code.llm_analysis.prompts import prompts_populism_all
+    from youtube_code.llm_analysis.prompts import prompts_title_classification
+    from youtube_code.politics_screening.screening_config import (
+        BATCH_INPUT_DIR,
+        GROUPING_SEED,
+        MANIFEST_DIR,
+        TITLES_PER_REQUEST,
+        DESCRIPTIONS_PER_REQUEST,
+    )
 
-    prompts = {"PROMPT_28": prompts_populism_all["PROMPT_28"]}
+    prompts = {"PROMPT_33": prompts_title_classification["PROMPT_33"]}
     PROMPTS_TO_RUN = list(prompts.keys())
-    #csv_file = EXPLORATION / "training_data" /"sample_vids_41"
-    csv_file = SAMPLES / "combined" / "keyword_videos_50k_channels.csv"
+    csv_file = Path(
+        r"C:\Users\bened\PycharmProjects\youtube_data\outputs\llm\longitudinal"
+        r"\description_classification\run_0006_retry.csv"
+    )
 
     run_all_prompts(
-        csv_path= csv_file,
+        csv_path=csv_file,
         prompt_keys=PROMPTS_TO_RUN,
         prompts=prompts,
-        dataset_id= csv_file.stem,
-        input_mode= "transcript",
+        dataset_id="politics_screening_round_002_description_retry",
+        input_mode="title_description",
         dataset_version="v1",
-        target_variable="populism_score",
-        validation_basis="all_statements",  # ["manual", "all_statements"]
+        target_variable="politics_title_desc",
+        validation_basis="screening_state",
         model_name="gemini_25_flash",
-        thinking_budget=0,   # None means no limit is specified. In this case, the models decides flexibly how many
-                             # tokens it uses (up to 8192).
+        thinking_budget=0,
+        items_per_request=DESCRIPTIONS_PER_REQUEST,
+        grouping_seed=GROUPING_SEED,
+        batch_input_dir=BATCH_INPUT_DIR,
+        manifest_dir=MANIFEST_DIR,
         prompt_version="v1",
-        dry_run=False,
+        dry_run=False,   # erst prüfen, dann auf False
     )

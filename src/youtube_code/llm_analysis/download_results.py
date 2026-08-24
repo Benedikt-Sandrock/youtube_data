@@ -7,7 +7,7 @@ from google.cloud import storage
 
 from youtube_code.config import LLM, PROJECT_ID, LOCATION
 from youtube_code.politics_screening.screening_config import MANIFEST_DIR, REGISTRY_PATH
-from registry.run_registry import RunRegistry
+from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 
 
 # ============================================================

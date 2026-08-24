@@ -7,16 +7,18 @@ import os
 import json
 from datetime import datetime, timezone
 
-from youtube_code.config import TRANSCRIPTS, SAMPLES
+from youtube_code.config import TRANSCRIPTS, SAMPLES, OUTPUTS, SRC
 
 # =====================================================
 # CONFIGURATION
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = False
+SPEED_DOWNLOAD = 0
 
-VIDEO_LIST = SAMPLES / "russia" / "keyword_videos_50k_channels.json"
+VIDEO_LIST = OUTPUTS / "sample_feasibility" / "descriptive_download_list.json"
+# VIDEO_LIST =  SRC / "new_analysis" / "out" / "primary_pilot_ids.json"
+# VIDEO_LIST = SAMPLES / "russia" / "political_ids.json"  # "keyword_videos_50k_channels.json"
 #FILE_PATH_ALL = [TRANSCRIPTS / "all_transcripts.csv", TRANSCRIPTS /"all_transcripts_2.csv"]
 OUTPUT_FILE = TRANSCRIPTS / "all_transcripts_segments.csv"
 FILE_PATH_BACKUP = TRANSCRIPTS / "all_transcripts_backup.csv"
@@ -60,7 +62,20 @@ print("Reading sample videos...")
 with open(VIDEO_LIST, "r", encoding="utf-8") as f:
     data = json.load(f)
 
-video_ids_sorted = [item["video_id"] for item in data]
+print(type(data))
+if isinstance(data, list) and len(data) > 0:
+    print(type(data[0]))
+
+    if isinstance(data[0], dict):
+        video_ids_sorted = [str(item["video_id"]) for item in data]
+    elif isinstance(data[0], str):  # <- Hier MUSS 'elif' stehen!
+        video_ids_sorted = data
+    else:
+        print("Ungültiger Datentyp innerhalb der Liste.")
+        exit()
+else:
+    print("No valid format for video ids. Revise import.")
+    exit()
 
 print(f"Number of video-IDs: {len(video_ids_sorted)}")
 
@@ -71,19 +86,24 @@ if os.path.exists(OUTPUT_FILE):
     existing_df = pd.read_csv(OUTPUT_FILE, usecols = ["video_id"])
 
     processed_video_ids = set(existing_df["video_id"].astype(str))
+    print(f"Type of processed videi ids: {type(processed_video_ids)}")
+    print(f"Type of video ids sorted: {type(video_ids_sorted)}")
+
     print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
 
     already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
     print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
 
+    num_remaining_vids = len(video_ids_sorted) - len(already_downloaded)
+
 else:
     print("No existing CSV found")
     processed_video_ids = set()
-
+    num_remaining_vids = len(video_ids_sorted)
 videos_to_process = [v for v in video_ids_sorted if v not in processed_video_ids]
 
-random.shuffle(videos_to_process)
-print(f"\n🎲 {len(videos_to_process)} videos left to process. Order has been randomized.")
+# random.shuffle(videos_to_process)
+# print(f"\n🎲 {len(videos_to_process)} videos left to process. Order has been randomized.")
 
 
 # =====================================================
@@ -94,7 +114,7 @@ daten = []
 api_request_count = 0
 last_skipped_id = None
 
-for video_id in video_ids_sorted:
+for video_id in videos_to_process:
 
     # Skip already processed IDs
     if video_id in processed_video_ids:
@@ -166,7 +186,9 @@ for video_id in video_ids_sorted:
         save_to_csv(daten, OUTPUT_FILE)
         daten.clear()
         batch_break = random.uniform(20, 40) if SPEED_DOWNLOAD else random.uniform(45, 85) # 45, 85
-        print(f"Batch break after {api_request_count} requests: {batch_break:.2f} seconds")
+        remaining_requests = num_remaining_vids - api_request_count
+        print(f"Batch break after {api_request_count} requests: {batch_break:.2f} seconds."
+              f"\n{remaining_requests} requests remaining.\n")
         time.sleep(batch_break)
 
     if api_request_count % 100 == 0:

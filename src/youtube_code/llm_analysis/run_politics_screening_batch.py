@@ -48,11 +48,11 @@ from youtube_code.politics_screening.screening_config import (
 ROUND_NUMBER = 1
 
 # "title" or "description"
-MODE = "title"
+MODE = "description"
 
 # Keep True until the generated JSONL, manifest, counts, and sample inputs
 # have been inspected. Then change only this setting to False.
-DRY_RUN = True
+DRY_RUN = False
 
 # False prevents duplicate production runs for the same round and stage.
 # Set True only for a deliberate retry after inspecting the existing run.

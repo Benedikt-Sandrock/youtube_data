@@ -38,17 +38,17 @@ from youtube_code.politics_screening.screening_config import (
 # ============================================================
 
 # "title" or "description"
-MODE = "title"
+MODE = "description"
 
 # Screening round whose pending results are being merged.
-ROUND_NUMBER = 1
+ROUND_NUMBER = 3
 
 # Registry run containing the completely validated result file.
-RUN_ID = "run_0001"
+RUN_ID = "run_0009"
 
 # First inspect the complete merge plan with True. Set to False only after
 # counts, labels, paths, and sample rows are plausible.
-DRY_RUN = True
+DRY_RUN = False
 
 # Additional safeguard for a real write.
 CONFIRM_BEFORE_WRITE = True
@@ -65,7 +65,7 @@ VALID_LABELS = {-1, 0, 1}
 STATE_REQUIRED_COLUMNS = {
     "video_id",
     "channel_id",
-    "time_period",
+    "period",
     "published_at",
     "title",
     "description",
@@ -79,7 +79,8 @@ DESCRIPTION_OUTPUT_COLUMNS = [
     "screening_round",
     "video_id",
     "channel_id",
-    "time_period",
+    "interval_label",
+    "period",
     "published_at",
     "title",
     "description",
@@ -491,7 +492,7 @@ def merge_title_results(
         column
         for column in [
             "channel_id",
-            "time_period",
+            "period",
             "candidate_rank",
         ]
         if column in description_candidates.columns
@@ -505,7 +506,7 @@ def merge_title_results(
         [
             "video_id",
             "channel_id",
-            "time_period",
+            "period",
             "screening_round",
         ]
     ].copy()
@@ -572,7 +573,7 @@ def merge_description_results(
         [
             "video_id",
             "channel_id",
-            "time_period",
+            "period",
             "screening_round",
             "politics_title",
         ]
@@ -711,7 +712,7 @@ def print_merge_plan(
         for column in [
             "video_id",
             "channel_id",
-            "time_period",
+            "period",
             "new_politics_title",
             "new_politics_title_desc",
             "new_politics_final",

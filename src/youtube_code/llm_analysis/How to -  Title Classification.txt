@@ -5,7 +5,7 @@
 3. download_results.py
 4. update_screening_state.py, MODE="title", DRY_RUN=True
 5. update_screening_state.py, MODE="title", DRY_RUN=False
-6. Prompt-33-production run (run_politics_screening_batch.py, MODE = "description")
+6. Prompt-33-production run (run_politics_screening_batch.py, MODE = "description", update Round Number)
 7. download_results.py
 8. update_screening_state.py, MODE="description", DRY_RUN=True
 9. update_screening_state.py, MODE="description", DRY_RUN=False

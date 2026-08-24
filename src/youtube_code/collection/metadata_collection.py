@@ -11,11 +11,11 @@ api_keys = [API_KEY_C, API_KEY]
 # ─────────────────────────────────────────────
 # CONFIGURATION AND PATHS
 # ─────────────────────────────────────────────
-channel_metadata = True
-video_metadata = False
+channel_metadata = False
+video_metadata = True
 DETAILED = True
 
-VIDEOS_INPUT_PATH = RAW / "sample_russia_ukraine.json"
+VIDEOS_INPUT_PATH = RAW / "sample_50k_channels_russia_ukraine.json"
 CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
 
 if DETAILED:
@@ -24,7 +24,7 @@ else:
     VIDEOS_METADATA_PATH = RAW / "video_metadata_total.jsonl"
 
 
-YOUTUBE = build("youtube", "v3", developerKey=api_keys[1])
+YOUTUBE = build("youtube", "v3", developerKey=api_keys[0])
 
 # ─────────────────────────────────────────────
 

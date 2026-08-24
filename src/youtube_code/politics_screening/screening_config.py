@@ -9,7 +9,7 @@ SCREENING_DIR = SAMPLES / "russia"
 TRAINING_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
 DESCRIPTION_VALIDATION_SAMPLE_FILE = SCREENING_DIR / "description_training_sample_40.csv"
 
-# MAIN_VIDEO_FILE = RAW / "video_metadata_total.jsonl"
+# MAIN_VIDEO_FILE = RAW / "sample_50k_channels_russia_ukraine.jsonl"
 MAIN_VIDEO_FILE = SCREENING_DIR / "videos_wo_shorts_description.jsonl"
 KEYWORD_VIDEOS_FILE = SCREENING_DIR / "keyword_videos_50k_channels.json"
 

@@ -44,10 +44,10 @@ from youtube_code.politics_screening.screening_config import (
 # USER CONFIG
 # ============================================================
 
-ROUND_NUMBER = 1
+ROUND_NUMBER = 3
 
 # "title" or "description"
-MODE = "title"
+MODE = "description"
 
 # Keep True until the generated JSONL, manifest, counts, and sample inputs
 # have been inspected. Then change only this setting to False.
