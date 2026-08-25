@@ -40,7 +40,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.config import TRANSCRIPTS, EXTERNAL, OUTPUTS
+from youtube_code.config import TRANSCRIPTS, EXTERNAL, OUTPUTS, SAMPLES
 
 # ==========================================================================
 # CONFIG
@@ -59,7 +59,7 @@ STATUS_OK      = "OK"                         # Zeilen mit diesem Status zaehlen
 
 VIDEO_TABLE    = Path(OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv")
 TYPOLOGY       = Path(EXTERNAL / "media_type_russia_merged.xlsx")
-OUTDIR         = Path("out_segments")
+OUTDIR         = SAMPLES / "russia" / "out_segments"
 
 SEED = "segment-2026-v1"                      # NIE aendern (Nestbarkeit)
 

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 
-from youtube_code.config import TRANSCRIPTS
+from youtube_code.config import TRANSCRIPTS, SAMPLES
 
 
 def create_video_file_w_lables():
@@ -168,5 +168,12 @@ def report_coverage():
 
     return cov
 
-create_download_list_descriptive()
-report_coverage()
+# create_download_list_descriptive()
+# report_coverage()
+
+df = pd.read_csv("videos_compact_pol_labels.csv")
+
+df = df[df["channel_id"] == "UC9qdoYTVU413M6EvqDRZDtA"]
+df = df[df["period"] < 0]
+
+print(len(df))
