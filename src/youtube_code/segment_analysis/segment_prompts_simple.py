@@ -163,6 +163,8 @@ Die Transkripte enthalten oft mehrere Sprechende (Moderation, Gaeste) ohne Kennz
 
 Zitierte oder eingespielte Fremdrede (O-Toene, Zitate, Interviewpassagen) zaehlt zur Kodierung dazu. Die Auswahl zitierter Rede wird als redaktionelle Entscheidung des Kanals gewertet.
 
+Wird eine Position im Segment ausdruecklich als fremde Position eingefuehrt (z. B. "Kritiker sagen...", "Manche meinen...") und im selben Atemzug vom Sprecher selbst eindeutig als unzutreffend zurueckgewiesen oder relativiert, zaehlt sie NICHT als eigene Position des Kanals. Das gilt nur fuer eine klare eigene Zurueckweisung durch den Sprecher - nicht fuer eingespielte oder zitierte Fremdrede ohne Widerspruch, dort gilt weiterhin die Fremdrede-Regel oben.
+
 Du bewertest die Form der Kommunikation, nicht ihren Wahrheitsgehalt und nicht ihre politische Richtung. Linke und rechte Inhalte werden nach exakt denselben Kriterien bewertet. Deine eigene Haltung zu den Aussagen ist irrelevant.
 
 Bewerte das Segment auf vier unabhaengigen Dimensionen (Skala jeweils 0 bis 3). Die Dimensionen werden getrennt bewertet; eine hohe Bewertung auf einer Dimension erzwingt keine hohe Bewertung auf einer anderen.
@@ -182,12 +184,12 @@ Abgrenzung: Die Nennung einer konkreten Gruppe (Rentner, Landwirte, Ostdeutsche)
 
 Werden Eliten ALS GRUPPE angegriffen - als eigennuetzig, abgehoben, verlogen oder gegen die Bevoelkerung handelnd? Eliten koennen Politik, Medien, Wissenschaft, Justiz, EU, Konzerne oder NGOs sein.
 
-0  Keine Elitenkritik, oder ausschliesslich sachliche Kritik an einer konkreten Entscheidung oder Person.
-1  Kritik an einzelnen Akteuren mit abwertendem Unterton, aber ohne Verallgemeinerung auf eine Klasse.
-2  Eliten werden als Gruppe kritisiert, der ein gemeinsames Eigeninteresse oder eine gemeinsame Abgehobenheit unterstellt wird.
+0  Keine Elitenkritik, oder ausschliesslich sachliche Kritik an einer konkreten Entscheidung oder Person - auch wenn dabei mehrere belegte Einzelfaelle aufgezaehlt werden, die zusammengenommen ein Muster ergeben, solange die Darstellung differenziert bleibt (Quellenangaben, Gegenposition, eingeraeumte Unsicherheiten, auch positives oder reaktives Verhalten der kritisierten Seite werden benannt).
+1  Kritik an einzelnen Akteuren mit abwertendem Unterton, aber ohne Verallgemeinerung auf eine Klasse. Ebenso hierher gehoert: Eine Institution wird fuer aus sich selbst heraus erklaerbares Eigeninteresse kritisiert (z. B. ein Unternehmen maximiert Gewinn, eine Organisation schuetzt die eigenen Leute), ohne dass ihr ein gegen die Allgemeinheit gerichtetes, koordiniertes Motiv unterstellt wird.
+2  Eliten werden als Gruppe kritisiert, der ein bewusst GEGEN DIE BEVOELKERUNG gerichtetes gemeinsames Motiv oder eine gemeinsame Abgehobenheit unterstellt wird - nicht blosses Eigeninteresse, sondern eine unterstellte Frontstellung gegen "die Menschen da draussen".
 3  Eliten erscheinen als geschlossenes System, das bewusst gegen die Bevoelkerung arbeitet, taeuscht oder ein Kartell bildet.
 
-Abgrenzung: "Die Regierung hat bei der Rente falsch entschieden" ist 0. "Die da oben interessiert nicht, was mit uns passiert" ist 2 bis 3. Entscheidend ist die Unterstellung eines gemeinsamen Motivs, nicht die Schaerfe des Tons.
+Abgrenzung: "Die Regierung hat bei der Rente falsch entschieden" ist 0. "Die da oben interessiert nicht, was mit uns passiert" ist 2 bis 3. Entscheidend ist die Unterstellung eines GEGEN DIE ALLGEMEINHEIT gerichteten gemeinsamen Motivs. Weder die Schaerfe des Tons noch die Anzahl aufgezaehlter Einzelfaelle noch die blosse Tatsache, dass eine Institution im eigenen Interesse handelt, reicht fuer sich genommen fuer Stufe 2 oder 3.
 
 ### 3. manichaeische_moralisierung
 

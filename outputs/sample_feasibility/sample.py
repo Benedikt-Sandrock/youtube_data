@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 
-from youtube_code.config import TRANSCRIPTS, SAMPLES
+from youtube_code.config import TRANSCRIPTS, SAMPLES, EXTERNAL, OUTPUTS
 
 
 def create_video_file_w_lables():
@@ -170,10 +170,41 @@ def report_coverage():
 
 # create_download_list_descriptive()
 # report_coverage()
+def get_new_right_videos():
+    df = pd.read_csv("videos_compact_pol_labels.csv")
+    df2 = pd.read_excel(EXTERNAL / "media_type_russia_merged.xlsx")
+    df3 = pd.read_csv(OUTPUTS / "segment_analysis" / "channel_classification_ideology.csv")
+    df = pd.merge(df, df2, on = "channel_id", how ="left")
+    df = pd.merge(df, df3, on = "channel_id", how = "left")
+    df = df[df["type"] == 3]
+    print(len(df))
+
+    war_df = df[df["is_war_wide"] == True]
+    print(len(war_df))
+    vids = war_df["video_id"].to_list()
+    war_df_right = war_df[war_df["gesellschaft_mean"] >= 0.5]
+    print(len(war_df_right))
+    vids_right = war_df_right["video_id"].to_list()
+
+    with open("wide.json", "w") as f:
+        json.dump(vids, f, ensure_ascii = False, indent = 2)
+
+    with open("wide_right.json", "w") as f:
+        json.dump(vids_right, f, ensure_ascii = False, indent = 2)
+
 
 df = pd.read_csv("videos_compact_pol_labels.csv")
-
-df = df[df["channel_id"] == "UC9qdoYTVU413M6EvqDRZDtA"]
-df = df[df["period"] < 0]
-
+df = df[(df["is_war_core"] == True) | (df["is_war_wide"] == True)]
 print(len(df))
+vids= df["video_id"].to_list()
+
+df.to_csv("war_vids.csv", index = False)
+with open("war_vids.json", "w") as f:
+    json.dump(vids, f, ensure_ascii = False, indent = 2)
+# df2 = pd.read_csv("../segment_analysis/right_videos_to_classify.csv")
+#
+# df = pd.merge(df, df2, on = "video_id", how = "right")
+#
+# channels = df["channel_title"].to_list()
+# channels = set(channels)
+# print(channels)

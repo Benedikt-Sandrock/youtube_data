@@ -53,8 +53,10 @@ BEFEHL = "segmente"                    # "segmente" | "sample"
 
 # CSV mit mindestens der Spalte "video_id" - die zu verarbeitenden Videos.
 
-VIDEO_ID_SOURCE = SAMPLES / "russia" / "out_segments" / "baseline.csv"
+# VIDEO_ID_SOURCE = SAMPLES / "russia" / "out_segments" / "descriptive_sample_baseline.csv"
 # VIDEO_ID_SOURCE = OUTPUTS / "sample_feasibility" / "descriptive_sample.csv"
+VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
+
 
 # Transkript-Quelle. Erwartete Spalten: video_id, transcript, status.
 # "transcript" darf entweder eine JSON-Liste von Untertitel-Eintraegen
@@ -66,15 +68,35 @@ CSV_CHUNKSIZE = 500                    # Bloeckgroesse beim Streaming-Lesen
 
 # "segmente"           -> Segmentierung nach den bisherigen Regeln
 # "ganze_transkripte"  -> ein Segment (= das ganze Transkript) pro Video
-MODUS = "ganze_transkripte"
+MODUS = "segmente"
 
 TARGET_WORDS = 800                     # Zielwortzahl je Segment
 SNAP_WINDOW = 150                      # Suchfenster fuer die naechste Satzgrenze
 MIN_TAIL = 200                         # Restsegment darunter wird angehaengt
 MIN_WORDS_TOTAL = 50                   # Transkripte darunter werden verworfen
 
+# Nur wirksam bei MODUS = "segmente" (z. B. POPULISMUS_P). Videos, die in
+# mehr als MAX_SEGMENTS_PER_VIDEO Segmente zerfallen wuerden, werden auf
+# diese Zahl gedeckelt: gleich ueber das Video verteilte Segmente werden
+# behalten (immer inkl. erstem und letztem), dazwischenliegende verworfen.
+# Die urspruengliche segment_index-Nummerierung bleibt erhalten (mit
+# Luecken), damit die Kontextbildung in submit_segments.py nachvollziehbar
+# bleibt. None = keine Deckelung.
+MAX_SEGMENTS_PER_VIDEO = 12
+
+# Nur wirksam bei MODUS = "ganze_transkripte" (z. B. IDEOLOGIE_I).
+# Transkripte oberhalb EXCERPT_WORD_BUDGET Woertern werden nicht einfach
+# am Anfang gekappt (Intro-Boilerplate wuerde ueberrepraesentiert), sondern
+# in EXCERPT_N_CHUNKS gleich ueber das Video verteilte Ausschnitte
+# aufgeteilt, deren Grenzen auf Satzenden gerundet werden. Das Gesamtbudget
+# bleibt dabei EXCERPT_WORD_BUDGET Woerter. Texte darunter bleiben
+# unveraendert (volles Transkript, keine Ausschnitts-Marker).
+EXCERPT_WORD_BUDGET = 3000
+EXCERPT_N_CHUNKS = 4
+EXCERPT_SNAP_WINDOW = 100
+
 OUT_DIR = SAMPLES / "russia" / "out_segments"
-OUT_FILE = OUT_DIR / "single_channels_test_populism_segments.csv"    # direkt als SEGMENT_FILE nutzbar
+OUT_FILE = OUT_DIR / "pilot_classification_segments.csv"    # direkt als SEGMENT_FILE nutzbar
 
 # Nur fuer BEFEHL = "sample"
 SAMPLE_N = 200
@@ -186,13 +208,79 @@ def split_segments(
     return segments
 
 
-def to_rows(text: str) -> list[tuple[int, str]]:
-    """(segment_index, text)-Paare, je nach MODUS."""
-    if MODUS == "ganze_transkripte":
-        return [(0, text)]
-    if MODUS == "segmente":
-        return list(enumerate(split_segments(text)))
-    sys.exit(f"Unbekannter MODUS: {MODUS!r}. Erwartet 'segmente' oder 'ganze_transkripte'.")
+def _snap_to_sentence_end(words: list[str], pos: int, window: int, n: int) -> int:
+    """Naechste Satzgrenze um `pos`, zuerst vorwaerts, dann rueckwaerts gesucht."""
+    hi = min(pos + window, n)
+    for i in range(pos, hi):
+        if i > 0 and _SENT_END.search(words[i - 1]):
+            return i
+    lo = max(pos - window, 0)
+    for i in range(pos, lo, -1):
+        if i > 0 and _SENT_END.search(words[i - 1]):
+            return i
+    return pos
+
+
+def build_excerpt(
+    text: str,
+    budget: int = EXCERPT_WORD_BUDGET,
+    n_chunks: int = EXCERPT_N_CHUNKS,
+    snap_window: int = EXCERPT_SNAP_WINDOW,
+) -> str:
+    """
+    Bei Texten oberhalb `budget` Woertern: `n_chunks` gleich ueber das
+    Video verteilte Ausschnitte statt Kuerzung vom Anfang, damit
+    Intro-Boilerplate nicht systematisch ueberrepraesentiert wird.
+    Ausschnittsgrenzen werden auf Satzenden gerundet, Ausschnitte
+    ueberlappen nicht. Text unterhalb des Budgets bleibt unveraendert
+    (kein Marker, volles Transkript).
+    """
+    words = text.split()
+    n = len(words)
+    if n <= budget:
+        return text
+
+    chunk_target = max(budget // n_chunks, 1)
+    region_width = n / n_chunks
+    parts: list[str] = []
+    cursor = 0
+    for k in range(n_chunks):
+        start = max(round(k * region_width), cursor)
+        start = min(start, n - 1)
+        start = max(_snap_to_sentence_end(words, start, snap_window, n), cursor)
+        end = min(start + chunk_target, n)
+        end = min(max(_snap_to_sentence_end(words, end, snap_window, n), start + 1), n)
+        parts.append(f"[Ausschnitt {k + 1}/{n_chunks}] " + " ".join(words[start:end]))
+        cursor = end
+
+    return "\n\n".join(parts)
+
+
+
+def select_capped_indices(n_total: int, cap: int | None) -> list[int]:
+    """
+    Waehlt bis zu `cap` Indizes aus range(n_total) aus, gleichmaessig
+    verteilt inklusive erstem und letztem Index (Anfang, Ende, Mitte).
+    Bei n_total <= cap oder cap=None werden alle Indizes zurueckgegeben.
+    """
+    if cap is None or n_total <= cap:
+        return list(range(n_total))
+    if cap <= 1:
+        return [0]
+
+    step = (n_total - 1) / (cap - 1)
+    chosen = sorted({round(i * step) for i in range(cap)})
+
+    # Rundung kann bei kleinem cap relativ zu n_total Duplikate erzeugen -
+    # dann von vorne auffuellen, bis wieder cap eindeutige Indizes stehen.
+    i = 0
+    while len(chosen) < cap and i < n_total:
+        if i not in chosen:
+            chosen.append(i)
+            chosen.sort()
+        i += 1
+
+    return chosen[:cap]
 
 
 # ============================================================
@@ -227,6 +315,8 @@ def build_segments_file() -> None:
     excluded_by_status: set[str] = set()
     n_skipped_short = 0
     n_rows = 0
+    n_excerpted = 0
+    n_capped = 0
     word_counts: list[int] = []
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -258,7 +348,19 @@ def build_segments_file() -> None:
                 if text is None:
                     n_skipped_short += 1
                     continue
-                for segment_index, segment_text in to_rows(text):
+
+                if MODUS == "ganze_transkripte":
+                    if len(text.split()) > EXCERPT_WORD_BUDGET:
+                        n_excerpted += 1
+                    rows = [(0, build_excerpt(text))]
+                else:  # "segmente"
+                    all_segments = split_segments(text)
+                    if MAX_SEGMENTS_PER_VIDEO is not None and len(all_segments) > MAX_SEGMENTS_PER_VIDEO:
+                        n_capped += 1
+                    keep = select_capped_indices(len(all_segments), MAX_SEGMENTS_PER_VIDEO)
+                    rows = [(i, all_segments[i]) for i in keep]
+
+                for segment_index, segment_text in rows:
                     writer.writerow([video_id, segment_index, segment_text, len(segment_text.split())])
                     word_counts.append(len(segment_text.split()))
                     n_rows += 1
@@ -274,6 +376,18 @@ def build_segments_file() -> None:
     if NUR_STATUS_OK and excluded_by_status:
         print(f"Ausgeschlossen (status): {len(excluded_by_status):,}")
     print(f"Uebersprungen (kurz): {n_skipped_short:,}  (< {MIN_WORDS_TOTAL} Woerter)")
+    if MODUS == "ganze_transkripte":
+        print(
+            f"Gekuerzt (Ausschnitt): {n_excerpted:,}  "
+            f"(> {EXCERPT_WORD_BUDGET} Woerter, auf {EXCERPT_N_CHUNKS} "
+            "verteilte Ausschnitte reduziert)"
+        )
+    if MODUS == "segmente" and MAX_SEGMENTS_PER_VIDEO is not None:
+        print(
+            f"Gedeckelt (Segmente): {n_capped:,}  "
+            f"(> {MAX_SEGMENTS_PER_VIDEO} Segmente, auf "
+            f"{MAX_SEGMENTS_PER_VIDEO} verteilte Segmente reduziert)"
+        )
     print(f"Zeilen geschrieben  : {n_rows:,}")
     if word_counts:
         series = pd.Series(word_counts)

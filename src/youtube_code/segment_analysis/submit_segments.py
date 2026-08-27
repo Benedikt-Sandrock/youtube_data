@@ -40,12 +40,12 @@ from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
 # CONFIG
 # ============================================================
 
-SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "single_channels_test_populism_segments.csv"
+SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "pilot_classification_segments.csv"
 
-PROMPT_KEY = "IDEOLOGIE_I"
+PROMPT_KEY = "POPULISMUS_P"
 
 DATASET_VERSION = "v1"
-PROMPT_VERSION = "v3"
+PROMPT_VERSION = "v4"
 
 MODEL_NAME = "gemini_25_flash"
 THINKING_BUDGET = 0
@@ -180,30 +180,44 @@ def load_segments(path: Path) -> pd.DataFrame:
 
 def build_context_blocks(segments: pd.DataFrame, context_words: int) -> dict[str, str]:
     """
-    Letzte `context_words` Woerter des JEWEILS VORANGEHENDEN Segments
-    desselben Videos, sortiert nach segment_index. Erstes Segment eines
-    Videos bekommt keinen Kontext.
+    Letzte `context_words` Woerter des UNMITTELBAR VORANGEHENDEN Segments
+    desselben Videos, sortiert nach segment_index. Kontext wird nur
+    gesetzt, wenn segment_index exakt um 1 steigt (echte Nachbarschaft
+    im urspruenglichen Transkript). Bei Luecken - z. B. durch die
+    MAX_SEGMENTS_PER_VIDEO-Deckelung in process_scraped_segments.py,
+    die nur eine Teilmenge der Segmente behaelt und deren urspruengliche
+    Indizes nicht neu durchnummeriert - bleibt der Kontext leer, weil
+    das vorherige Segment im File dann inhaltlich nicht direkt vorausgeht.
+    Erstes Segment eines Videos bekommt ebenfalls keinen Kontext.
 
     Gibt segment_id -> Kontexttext zurueck (leerer String = kein Kontext).
     """
     ordering = segments.copy()
-    ordering["_idx_numeric"] = pd.to_numeric(
+    ordering["idx_numeric"] = pd.to_numeric(
         ordering["segment_index"], errors="coerce"
     )
     ordering = ordering.sort_values(
-        ["video_id", "_idx_numeric"], na_position="last"
+        ["video_id", "idx_numeric"], na_position="last"
     )
 
     contexts: dict[str, str] = {}
     previous_video = object()
+    previous_idx = None
     previous_text = ""
     for row in ordering.itertuples(index=False):
-        if row.video_id != previous_video:
-            contexts[row.segment_id] = ""
-        else:
+        is_adjacent = (
+            row.video_id == previous_video
+            and previous_idx is not None
+            and pd.notna(row.idx_numeric)
+            and row.idx_numeric == previous_idx + 1
+        )
+        if is_adjacent:
             words = previous_text.split()
             contexts[row.segment_id] = " ".join(words[-context_words:])
+        else:
+            contexts[row.segment_id] = ""
         previous_video = row.video_id
+        previous_idx = row.idx_numeric
         previous_text = row.text
     return contexts
 

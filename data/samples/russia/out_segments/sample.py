@@ -17,12 +17,18 @@ CHANNELS_POPULISM = [
     "UCZHpIFMfoJJ_1QxNGLJTzyA",
 ]
 
-df = pd.read_csv("descriptive_sample_baseline.csv")
-df = df[df["channel_id"] == "UCiTJladOHCMkKndVBsn23VQ"]
+df = pd.read_csv("descriptive_sample_baseline_segments.csv")
 
-# df = df[df["channel_id"].isin(CHANNELS_POPULISM)]
+print(df["n_woerter"].mean())
+print(df["n_woerter"].median())
 
-print(len(df))
+df = df.sort_values(by = "n_woerter", ascending = False)
+print(df["n_woerter"].describe())
+# df = df[df["channel_id"] == "UCiTJladOHCMkKndVBsn23VQ"]
+
+# df = df[df["channel_id"].isin(CHANNELS)]
+
+# print(len(df))
 
 # print(df["channel_id"].unique())
 # df.to_csv("single_channels_test_populism.csv")

@@ -14,10 +14,10 @@ from youtube_code.config import TRANSCRIPTS, SAMPLES, OUTPUTS, SRC
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 1
-
-# VIDEO_LIST = OUTPUTS / "sample_feasibility" / "descriptive_download_list.json"
-VIDEO_LIST =  SRC / "new_analysis" / "out_screening" / "primary_pilot_ids.json"
+SPEED_DOWNLOAD = 0
+VIDEO_LIST = "fill_vids.json"
+# VIDEO_LIST = OUTPUTS / "sample_feasibility" / "war_vids.json"
+# VIDEO_LIST =  SRC / "new_analysis" / "out_screening" / "primary_pilot_ids.json"
 # VIDEO_LIST = SAMPLES / "russia" / "political_ids.json"  # "keyword_videos_50k_channels.json"
 #FILE_PATH_ALL = [TRANSCRIPTS / "all_transcripts.csv", TRANSCRIPTS /"all_transcripts_2.csv"]
 OUTPUT_FILE = TRANSCRIPTS / "all_transcripts_segments.csv"
@@ -102,8 +102,8 @@ else:
     num_remaining_vids = len(video_ids_sorted)
 videos_to_process = [v for v in video_ids_sorted if v not in processed_video_ids]
 
-# random.shuffle(videos_to_process)
-# print(f"\n🎲 {len(videos_to_process)} videos left to process. Order has been randomized.")
+random.shuffle(videos_to_process)
+print(f"\n🎲 {len(videos_to_process)} videos left to process. Order has been randomized.")
 
 
 # =====================================================
