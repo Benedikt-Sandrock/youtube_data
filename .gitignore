@@ -35,3 +35,5 @@ __pycache__
 /data/samples/russia/fdescription_training_sample_42.xlsx
 /outputs/llm/title_classification/run*
 /outputs/llm/description_classification/
+/outputs/segment_analysis/*.csv
+/outputs/segments_analysis/plots/*
