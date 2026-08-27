@@ -36,4 +36,4 @@ __pycache__
 /outputs/llm/title_classification/run*
 /outputs/llm/description_classification/
 /outputs/segment_analysis/*.csv
-/outputs/segments_analysis/plots/*
+/outputs/segments_analysis/plots/
