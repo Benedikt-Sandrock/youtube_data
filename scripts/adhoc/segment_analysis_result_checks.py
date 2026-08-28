@@ -159,9 +159,6 @@ paths = ["run_0011_POSITION_V1.csv", "run_0010_POPULISMUS_P.csv"]
 #
 # print(len(df))
 
-df = pd.read_csv("download_kandidaten_monat.csv")
-df = df[df["innerhalb_defizit"] == False]
+df = pd.read_csv("channel_video_populism.csv")
+df = df[df["channel_id"] == "UC0sfnuCUaYV2twmfZDtXZng"]
 print(len(df))
-vids = df["video_id"].to_list()
-with open("../../src/youtube_code/scraping/fill_vids_extended.json", "w") as f:
-    json.dump(vids, f, ensure_ascii=False, indent = 2)

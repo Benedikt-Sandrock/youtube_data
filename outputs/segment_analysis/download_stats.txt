@@ -1,0 +1,69 @@
+Belegpruefung gegen 8,305 Segmente aus C:\Users\bened\PycharmProjects\youtube_data\data\samples\russia\out_segments\descriptive_sample_baseline_populism_segments.csv.
+
+[run_0010] POPULISMUS_P | gemini-2.5-flash | descriptive_sample_war_segments (v1)
+
+  Status: JOB_STATE_SUCCEEDED
+  Lade batch_inputs/segments/segments_POPULISMUS_P_gemini_25_flash_6a0faf0954c64325b8d8e040669e98e7/dest/prediction-model-2026-08-25T20:28:35.420827Z/predictions.jsonl ...
+  Gespeichert: C:\Users\bened\PycharmProjects\youtube_data\outputs\segment_analysis\run_0010_POPULISMUS_P.csv
+
+  Qualitaetspruefung
+    Requests erwartet / erhalten : 32,516 / 32,516
+    Parse-Fehler                 : 1 (0.0%)
+    ok_schema                    : 100.0%
+    ok_status                    : 94.8%
+    ok_score                     : 100.0%
+
+
+==> eins konnte nicht geparsed werden (vernachlässigbar), bei 1684 wurde "0" statt "null" eingetragen
+
+
+[run_0011] POSITION_V1 | gemini-2.5-flash | descriptive_sample_war_segments (v1)
+  Status: JOB_STATE_SUCCEEDED
+  Lade batch_inputs/segments/segments_POSITION_V1_gemini_25_flash_3b1386396d6d4a498b1821a54f358e8f/dest/prediction-model-2026-08-25T20:40:07.037298Z/predictions.jsonl ...
+  Gespeichert: C:\Users\bened\PycharmProjects\youtube_data\outputs\segment_analysis\run_0011_POSITION_V1.csv
+
+  Qualitaetspruefung
+    Requests erwartet / erhalten : 32,516 / 32,516
+    Parse-Fehler                 : 0 (0.0%)
+    ok_schema                    : 100.0%
+    ok_status                    : 100.0%
+    ok_score                     : 100.0%
+
+[run_0012] IDEOLOGIE_I | gemini-2.5-flash | descriptive_sample_baseline_segments (v1)
+  Status: JOB_STATE_SUCCEEDED
+  Lade batch_inputs/segments/segments_IDEOLOGIE_I_gemini_25_flash_1bdcea1cadff4672844fb52a6cd9ce00/dest/prediction-model-2026-08-25T21:02:56.585325Z/predictions.jsonl ...
+  Gespeichert: C:\Users\bened\PycharmProjects\youtube_data\outputs\segment_analysis\run_0012_IDEOLOGIE_I.csv
+
+  Qualitaetspruefung
+    Requests erwartet / erhalten : 2,296 / 2,296
+    Parse-Fehler                 : 8 (0.3%)
+    ok_schema                    : 99.7%
+    ok_status                    : 99.7%
+    ok_score                     : 99.4%
+
+
+==> 8 parse errors (zu lange Zahl generiert durch LLM), zusätzlich 6 mal Wert "20" (vermutlich statt 2) ausgegeben.
+
+
+[run_0013] POPULISMUS_P | gemini-2.5-flash | descriptive_sample_baseline_populism_segments (v1)
+  Status: JOB_STATE_SUCCEEDED
+  Lade batch_inputs/segments/segments_POPULISMUS_P_gemini_25_flash_ab7e8a295dc24470926846d3b678aef4/dest/prediction-model-2026-08-26T07:25:08.747024Z/predictions.jsonl ...
+  Gespeichert: C:\Users\bened\PycharmProjects\youtube_data\outputs\segment_analysis\run_0013_POPULISMUS_P.csv
+
+  Qualitaetspruefung
+    Requests erwartet / erhalten : 8,305 / 8,305
+    Parse-Fehler                 : 0 (0.0%)
+    ok_schema                    : 100.0%
+    ok_status                    : 88.4%
+    ok_score                     : 100.0%
+
+
+==> Nur Fehler, dass "0" statt "null" eingetragen wurde
+====================================================================
+  run_0010: downloaded
+  run_0011: downloaded
+  run_0012: downloaded
+  run_0013: downloaded
+====================================================================
+
+Process finished with exit code 0

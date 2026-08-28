@@ -44,7 +44,7 @@ from youtube_code.politics_screening.screening_config import (
 # USER CONFIG
 # ============================================================
 
-ROUND_NUMBER = 3
+ROUND_NUMBER = 8
 
 # "title" or "description"
 MODE = "description"

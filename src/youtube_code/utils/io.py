@@ -5,6 +5,8 @@ import os
 import time
 import json
 
+from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
+
 
 def filter_blacklist(total_videos_input, blacklist_file, german_videos_output):
     #filters all video_files from total video_files that are not from german channels
@@ -159,6 +161,7 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
                 )
                 response = request.execute()
 
+                batch_records = []
                 for item in response.get("items", []):
                     snippet = item.get("snippet", {})
                     content_details = item.get("contentDetails", {})
@@ -175,6 +178,7 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
                         "like_count": statistics.get("likeCount"),
                         "comment_count": statistics.get("commentCount"),
                     }
+                    batch_records.append(video_data)
 
                     if detailed:
                         status = item.get("status", {})
@@ -203,6 +207,7 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
 
                     f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
                 f_out.flush()
+                _registry_upsert(batch_records)
 
                 if chunk % 10 ==0:
                     print(f"Processed {chunk*50} videos.")

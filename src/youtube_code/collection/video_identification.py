@@ -54,6 +54,7 @@ from settings_variables import (
     month_interval,
 )
 from youtube_code.utils import load_set
+from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
 from youtube_code.config import API_KEY, API_KEY_C
 
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
@@ -407,6 +408,11 @@ def main():
 
             update_video_history(ident_vids, existing_video_ids, videos, run_id, query)
             print("Video list updated.")
+
+            # Zentrale Video-Registry mitfuehren (nur video_id/channel_id an
+            # dieser Stelle - siehe Modul-Docstring; published_at/title
+            # kommen spaeter per COALESCE aus der Metadaten-Pipeline dazu).
+            _registry_upsert(videos)
 
             channel_ids = {video["channel_id"] for video in videos}
             print(f"Unique channels in this query: {len(channel_ids)}")

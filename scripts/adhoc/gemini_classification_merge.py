@@ -3,7 +3,9 @@ from youtube_code.config import RAW, EXTERNAL
 
 df= pd.read_csv("classification_results_051_complete.csv")
 print(len(df))
-df = df[df[""]]
+# FIXME: Spaltenname war leer ("") und existiert nicht — Zeile beim Verschieben
+# nach scripts/adhoc/ auskommentiert statt geraten. Vor Nutzung reparieren:
+# df = df[df["<richtige_spalte>"]]
 
 ids = set(df["video_id"].to_list())
 print(len(ids))

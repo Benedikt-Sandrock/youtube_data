@@ -5,6 +5,7 @@ from dateutil.relativedelta import relativedelta
 
 from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
 from src.youtube_code.utils import load_set
+from src.youtube_code.utils.video_registry import upsert_videos as _registry_upsert
 from src.youtube_code.config import API_KEY, API_KEY_C
 
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
@@ -170,6 +171,9 @@ for query in query_list:
             ident_vids.append(video)
             existing_video_ids.add(video["video_id"])
     print("Video-Liste aktualisiert.")
+
+    # Zentrale Video-Registry mitfuehren.
+    _registry_upsert(videos)
     # with open(f"{target_directory}/files_queries/files_{query}/videos_{query}.json", "w", encoding ="utf-8") as f:
     #     json.dump(video_files, f, indent=2, ensure_ascii=False)
 

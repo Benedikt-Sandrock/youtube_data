@@ -1,6 +1,7 @@
 .venv/
 .idea/
 __pycache__
+.claude/settings.local.json
 /project_videos/code/downloads/
 .env
 /data/raw/channel_metadata.json
@@ -36,4 +37,9 @@ __pycache__
 /outputs/llm/title_classification/run*
 /outputs/llm/description_classification/
 /outputs/segment_analysis/*.csv
-/outputs/segments_analysis/plots/
+/outputs/segment_analysis/plots/
+/outputs/sample_feasibility/
+/outputs/pilot/
+/outputs/llm/longitudinal/
+/data/samples/russia/batches_longitudinal/
+/data/samples/russia/classification/

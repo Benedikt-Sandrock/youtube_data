@@ -41,10 +41,10 @@ from youtube_code.politics_screening.screening_config import (
 MODE = "description"
 
 # Screening round whose pending results are being merged.
-ROUND_NUMBER = 3
+ROUND_NUMBER = 8
 
 # Registry run containing the completely validated result file.
-RUN_ID = "run_0009"
+RUN_ID = "run_0021"
 
 # First inspect the complete merge plan with True. Set to False only after
 # counts, labels, paths, and sample rows are plausible.

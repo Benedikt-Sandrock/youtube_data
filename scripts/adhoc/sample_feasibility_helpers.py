@@ -194,13 +194,16 @@ def get_new_right_videos():
 
 
 df = pd.read_csv("videos_compact_pol_labels.csv")
-df = df[(df["is_war_core"] == True) | (df["is_war_wide"] == True)]
-print(len(df))
-vids= df["video_id"].to_list()
+df = df.head(100)
+df.to_csv("videos_compact_pol_labels_sample.csv", index = False)
 
-df.to_csv("war_vids.csv", index = False)
-with open("war_vids.json", "w") as f:
-    json.dump(vids, f, ensure_ascii = False, indent = 2)
+# df = df[(df["is_war_core"] == True) | (df["is_war_wide"] == True)]
+# print(len(df))
+# vids= df["video_id"].to_list()
+#
+# df.to_csv("war_vids.csv", index = False)
+# with open("war_vids.json", "w") as f:
+#     json.dump(vids, f, ensure_ascii = False, indent = 2)
 # df2 = pd.read_csv("../segment_analysis/right_videos_to_classify.csv")
 #
 # df = pd.merge(df, df2, on = "video_id", how = "right")
