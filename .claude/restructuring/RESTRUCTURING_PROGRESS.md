@@ -158,6 +158,44 @@ Beim Aufräumen der temporären Scratch-Kopie (vor der Verifikation nach `_backu
 
 ---
 
+## Phase 2 — Git-History bereinigen
+**Status: ABGESCHLOSSEN (2026-08-28)**
+
+### Wichtiger Befund (korrigiert eine Plan-Annahme)
+Die ursprünglich dokumentierten "13 GB `.git`" stammten NICHT primär aus dem Git-Objekt-Store (`.git/objects` war nur 815 MB), sondern zu 12 GB aus dem lokalen `git-lfs`-Objekt-Cache (`.git/lfs`). `git lfs prune --dry-run` gab vor dem Rewrite nur 1 von 82 Objekten (54 MB) als entfernbar frei — der Rest war noch von erreichbaren historischen Commits referenziert. Der eigentliche Hebel war also: alte Commits mit LFS-Pointern aus der History entfernen (`git-filter-repo`) → Blobs im LFS-Cache werden unreferenziert → `git lfs prune` gibt sie frei.
+
+### Durchgeführt
+1. `git-filter-repo` per `pip install git-filter-repo` installiert (2.47.0).
+2. Die 6 dirty getrackten Dateien aus der zwischenzeitlichen Fachaufgabe committet (normaler Commit, vor dem Rewrite nötig).
+3. Lokalen Branch `backup-vor-bereinigung` gelöscht (nie zu `origin` gepusht, redundant zum verifizierten `_backups/git_mirror_2026-08-28.git`-Mirror; Nutzerentscheidung).
+4. `.gitattributes` komplett entfernt (per `git rm`, eigener Commit) — kein aktuell getracktes File braucht noch LFS (siehe Befund oben); die Datei war zudem defekt (doppelte Zeile, Tippfehler `diff=lfd`).
+5. **Zwei `git-filter-repo --invert-paths`-Läufe** (zweiter Lauf nach Nutzer-Rückfrage, da eine erste Runde weitere tote Pfade übersehen hatte — siehe unten):
+   - Lauf 1 (aus dem vorab genehmigten Plan): `political_youtube/`, `data/transcripts/all_transcripts.csv`, `data/transcripts/all_transcripts_2.csv`, `data/transcripts/single_transcripts.csv`, `data/raw/videos_total.json`, `data/raw/sample_russia_ukraine.json`, `data/samples/all_videos_50k_channels.json`.
+   - Lauf 2 (zusätzlich gefunden, mit Nutzerfreigabe nachgezogen): `project_transcripts/` (weiteres Alt-Transkript-Verzeichnis, enthielt die verbliebenen ~1,1 GB LFS-Blobs), `project_videos/` (Alt-Downloader-Code), `complete_channel_list.json`, `p.py` (beide Alt-Root-Dateien), sowie 2 historische Vollinhalt-Commits von `data/transcripts/all_transcripts_segments.csv` selbst (44 MB/40 MB, vor dessen Gitignore-Umstellung versehentlich committet — die aktuelle Arbeitsdatei ist und bleibt ungetrackt, nur alte Snapshots betroffen).
+   - `llm_analysis/registry/runs_registry.csv` (Top-Level-Duplikat) wurde bewusst NICHT angefasst — ist weiterhin live in HEAD, Konsolidierung ist Phase-4-Aufgabe, kein Phase-2-Thema.
+6. `git lfs prune` nach beiden Läufen ausgeführt.
+7. **Zusätzlicher Fund:** `.git/lfs/incomplete/` enthielt noch 869 MB an Fragmenten eines früher abgebrochenen LFS-Fetch-Versuchs (siehe Phase-0b-Notiz zum abgebrochenen GitHub-Abruf) — das ist kein von `git lfs prune` verwalteter Bestand, sondern Datenmüll; manuell per `rm -rf` gelöscht.
+8. Verifikation: `git fsck --full` fehlerfrei; `git log --oneline -- src/` zeigt weiterhin 60 Commits durchgängige Code-Historie; Test-Klon (mit `core.longpaths=true` wegen Windows-MAX_PATH-Limit bei tief verschachtelten Unicode-Pfaden unter `data/channel_lists/archive/...` — vorbestehende Eigenschaft des Repos, keine Regression) checkte sauber aus, `import youtube_code` funktionierte; `pip install -e .` lief in einen Netzwerk-Timeout beim Dependency-Download (kein Repo-Problem).
+9. `git push --force origin main` ausgeführt (Nutzerentscheidung: automatisch im selben Schritt, nach erfolgreicher lokaler Verifikation).
+
+### Ergebnis
+`.git`-Größe: **13 GB → 10 MB** (weit unter dem Plan-Ziel "deutlich < 1 GB"). `.git/objects` allein: 815 MB → ~9,8 MB. Freier Speicherplatz: 16 GB → 23 GB.
+
+### Offener Punkt für den Nutzer (kein automatisierter Schritt)
+GitHub hält serverseitig weiterhin die alten LFS-Objekte der jetzt entfernten History, bis sie dort manuell bereinigt werden (Repo-Einstellungen → "Large file storage" → nicht mehr referenzierte Objekte entfernen/GC anstoßen). Das liegt außerhalb der Reichweite von `git`/`git-filter-repo` und wurde in dieser Session nur dokumentiert, nicht ausgeführt.
+
+### Bekannte, aus Phase 0b übernommene Einschränkung
+14 von 90 historisch referenzierten LFS-Objekten fehlten bereits vor dem Rewrite im lokalen Cache (siehe Phase-0b-Eintrag, dokumentiert in `_backups/git_mirror_2026-08-28.git/MISSING_LFS_OBJECTS.md`) — alle unter dem jetzt entfernten `political_youtube/`-Pfad, nach der `.claude/CLAUDE.md`-Regel ohnehin irrelevant. Durch den Rewrite dieser Session sind diese Pfade nun ganz aus der History entfernt, das Fehlen dieser 14 Objekte ist damit gegenstandslos geworden.
+
+**Verifikation erfüllt:** `du -sh .git` deutlich < 1 GB (real: 10 MB) ✅; `git fsck` fehlerfrei ✅; Test-Klon lässt sich normal auschecken, Paket-Import funktioniert ✅; `git log --all -- src/` zeigt weiterhin sinnvolle Code-Historie ✅.
+
+## Nächster Schritt
+**Phase 3 — Datenformat-Migration je Datentyp** (siehe Plan-Abschnitt "Phase 3"), empfohlen als eigene Session pro Teilschritt (3a–3d). Vor Beginn dort:
+- GitHub-seitige LFS-Bereinigung (siehe "Offener Punkt" oben) mit dem Nutzer klären/erledigen lassen, falls noch nicht geschehen.
+- Die ~5,7 GB neuer, ungetrackter Arbeitsdaten-Dateien im Working Tree (u. a. `data/raw/video_registry.sqlite`, `data/samples/russia/sample_50k_channels_russia_ukraine*.jsonl`, diverse `scraping/*.json`-Fill-Listen) wurden in Phase 2 bewusst nicht angefasst (nicht git-getrackt, daher irrelevant für den History-Rewrite) — relevant als Input für Phase 3a/3b, sollten dort gesichtet statt einfach übernommen werden.
+
+---
+
 ## Zwischenzeitliche Fachaufgabe (parallel zur Restrukturierung, gleicher Tag): Titel-Screening für 27 Kanäle vorbereitet
 
 **Kein Teil des Restrukturierungsplans selbst**, aber relevant für den Kontext der
