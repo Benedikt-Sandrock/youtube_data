@@ -8,6 +8,7 @@ import json
 from datetime import datetime, timezone
 
 from youtube_code.config import TRANSCRIPTS, SAMPLES, OUTPUTS, SRC
+from youtube_code.utils.video_registry import get_channel_map, get_videos_for_channels
 
 # =====================================================
 # CONFIGURATION
@@ -25,6 +26,13 @@ FILE_PATH_BACKUP = TRANSCRIPTS / "all_transcripts_backup.csv"
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]
+
+# Kanal-Vorfilter: Kanaele, fuer die schon MIN_ATTEMPTS_FOR_CHANNEL_CHECK
+# Transkripte abgefragt wurden, aber weniger als MIN_AVAILABLE_REQUIRED
+# davon tatsaechlich existieren ("status" == "OK"), werden komplett
+# uebersprungen - fuer sie werden keine weiteren Transkripte abgefragt.
+MIN_ATTEMPTS_FOR_CHANNEL_CHECK = 10
+MIN_AVAILABLE_REQUIRED = 2
 
 # =====================================================
 # FUNCTIONS
@@ -63,11 +71,16 @@ with open(VIDEO_LIST, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 print(type(data))
+video_channel_map = {}  # video_id -> channel_id, soweit im Input vorhanden
 if isinstance(data, list) and len(data) > 0:
     print(type(data[0]))
 
     if isinstance(data[0], dict):
         video_ids_sorted = [str(item["video_id"]) for item in data]
+        for item in data:
+            cid = item.get("channel_id")
+            if cid:
+                video_channel_map[str(item["video_id"])] = str(cid)
     elif isinstance(data[0], str):  # <- Hier MUSS 'elif' stehen!
         video_ids_sorted = data
     else:
@@ -79,27 +92,80 @@ else:
 
 print(f"Number of video-IDs: {len(video_ids_sorted)}")
 
-# Loading processed video-IDs
+# Loading processed video-IDs (inkl. status, fuer den Kanal-Vorfilter unten)
 
 if os.path.exists(OUTPUT_FILE):
     print("Existing CSV found – Loading already processed video IDs…")
-    existing_df = pd.read_csv(OUTPUT_FILE, usecols = ["video_id"])
+    existing_df = pd.read_csv(OUTPUT_FILE, usecols=["video_id", "status"])
+    existing_df["video_id"] = existing_df["video_id"].astype(str)
 
-    processed_video_ids = set(existing_df["video_id"].astype(str))
-    print(f"Type of processed videi ids: {type(processed_video_ids)}")
-    print(f"Type of video ids sorted: {type(video_ids_sorted)}")
+    processed_video_ids = set(existing_df["video_id"])
+    status_by_video_id = dict(zip(existing_df["video_id"], existing_df["status"]))
 
     print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
 
     already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
     print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
 
-    num_remaining_vids = len(video_ids_sorted) - len(already_downloaded)
-
 else:
     print("No existing CSV found")
     processed_video_ids = set()
-    num_remaining_vids = len(video_ids_sorted)
+    status_by_video_id = {}
+
+# =====================================================
+# KANAL-VORFILTER
+# =====================================================
+# Fuer jede Video-ID im Input wird - soweit moeglich - die channel_id
+# bestimmt (zuerst aus dem Input selbst, sonst aus der zentralen
+# video_registry.sqlite). Fuer jeden so bekannten Kanal wird ueber ALLE
+# in der Registry bekannten Videos dieses Kanals (nicht nur die im
+# aktuellen Input) geprueft, wie viele Transkripte davon schon abgefragt
+# wurden (Eintrag in OUTPUT_FILE) und wie viele davon tatsaechlich
+# existieren (status == "OK"). Kanaele mit >= MIN_ATTEMPTS_FOR_CHANNEL_CHECK
+# Abfragen, aber < MIN_AVAILABLE_REQUIRED tatsaechlichen Transkripten,
+# werden komplett uebersprungen.
+
+missing_channel_ids = [v for v in video_ids_sorted if v not in video_channel_map]
+if missing_channel_ids:
+    video_channel_map.update(get_channel_map(missing_channel_ids))
+
+known_channel_ids = {cid for cid in video_channel_map.values() if cid}
+unmapped_count = len(video_ids_sorted) - sum(1 for v in video_ids_sorted if v in video_channel_map)
+
+if known_channel_ids:
+    videos_by_channel = get_videos_for_channels(known_channel_ids)
+
+    blocked_channels = set()
+    for cid in known_channel_ids:
+        registry_videos = videos_by_channel.get(cid, set())
+        attempted_ids = registry_videos & processed_video_ids
+        attempted = len(attempted_ids)
+        available = sum(1 for v in attempted_ids if status_by_video_id.get(v) == "OK")
+
+        if attempted >= MIN_ATTEMPTS_FOR_CHANNEL_CHECK and available < MIN_AVAILABLE_REQUIRED:
+            blocked_channels.add(cid)
+
+    if blocked_channels:
+        before = len(video_ids_sorted)
+        video_ids_sorted = [
+            v for v in video_ids_sorted
+            if video_channel_map.get(v) not in blocked_channels
+        ]
+        removed = before - len(video_ids_sorted)
+        print(
+            f"\n🚫 {len(blocked_channels)} Kanal/Kanäle ohne ausreichend verfügbare Transkripte "
+            f"(>= {MIN_ATTEMPTS_FOR_CHANNEL_CHECK} abgefragt, < {MIN_AVAILABLE_REQUIRED} vorhanden) "
+            f"— {removed} Video-IDs dadurch entfernt."
+        )
+    else:
+        print(f"\n✅ Kanal-Vorfilter: kein Kanal erreicht die Sperr-Schwelle.")
+
+    if unmapped_count:
+        print(f"ℹ️ {unmapped_count} Video-IDs ohne bekannte channel_id — für sie entfällt der Kanal-Vorfilter.")
+else:
+    print("\nℹ️ Keine channel_id verfügbar (weder im Input noch in der Registry) — Kanal-Vorfilter wird übersprungen.")
+
+num_remaining_vids = len([v for v in video_ids_sorted if v not in processed_video_ids])
 videos_to_process = [v for v in video_ids_sorted if v not in processed_video_ids]
 
 random.shuffle(videos_to_process)

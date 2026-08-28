@@ -43,3 +43,6 @@ __pycache__
 /outputs/llm/longitudinal/
 /data/samples/russia/batches_longitudinal/
 /data/samples/russia/classification/
+
+# Phase 0b: lokale Sicherungskopien (Restrukturierung) - nie tracken
+/_backups/

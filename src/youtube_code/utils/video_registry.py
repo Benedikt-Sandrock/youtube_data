@@ -141,3 +141,62 @@ def total_count() -> int:
         return con.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
     finally:
         con.close()
+
+
+def _chunks(items, size=500):
+    items = list(items)
+    for i in range(0, len(items), size):
+        yield items[i:i + size]
+
+
+def get_channel_map(video_ids) -> dict:
+    """
+    Gibt ein Mapping video_id -> channel_id fuer die uebergebenen video_ids
+    zurueck (nur fuer video_ids, die in der Registry mit gesetzter
+    channel_id vorhanden sind; unbekannte video_ids fehlen im Ergebnis).
+    """
+    video_ids = [str(v) for v in video_ids]
+    if not video_ids:
+        return {}
+
+    con = _connect()
+    result = {}
+    try:
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            rows = con.execute(
+                f"SELECT video_id, channel_id FROM videos "
+                f"WHERE video_id IN ({placeholders}) AND channel_id IS NOT NULL",
+                chunk,
+            ).fetchall()
+            result.update(rows)
+    finally:
+        con.close()
+    return result
+
+
+def get_videos_for_channels(channel_ids) -> dict:
+    """
+    Gibt ein Mapping channel_id -> Menge aller in der Registry bekannten
+    video_ids dieses Kanals zurueck - ueber die GESAMTE Registry, nicht nur
+    ueber einen aktuellen Input. So laesst sich pro Kanal die vollstaendige
+    Historie bereits abgefragter Videos ermitteln.
+    """
+    channel_ids = [str(c) for c in channel_ids if c]
+    if not channel_ids:
+        return {}
+
+    con = _connect()
+    result = {}
+    try:
+        for chunk in _chunks(channel_ids):
+            placeholders = ",".join("?" * len(chunk))
+            rows = con.execute(
+                f"SELECT video_id, channel_id FROM videos WHERE channel_id IN ({placeholders})",
+                chunk,
+            ).fetchall()
+            for vid, cid in rows:
+                result.setdefault(cid, set()).add(vid)
+    finally:
+        con.close()
+    return result

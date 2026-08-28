@@ -119,3 +119,84 @@ Alle Verschiebungen per `git mv` (Historie erhalten). `find_videos_without_trans
 
 ## Nächster Schritt
 **Phase 0b — Physische Sicherung** (jetzt 29 GB frei, genug Platz): lokalen `git clone --mirror` + `git lfs fetch --all` anlegen, in den GCP-Bucket hochladen, danach lokal löschen. Siehe Plan-Abschnitt "0b. Physische Sicherung" für die genauen Schritte. Erst danach Phase 2 (Git-History-Rewrite) angehen — laut Plan in einer eigenen, isolierten Session ohne parallele Aufräumarbeit.
+
+---
+
+## Phase 0b — Physische Sicherung
+**Status: ABGESCHLOSSEN (2026-08-28)**
+
+### Abweichung vom Plan: lokale statt Cloud-Sicherung
+Der Plan sah einen Upload des Mirrors in den GCP-Bucket vor (da zu Planungszeitpunkt nur ~5 GB frei waren und keine externe Platte verfügbar war). Nach Phase 1 waren 27–39 GB frei — der Cloud-Upload lief testweise an (ETA ~1,5–2 h bei ~1,7–2 MiB/s Upload-Bandbreite), wurde aber auf **expliziten Nutzerwunsch abgebrochen**: "Ein reiner lokaler Kopiervorgang reicht doch." Der bereits hochgeladene Teilstand (~17,6 MiB) wurde aus dem Bucket wieder gelöscht (`gsutil -m rm -r`), sodass dort keine Reste verbleiben.
+
+**Neue Sicherungs-Strategie:** lokale Kopie statt Bucket-Upload, abgelegt unter `_backups/` im Repo-Root (neu zu `.gitignore` hinzugefügt: `/_backups/`, damit dieser Ordner nie getrackt wird bzw. Phase 2 ihn nicht anfasst):
+- `_backups/git_mirror_2026-08-28.git/` (~12 GB) — vollständiger `git clone --mirror` inkl. `git lfs fetch --all`.
+- `_backups/llm_results_2026-08-28/` (~311 MB) — Kopien von `outputs/segment_analysis/` (96 MB, 101 Dateien) und `outputs/llm/` (215 MB, 274 Dateien).
+
+**Wichtig für eine spätere Session:** Da dieser Ordner nicht in der Cloud liegt, ersetzt er kein Offsite-Backup — er schützt nur gegen einen fehlerhaften Git-History-Rewrite in Phase 2, nicht gegen Festplattenausfall/-verlust des Rechners. Falls das später noch relevant wird, mit dem Nutzer klären, ob doch noch ein Cloud-Upload gewünscht ist (z. B. wenn mehr Bandbreite verfügbar ist).
+
+### Fehlende LFS-Objekte (bekannt, akzeptiert)
+Beim `git lfs fetch --all` fehlten 14 von 90 historisch referenzierten LFS-Objekten bereits im lokalen Quell-`.git/lfs`-Cache ("remote missing object"). Per Skript wurden alle 14 auf ihre erste Fundstelle in der Git-History gemappt — ausnahmslos alte Zwischenstände unter dem Vor-Restrukturierungs-Pfad `political_youtube/...` (u. a. 4 Versionen von `political_yt_transcripts.csv`, je 2 Versionen von `transcripts_conflict_over_time.csv`/`political_yt_transcripts_new.csv`/`political_yt_transcripts_sample_vids.csv`, je 1 Version von `all_transcripts.csv`, `single_transcripts.csv`, `complete_dataset.csv`, `videos_total.json`). Keines davon ist nach der `.claude/CLAUDE.md`-Regel relevant (nur `all_transcripts_segments.csv` zählt als Transkript-Quelle).
+
+Ein Abrufversuch von GitHub (`origin`, könnte die fehlenden Objekte noch haben) wurde gestartet, aber auf Nutzerwunsch abgebrochen, bevor er ein Ergebnis lieferte — **nicht abschließend geklärt, ob GitHub sie noch hätte liefern können.** Nutzer hat explizit bestätigt, ohne diese 14 Objekte fortzufahren. Dokumentiert in `_backups/git_mirror_2026-08-28.git/MISSING_LFS_OBJECTS.md` (liegt im Mirror selbst, damit die Information nicht verloren geht).
+
+### Verifikation
+- Refs: Quell-Repo und Mirror je 3 Refs (identisch).
+- LFS-Objekte: 76/76 im Mirror vorhanden (90 referenziert − 14 bekannt fehlend = 76 erwartet, passt exakt).
+- `git fsck --full` im Mirror: keine `error`/`missing`/`corrupt`-Meldungen, nur harmlose `dangling`-Objekte (normal bei einem Mirror).
+- LLM-Ergebnis-Kopien: Dateizahl identisch zum Original (`segment_analysis` 101/101, `llm` 274/274).
+
+### Bekannte Kleinigkeit (kein Blocker)
+Beim Aufräumen der temporären Scratch-Kopie (vor der Verifikation nach `_backups/` kopiert, danach sollte das Original im Scratch-Verzeichnis gelöscht werden) blieben ~4,9 GB in wechselnden einzelnen LFS-Objektdateien mit `Device or resource busy` hängen (vermutlich Windows-Defender-Echtzeit-Scan hält die frisch kopierten großen Binärdateien kurz gesperrt). Kein Datenverlust-Risiko, da die verifizierte Kopie in `_backups/` bereits vollständig und geprüft ist — das Scratch-Verzeichnis liegt außerhalb des Repos und wird ohnehin automatisch bereinigt, sobald der Claude-Code-Job beendet wird.
+
+**Phase 0b damit abgeschlossen.**
+
+## Nächster Schritt
+**Phase 2 — Git-History bereinigen** kann jetzt angegangen werden (physische Sicherung liegt vor). Laut Plan in einer eigenen, isolierten Session ohne parallele Aufräumarbeit. Vor Beginn dort:
+- `.gitattributes`-Reparatur (Tippfehler `diff=lfd`→`diff=lfs`, doppelte Zeile für `all_transcripts.csv`) einplanen.
+- Grundsatzentscheidung treffen: großes Rohdaten künftig ganz aus Git heraushalten (empfohlen) statt LFS weiter zu pflegen.
+- Backup-Pfad `_backups/git_mirror_2026-08-28.git` als Referenz/Fallback im Hinterkopf behalten, falls der History-Rewrite schiefgeht.
+
+---
+
+## Zwischenzeitliche Fachaufgabe (parallel zur Restrukturierung, gleicher Tag): Titel-Screening für 27 Kanäle vorbereitet
+
+**Kein Teil des Restrukturierungsplans selbst**, aber relevant für den Kontext der
+nächsten Session, da sie denselben Datenbestand berührt, den Phase 2 als Nächstes
+anfasst. Auftrag kam aus `outputs/segment_analysis/HANDOFF_STEP3_ONWARDS.md` /
+`HANDOFF_baseline_collection_27_channels.md` (eigene Handoff-Kette, unabhängig von
+dieser Restrukturierung). Durchgeführt: State um 28.412 Baseline-Kandidatenzeilen für
+3 große Kanäle erweitert (`append_channels_to_state.py`), Screening-Runde 009 erzeugt
+(4.021 Titel-Kandidaten), `run_longitudinal_screening_batch.py` für die Einreichung
+konfiguriert (`ROUND_NUMBER=9`, `MODE="title"`, `DRY_RUN=True`, Preflight bereits
+erfolgreich validiert) — Abschicken bewusst dem Nutzer überlassen. Volle Details in
+`outputs/segment_analysis/HANDOFF_STEP3_ONWARDS.md`.
+
+### Auswirkung auf die Restrukturierung (wichtig für Phase 2 und danach)
+
+1. **Neuer, nicht getrackter State-Backup**: `data/samples/russia/longitudinal_screening_state.csv.bak_pre_27channels_step3`
+   (~1.2GB) liegt jetzt neben der aktuellen State-Datei. Analog zu den in Phase 1
+   bereits gelöschten älteren State-Backups ist das ein Aufräumkandidat für eine
+   spätere Phase-1-artige Nachbereinigung — aber **noch nicht löschen**, solange
+   Screening-Runde 009 nicht abgeschickt und verarbeitet ist (dient bis dahin als
+   Rückfallebene für den echten State-Change dieser Session).
+2. **Aktuelle State-Datei hat sich seit Phase 0b (physische Sicherung) inhaltlich
+   geändert**: 983.794 → 1.012.206 Zeilen, plus `screening_round=9`-Markierung für
+   4.021 Zeilen. Der `_backups/git_mirror_2026-08-28.git`-Mirror aus Phase 0b spiegelt
+   diesen neuen Stand **nicht** wider (Mirror ist vor dieser Fachaufgabe entstanden).
+   Kein Problem für Phase 2 selbst (State-Datei ist ohnehin nicht git-getrackt), aber
+   falls in einer späteren Phase doch noch ein Cloud-Backup/Sync der Rohdaten erwogen
+   wird (siehe Hinweis in Phase 0b), sollte der aktuelle Stand erneut gesichert werden,
+   nicht der alte Mirror-Stand.
+3. **Neuer README-Ordnerinhalt**: `src/youtube_code/politics_screening/README_ADD_NEW_CHANNELS.md`
+   wurde neu angelegt (dokumentiert den kompletten Ablauf, um weitere Kanäle
+   hinzuzufügen, inkl. eines in dieser Session gefundenen Workarounds für einen
+   `MemoryError` in `append_channels_to_state.py` bei sehr großen JSONL-Eingaben). Für
+   Phase 4 (Code-Reorganisation) relevant: diese neue Datei liegt im bisherigen
+   `politics_screening`-Pfad und sollte bei einer eventuellen Verzeichnisumstrukturierung
+   mitverschoben statt vergessen werden.
+4. **Kein Einfluss auf die eigentlichen Restrukturierungs-Entscheidungen** (Phase-2-
+   History-Rewrite, spätere SQLite-Migration in Phase 3c, Code-Reorg in Phase 4,
+   Pfad-Konstanten in Phase 5) — die Fachaufgabe hat ausschließlich Daten innerhalb der
+   bestehenden State-/Rohdaten-Struktur ergänzt, keine neuen toten Pfade oder
+   Duplikate hinterlassen (die einzige neu erzeugte Zwischen-Datei, eine gefilterte
+   ~248MB-JSONL-Kopie, wurde nach Gebrauch wieder gelöscht).
