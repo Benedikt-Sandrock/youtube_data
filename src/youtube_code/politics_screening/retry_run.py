@@ -22,12 +22,9 @@ Was das Skript für dich erledigt:
      (status="downloaded") - damit update_screening_state.py danach ganz
      normal mit der ursprünglichen RUN_ID weiterarbeiten kann.
 
-WICHTIG - bitte vor dem ersten scharfen Einsatz gegenchecken:
-  - Die exakten Methodennamen von RunRegistry (get_run/get_runs/update_run)
-    habe ich aus der Verwendung in deinen Skripten abgeleitet, nicht aus der
-    Klassendefinition selbst (die lag mir nicht vor).
-  - Falls get_run() bei unbekannter run_id nicht None sondern eine Exception
-    wirft, greift der try/except unten trotzdem.
+Seit Phase 4b der Restrukturierung laeuft die Registry-Seite ueber
+youtube_code.utils.llm_run_store (source="screening_active") statt ueber
+die alte RunRegistry-CSV-Klasse.
 """
 
 from pathlib import Path
@@ -36,7 +33,6 @@ import time
 import pandas as pd
 
 from youtube_code.llm_analysis.submit_batch_jobs import (
-    registry,
     client,
     run_all_prompts,
     MODEL_ALIASES,
@@ -47,11 +43,13 @@ from youtube_code.politics_screening.screening_config import (
     BATCH_INPUT_DIR,
     DESCRIPTIONS_PER_REQUEST,
     GROUPING_SEED,
+    LLM_RUN_SOURCE,
     MANIFEST_DIR,
     MAX_DESCRIPTION_CHARS,
     STATE_FILE,
     TITLES_PER_REQUEST,
 )
+from youtube_code.utils import llm_run_store
 
 REVERSE_MODEL_ALIASES = {value: key for key, value in MODEL_ALIASES.items()}
 
@@ -120,9 +118,7 @@ def enrich_retry_file(retry_path: Path) -> None:
 
 def submit_retry(source_run_id: str) -> str:
     """Submits the retry CSV for source_run_id as a new run. Returns the new run_id."""
-    run = registry.get_run(source_run_id)
-    if run is None:
-        raise ValueError(f"Run {source_run_id} nicht in der Registry gefunden.")
+    run = llm_run_store.get_run(LLM_RUN_SOURCE, source_run_id)
     if run["status"] != "validation_failed":
         raise ValueError(
             f"Run {source_run_id} hat status={run['status']!r}, "
@@ -197,7 +193,7 @@ def submit_retry(source_run_id: str) -> str:
 
 
 def wait_for_job(run_id: str, poll_interval_seconds: int = 300) -> None:
-    run = registry.get_run(run_id)
+    run = llm_run_store.get_run(LLM_RUN_SOURCE, run_id)
     job_id = run["job_id"]
     while True:
         state = get_job_state(job_id)
@@ -219,8 +215,8 @@ def finalize_retry(source_run_id: str, retry_run_id: str) -> None:
             "kaputte Gruppe, dann müsste man erneut retryen)."
         )
 
-    original_run = registry.get_run(source_run_id)
-    retry_run = registry.get_run(retry_run_id)
+    original_run = llm_run_store.get_run(LLM_RUN_SOURCE, source_run_id)
+    retry_run = llm_run_store.get_run(LLM_RUN_SOURCE, retry_run_id)
 
     original_results = pd.read_csv(
         original_run["results_path"], dtype={"video_id": "string"}, low_memory=False
@@ -243,10 +239,12 @@ def finalize_retry(source_run_id: str, retry_run_id: str) -> None:
     combined.to_csv(combined_path, index=False, encoding="utf-8-sig")
     print(f"Kombinierte Ergebnisdatei gespeichert: {combined_path}")
 
-    registry.update_run(
-        source_run_id, status="downloaded", results_path=str(combined_path)
+    llm_run_store.update_run(
+        LLM_RUN_SOURCE, source_run_id, status="downloaded", results_path=str(combined_path)
     )
-    registry.update_run(retry_run_id, status=f"merged_into_{source_run_id}")
+    llm_run_store.update_run(
+        LLM_RUN_SOURCE, retry_run_id, status=f"merged_into_{source_run_id}"
+    )
     print(
         f"Registry aktualisiert: {source_run_id} ist jetzt status='downloaded' "
         f"mit {len(combined):,} Zeilen. Kann jetzt normal mit "

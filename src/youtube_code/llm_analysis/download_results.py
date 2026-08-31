@@ -6,8 +6,8 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import LLM, PROJECT_ID, LOCATION
-from youtube_code.politics_screening.screening_config import MANIFEST_DIR, REGISTRY_PATH
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
+from youtube_code.politics_screening.screening_config import LLM_RUN_SOURCE, MANIFEST_DIR
+from youtube_code.utils import llm_run_store
 
 
 # ============================================================
@@ -26,7 +26,6 @@ SUPPORTED_GROUPED_TARGETS = {
 }
 SAVE_FORMAT = "CSV"
 
-registry = RunRegistry(REGISTRY_PATH)
 client = genai.Client(
     vertexai=True,
     project=PROJECT_ID,
@@ -986,7 +985,7 @@ def find_output_urls(status_job) -> list[str]:
 
 def process_run(run_id: str, save_format: str = "CSV") -> str:
     """Check a registered job, download and validate finished output."""
-    run = registry.get_run(run_id)
+    run = llm_run_store.get_run(LLM_RUN_SOURCE, run_id)
     job_id = run["job_id"]
     raw_target_variable = run.get("target_variable", "")
     target_variable = (
@@ -1026,7 +1025,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
     }:
         print("  Job failed/cancelled.")
         print(f"  Error: {status_job.error}")
-        registry.update_run(run_id, status="failed")
+        llm_run_store.update_run(LLM_RUN_SOURCE, run_id, status="failed")
         return "failed"
 
     if current_state != "JOB_STATE_SUCCEEDED":
@@ -1043,7 +1042,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
     output_uris = find_output_urls(status_job)
     if not output_uris:
         print("  No prediction JSONL found in GCS output folder.")
-        registry.update_run(run_id, status="error")
+        llm_run_store.update_run(LLM_RUN_SOURCE, run_id, status="error")
         return "error"
 
     try:
@@ -1058,7 +1057,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
         )
     except Exception as error:
         print(f"  Download or validation failed: {error}")
-        registry.update_run(run_id, status="validation_failed")
+        llm_run_store.update_run(LLM_RUN_SOURCE, run_id, status="validation_failed")
         return "validation_failed"
 
     if not validation["all_valid"]:
@@ -1066,14 +1065,16 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
             "  Group validation failed. The run was not marked as "
             "downloaded."
         )
-        registry.update_run(
+        llm_run_store.update_run(
+            LLM_RUN_SOURCE,
             run_id,
             status="validation_failed",
             results_path=str(output_path),
         )
         return "validation_failed"
 
-    registry.update_run(
+    llm_run_store.update_run(
+        LLM_RUN_SOURCE,
         run_id,
         status="downloaded",
         results_path=str(output_path),
@@ -1087,7 +1088,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
 # ============================================================
 
 def main():
-    open_runs = registry.get_runs(status="submitted")
+    open_runs = llm_run_store.get_runs(source=LLM_RUN_SOURCE, status="submitted")
 
     if open_runs.empty:
         print("No open runs (status='submitted') found in the registry.")

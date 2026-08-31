@@ -25,12 +25,12 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.politics_screening.screening_config import (
-    REGISTRY_PATH,
+    LLM_RUN_SOURCE,
     SCREENING_ROUND_DIR,
     STATE_FILE,
 )
+from youtube_code.utils import llm_run_store
 
 
 # ============================================================
@@ -304,12 +304,10 @@ def validate_state_consistency(state: pd.DataFrame) -> None:
 # ============================================================
 
 def load_run_and_results(
-    registry_path: Path,
     run_id: str,
     expected_target: str,
 ) -> tuple[dict, pd.DataFrame, Path]:
-    registry = RunRegistry(registry_path)
-    run = registry.get_run(run_id)
+    run = llm_run_store.get_run(LLM_RUN_SOURCE, run_id)
     metadata = (
         run.to_dict()
         if hasattr(run, "to_dict")
@@ -773,7 +771,6 @@ def update_screening_state(
     round_number: int,
     run_id: str,
     state_path: Path = STATE_FILE,
-    registry_path: Path = REGISTRY_PATH,
     dry_run: bool = True,
     confirm_before_write: bool = True,
 ) -> dict:
@@ -797,7 +794,6 @@ def update_screening_state(
 
     state = load_state(state_path)
     metadata, results, results_path = load_run_and_results(
-        registry_path=registry_path,
         run_id=run_id,
         expected_target=target_variable,
     )
@@ -894,7 +890,6 @@ def main() -> None:
         round_number=ROUND_NUMBER,
         run_id=RUN_ID,
         state_path=STATE_FILE,
-        registry_path=REGISTRY_PATH,
         dry_run=DRY_RUN,
         confirm_before_write=CONFIRM_BEFORE_WRITE,
     )

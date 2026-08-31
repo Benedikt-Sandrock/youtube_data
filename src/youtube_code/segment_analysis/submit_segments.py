@@ -26,12 +26,12 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, SAMPLES
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.segment_analysis.segment_analysis_config import (
     BATCH_INPUT_DIR,
+    LLM_RUN_SOURCE,
     MANIFEST_DIR,
-    REGISTRY_PATH,
 )
+from youtube_code.utils import llm_run_store
 
 from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
 
@@ -313,15 +313,19 @@ def build_jsonl_and_manifest(
     return written
 
 
-def require_no_existing_run(registry: RunRegistry, dataset_id: str, target: str) -> None:
+def require_no_existing_run(dataset_id: str, target: str) -> None:
     if ALLOW_EXISTING_RUN:
         return
-    existing = registry.get_runs(
+    existing = llm_run_store.get_runs(
+        source=LLM_RUN_SOURCE,
         dataset_id=dataset_id,
-        dataset_version=DATASET_VERSION,
-        prompt_id=PROMPT_KEY,
         target_variable=target,
     )
+    if not existing.empty:
+        existing = existing[
+            (existing["dataset_version"] == DATASET_VERSION)
+            & (existing["prompt_id"] == PROMPT_KEY)
+        ]
     if existing.empty:
         return
     columns = [
@@ -372,8 +376,7 @@ def main() -> None:
     segments = load_segments(Path(SEGMENT_FILE))
     dataset_id = Path(SEGMENT_FILE).stem
 
-    registry = RunRegistry(REGISTRY_PATH)
-    require_no_existing_run(registry, dataset_id, target_variable)
+    require_no_existing_run(dataset_id, target_variable)
 
     stem = f"segments_{PROMPT_KEY}_{MODEL_NAME}"
     jsonl_path = SEGMENT_BATCH_INPUT_DIR / f"{stem}.jsonl"
@@ -430,7 +433,8 @@ def main() -> None:
     client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
     job_id = upload_and_start(jsonl_path, model_alias, client)
 
-    run_id = registry.add_run(
+    run_id = llm_run_store.add_run(
+        LLM_RUN_SOURCE,
         prompt_id=PROMPT_KEY,
         prompt_number="seg",
         prompt_version=PROMPT_VERSION,

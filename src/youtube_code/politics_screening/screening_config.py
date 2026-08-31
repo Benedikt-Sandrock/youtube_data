@@ -46,7 +46,13 @@ BATCH_INPUT_DIR = BATCH_DIR / "inputs"
 MANIFEST_DIR = BATCH_DIR / "manifests"
 RESULTS_DIR = SCREENING_DIR / "results"
 OUTPUT_DIR = LLM / "title_classification"
-REGISTRY_PATH = PROJECT_ROOT / "llm_analysis" / "registry" / "runs_registry.csv"
+
+# source-Wert in der zentralen LLM-Run-Registry (data/raw/llm_runs.sqlite,
+# siehe youtube_code.utils.llm_run_store). Ersetzt die fruehere
+# REGISTRY_PATH-Konstante (eigene CSV-Datei je Quelle) seit Phase 4b der
+# Restrukturierung - alle Call-Sites filtern jetzt ueber diesen source-Wert
+# statt einen eigenen Dateipfad zu oeffnen.
+LLM_RUN_SOURCE = "screening_active"
 
 
 # Das Rundenskript wird Kandidaten adaptiv nachziehen. Diese Werte begrenzen

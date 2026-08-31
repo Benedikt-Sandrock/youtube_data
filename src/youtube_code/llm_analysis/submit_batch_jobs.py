@@ -8,8 +8,8 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, EXPLORATION, SAMPLES
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
-from youtube_code.politics_screening.screening_config import REGISTRY_PATH
+from youtube_code.politics_screening.screening_config import LLM_RUN_SOURCE
+from youtube_code.utils import llm_run_store
 # ===============================================
 # CONFIG
 # ===============================================
@@ -24,7 +24,6 @@ MODEL_ALIASES = {
     "gemini_25_pro": "gemini-2.5-pro",
 }
 
-registry = RunRegistry(REGISTRY_PATH)
 client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
 
 # ===============================================
@@ -738,7 +737,8 @@ def run_all_prompts(
                 }
                 continue
 
-            run_id = registry.add_run(
+            run_id = llm_run_store.add_run(
+                LLM_RUN_SOURCE,
                 prompt_id=prompt_key,
                 prompt_number=prompt_number,
                 prompt_version=prompt_version,

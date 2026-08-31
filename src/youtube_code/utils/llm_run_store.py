@@ -47,10 +47,20 @@ Skriptlauf derselben Quelle ("ganze Zeile gewinnt" bei Konflikt auf
 (source, run_id), analog transcript_store).
 
 Nutzung:
-    from youtube_code.utils.llm_run_store import upsert_runs, get_runs, get_run
+    from youtube_code.utils.llm_run_store import (
+        upsert_runs, get_runs, get_run, add_run, update_run,
+    )
     upsert_runs("screening_active", records)  # Liste von dicts, REGISTRY_COLUMNS-Felder
     get_runs(dataset_id="main_transcripts", target_variable="ideology_score")
     get_run("screening_active", "run_0017")
+    add_run("screening_active", prompt_id="PROMPT_32", ...)      # -> neue run_id
+    update_run("screening_active", "run_0017", status="downloaded")
+
+add_run()/update_run() sind duenne Komfortfunktionen ueber upsert_runs(),
+die die bisherige RunRegistry.add_run()/update_run()-Aufrufform an den
+Call-Sites nachbilden (Phase 4b der Restrukturierung, .claude/plans/
+phase_4.md) - direkte upsert_runs()-Aufrufe bleiben fuer Bulk-Schreiben
+(z.B. Migration) weiterhin der Normalfall.
 """
 import sqlite3
 
@@ -211,6 +221,74 @@ def get_runs(source=None, dataset_id=None, target_variable=None, status=None):
         return pd.read_sql_query(query, con, params=params)
     finally:
         con.close()
+
+
+def next_run_id(source: str) -> str:
+    """
+    Naechste freie run_id fuer eine gegebene `source`, im Format "run_NNNN".
+    Ersatz fuer RunRegistry._next_run_id() (src/youtube_code/llm_analysis/
+    registry/run_registry.py), aber jetzt je `source` statt global gezaehlt
+    - jede der vier Quellen hatte historisch ihren eigenen Zaehler, siehe
+    Modul-Docstring.
+    """
+    import pandas as pd
+
+    con = _connect()
+    try:
+        existing = pd.read_sql_query(
+            "SELECT run_id FROM llm_runs WHERE source = ?", con, params=[source],
+        )
+    finally:
+        con.close()
+    if existing.empty:
+        return "run_0001"
+    numbers = existing["run_id"].str.extract(r"run_(\d+)")[0].dropna().astype(int)
+    next_num = (numbers.max() + 1) if not numbers.empty else 1
+    return f"run_{next_num:04d}"
+
+
+def add_run(source: str, **fields) -> str:
+    """
+    Legt einen neuen Run fuer `source` an (naechste freie run_id per
+    next_run_id(), created_at/updated_at automatisch gesetzt) und gibt die
+    run_id zurueck. Ersatz fuer RunRegistry.add_run(...) - `fields` sind
+    beliebige REGISTRY_COLUMNS-Felder (z.B. prompt_id, model, dataset_id,
+    status; status faellt auf "submitted" zurueck, wenn nicht angegeben).
+    """
+    from datetime import datetime
+
+    run_id = next_run_id(source)
+    now = datetime.now().isoformat(timespec="seconds")
+    record = {
+        "run_id": run_id,
+        "status": "submitted",
+        "created_at": now,
+        "updated_at": now,
+        "results_path": "",
+        "notes": "",
+        **fields,
+    }
+    upsert_runs(source, [record])
+    return run_id
+
+
+def update_run(source: str, run_id: str, **fields) -> None:
+    """
+    Aktualisiert einzelne Felder eines bestehenden Runs. upsert_runs()
+    ersetzt bei einem Konflikt die ganze Zeile (siehe dort), deshalb wird
+    hier erst die bestehende Zeile geholt und die uebergebenen Felder
+    darueber gemergt (fetch-merge-upsert), damit nicht uebergebene Felder
+    nicht auf NULL fallen. Ersatz fuer RunRegistry.update_run(run_id,
+    **kwargs). Wirft ValueError, wenn (source, run_id) nicht existiert
+    (via get_run()).
+    """
+    from datetime import datetime
+
+    existing = get_run(source, run_id)
+    record = {col: existing.get(col) for col in REGISTRY_COLUMNS}
+    record.update(fields)
+    record["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    upsert_runs(source, [record])
 
 
 def get_run(source: str, run_id: str):

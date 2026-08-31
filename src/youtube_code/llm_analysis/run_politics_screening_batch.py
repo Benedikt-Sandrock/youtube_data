@@ -24,7 +24,6 @@ import pandas as pd
 from youtube_code.llm_analysis.prompts import (
     prompts_title_classification,
 )
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.llm_analysis.submit_batch_jobs import (
     run_all_prompts,
 )
@@ -34,11 +33,11 @@ from youtube_code.politics_screening.screening_config import (
     GROUPING_SEED,
     MANIFEST_DIR,
     MAX_DESCRIPTION_CHARS,
-    REGISTRY_PATH,
     SCREENING_ROUND_DIR,
     STATE_FILE,
     TITLES_PER_REQUEST,
 )
+from youtube_code.utils.llm_run_store import get_runs
 
 
 # ============================================================
@@ -478,12 +477,13 @@ def require_no_existing_run(
     if ALLOW_EXISTING_RUN:
         return
 
-    registry = RunRegistry(REGISTRY_PATH)
-    existing = registry.get_runs(
+    existing = get_runs(
+        source="screening_active",
         dataset_id=dataset_id,
-        prompt_id=settings.prompt_key,
         target_variable=settings.target_variable,
     )
+    if not existing.empty:
+        existing = existing[existing["prompt_id"] == settings.prompt_key]
     if existing.empty:
         return
 

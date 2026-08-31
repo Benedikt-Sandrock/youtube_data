@@ -13,13 +13,10 @@ from sklearn.metrics import (
 )
 
 from youtube_code.config import LLM
-from youtube_code.llm_analysis.registry.run_registry import (
-    RunRegistry,
-)
 from youtube_code.politics_screening.screening_config import (
-    REGISTRY_PATH,
     TRAINING_SAMPLE_FILE,
 )
+from youtube_code.utils.llm_run_store import get_run
 
 
 # ============================================================
@@ -659,11 +656,10 @@ def evaluate(
 # ============================================================
 
 def load_run_metadata(
-    registry_path: Path,
+    source: str,
     run_id: str,
 ) -> tuple[dict, Path]:
-    registry = RunRegistry(registry_path)
-    run = registry.get_run(run_id)
+    run = get_run(source, run_id)
 
     if run is None:
         raise ValueError(f"Run not found in registry: {run_id}")
@@ -968,7 +964,7 @@ def main() -> None:
         )
 
     title_metadata, title_model_file = load_run_metadata(
-        registry_path=REGISTRY_PATH,
+        source="screening_active",
         run_id=TITLE_RUN_ID,
     )
 
@@ -976,7 +972,7 @@ def main() -> None:
     description_model_file = None
     if EVALUATION_MODE in {"description", "pipeline"}:
         description_metadata, description_model_file = load_run_metadata(
-            registry_path=REGISTRY_PATH,
+            source="screening_active",
             run_id=DESCRIPTION_RUN_ID,
         )
 

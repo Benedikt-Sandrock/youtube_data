@@ -655,11 +655,194 @@ scripts/` liefert keine Treffer mehr; `python -c "import youtube_code"`
 weiterhin fehlerfrei (mit `src/` auf dem Pfad); `git log --follow` bestätigt
 die Historie für alle `git mv`-Verschiebungen.
 
+## Phase 4b, Schritt 1 — LLM-Run-Registry: reine Leser-Call-Sites (2026-08-31, abgeschlossen)
+
+Auf expliziten Ausführungsauftrag durchgeführt, aber bewusst nur der erste
+von 6 Unterschritten aus `.claude/plans/phase_4.md` Abschnitt "Teilschritt
+4b" — die Sitzung hatte laut Nutzerangabe nur noch wenig Budget übrig, daher
+Rückfrage an den Nutzer, der sich für "nur Schritt 1, dann sauber stoppen"
+entschieden hat.
+
+### Durchgeführt
+Die 4 reinen Leser-Call-Sites aus Plan-Punkt 1 auf `llm_run_store`
+umgestellt (`RunRegistry(REGISTRY_PATH)` → `from youtube_code.utils.llm_run_store
+import get_runs, get_run`, `source="screening_active"`):
+- `run_longitudinal_screening_batch.py` (`require_no_existing_run`)
+- `run_politics_screening_batch.py` (`require_no_existing_run`, identische
+  Struktur wie oben)
+- `run_transcript_classification_batch.py` (`require_no_existing_runs`,
+  Schleife über `prompt_keys`)
+- `evaluate_politics_screening.py` (`load_run_metadata`, Parameter
+  `registry_path` → `source` umbenannt, 2 Aufrufstellen in `main()`
+  angepasst)
+
+**Wichtige Abweichung vom alten Verhalten:** `llm_run_store.get_runs()`
+unterstützt nur `source`/`dataset_id`/`target_variable`/`status` als
+Filterparameter (kein `**filters` wie die alte `RunRegistry.get_runs()`).
+Die drei Batch-Runner filterten zusätzlich nach `prompt_id`
+(und `run_transcript_classification_batch.py` zusätzlich nach
+`dataset_version`) — das wird jetzt nicht mehr in SQL, sondern als
+zusätzlicher Pandas-Filter auf das vom Store zurückgegebene DataFrame
+angewendet (`existing[existing["prompt_id"] == ...]`). Ergebnis ist
+inhaltlich identisch zum alten Verhalten, nur der Store selbst wurde nicht
+um weitere Filterparameter erweitert (bewusst minimal gehalten für diesen
+Teilschritt — falls in 4b Schritt 2–6 weitere Call-Sites dieselben
+Zusatzfilter brauchen, lohnt sich dort eine Erweiterung von `get_runs()`
+um echte SQL-Parameter statt der Pandas-Nachfilterung an mehreren Stellen
+zu duplizieren).
+
+### Verifikation erfüllt
+`python -m py_compile` über alle 4 Dateien fehlerfrei; echter Modul-Import
+aller 4 Dateien mit `PYTHONPATH=src` aus der `.venv` heraus fehlerfrei;
+funktionaler Test von `get_runs()`/`get_run()` gegen die reale
+`llm_runs.sqlite` (83 Zeilen gesamt, 25 `screening_active`, unverändert
+gegenüber dem 3d-Migrationsstand) erfolgreich; `grep -rn "RunRegistry\|REGISTRY_PATH"`
+über die 4 Dateien liefert keine Treffer mehr; `git diff --stat` zeigt einen
+isolierten Diff nur in diesen 4 Dateien (23 Zeilen +, 25 Zeilen -), keine
+Vermischung mit anderen Änderungen. **Noch nicht committet** (Repo-Status:
+nur diese 4 Dateien als `M` markiert; committet wird nach Standing-Entscheidung
+nur auf expliziten Nutzerwunsch).
+
+## Phase 4b, Schritt 2–6 — LLM-Run-Registry: restliche Call-Sites + Aufräumen (2026-08-31, abgeschlossen)
+
+Auf expliziten Ausführungsauftrag durchgeführt (`.claude/plans/phase_4.md`,
+Abschnitt "Teilschritt 4b", Punkte 2–6, direkt im Anschluss an Schritt 1).
+
+### Durchgeführt
+
+**`llm_run_store.py` um zwei Komfortfunktionen erweitert** (`next_run_id(source)`,
+`add_run(source, **fields)`, `update_run(source, run_id, **fields)`), da die
+alte `RunRegistry.add_run()`/`update_run()`-API an 10+ Call-Sites 1:1
+nachgebildet werden musste — genau die in Schritt 1 als mögliche
+Store-Erweiterung vorgemerkte Stelle. Wichtig: `update_run()` macht
+**fetch-merge-upsert** (erst `get_run()`, dann die übergebenen Felder
+darüberlegen, dann `upsert_runs()`), weil `upsert_runs()` bei einem
+`ON CONFLICT` immer die *ganze* Zeile ersetzt — ein naives Weiterreichen nur
+der übergebenen Felder hätte alle nicht übergebenen Spalten auf `NULL`
+gesetzt. Per Test gegen eine temporäre DB-Kopie verifiziert (siehe unten).
+
+**Zentrale Schreiber (Punkt 2):**
+- `submit_batch_jobs.py`: `registry = RunRegistry(REGISTRY_PATH)` entfernt,
+  `registry.add_run(...)` in `run_all_prompts()` → `llm_run_store.add_run(LLM_RUN_SOURCE, ...)`.
+- `download_results.py`: alle 5 `registry.update_run(...)`-Aufrufe in
+  `process_run()` (failed/error/validation_failed ×2/downloaded) sowie
+  `registry.get_run(run_id)` und `registry.get_runs(status="submitted")`
+  in `main()` umgestellt.
+
+**`retry_run.py`/`update_screening_state.py` (Punkt 3):**
+- `retry_run.py`: importierte vorher das globale `registry`-Objekt aus
+  `submit_batch_jobs` (das es jetzt nicht mehr gibt) — alle 5 Zugriffe
+  (`submit_retry`, `wait_for_job`, `finalize_retry` ×2 get + ×2 update)
+  auf `llm_run_store.get_run`/`update_run(LLM_RUN_SOURCE, ...)` umgestellt.
+  Die tote `if run is None`-Prüfung entfernt (weder die alte `RunRegistry`
+  noch `llm_run_store.get_run()` geben je `None` zurück, beide werfen bei
+  unbekannter `run_id` eine `ValueError` — die Prüfung war schon vorher
+  unerreichbar).
+- `update_screening_state.py`: nur der Registry-Teil (State-Teil ist 4d).
+  `load_run_and_results()` verliert den `registry_path`-Parameter komplett
+  (ersetzt durch `llm_run_store.get_run(LLM_RUN_SOURCE, run_id)`); der
+  Parameter wurde durchgereicht bis zu `update_screening_state()` und
+  `main()` — beide Signaturen entsprechend bereinigt. Keine anderen
+  Call-Sites von `update_screening_state()` im aktiven Code gefunden (nur
+  `main()` selbst), daher unproblematisch.
+
+**`segment_analysis_active`-Quelle (Punkt 4):**
+- `submit_segments.py`: `require_no_existing_run()` von einem
+  `registry`-Parameter auf direkten `llm_run_store.get_runs(source=LLM_RUN_SOURCE,
+  dataset_id=..., target_variable=...)`-Aufruf umgestellt, `dataset_version`/
+  `prompt_id` wie in Schritt 1 als Pandas-Nachfilter (Store bewusst nicht
+  erweitert, siehe Schritt-1-Notiz oben). `registry.add_run(...)` → `llm_run_store.add_run(LLM_RUN_SOURCE, ...)`.
+- `download_segments.py`/`download_segments_simple.py`: **nicht
+  zusammengelegt**, obwohl Plan-Punkt 4 das als Prüfauftrag nannte
+  ("prüfen, ob sich beide zusammenlegen lassen") — Recherche ergab, dass
+  beide Dateien zwar strukturell fast identisch sind, aber aus
+  unterschiedlichen Prompt-Modulen importieren (`segment_prompts` vs.
+  `segment_prompts_simple`), die für dieselben `prompt_key`-Werte
+  (`POPULISMUS_P`, `IDEOLOGIE_I`) unterschiedliche Schemata definieren. Ein
+  Merge bräuchte eine neue Möglichkeit, pro Run zu erkennen, welches
+  Prompt-Modul bei der Submission verwendet wurde (z. B. ein zusätzliches
+  Registry-Feld) — das ist über die reine Call-Site-Migration hinaus eine
+  eigene Design-Entscheidung und wurde bewusst nicht ungefragt getroffen.
+  Beide Dateien bekamen stattdessen identische, isolierte Änderungen:
+  `process_run()` verliert den `registry`-Parameter, `registry.get_run`/
+  `update_run` → `llm_run_store.get_run`/`update_run(LLM_RUN_SOURCE, ...)`;
+  `main()` verliert `registry = RunRegistry(REGISTRY_PATH)`,
+  `registry.get_runs(status="submitted")` → `llm_run_store.get_runs(source=LLM_RUN_SOURCE, status="submitted")`.
+
+**Config-Umstellung (Punkt 5):**
+- `screening_config.py`/`segment_analysis_config.py`: `REGISTRY_PATH`
+  (Dateipfad-Konstante) durch `LLM_RUN_SOURCE` (String-Konstante,
+  `"screening_active"` bzw. `"segment_analysis_active"`) ersetzt — alle
+  oben migrierten Call-Sites importieren jetzt `LLM_RUN_SOURCE` statt einen
+  Dateipfad. In `segment_analysis_config.py` wurde dadurch der
+  `ROOT`-Import ungenutzt und entfernt (einzige bisherige Verwendung war
+  `REGISTRY_PATH`).
+
+**Aufräumen (Punkt 6):**
+- Vor dem Verschieben/Löschen alle vier CSV-Registries 1:1 gegen die
+  entsprechende `source` in `llm_runs.sqlite` abgeglichen (Zeilenzahl +
+  `run_id`-Mengen): `src/youtube_code/llm_analysis/registry/runs_registry.csv`
+  (25, `screening_active`), `runs_registry_legacy.csv` (25,
+  `screening_legacy`), `runs_registry_old.csv` (14, `gemini_old`),
+  Repo-Root `llm_analysis/registry/runs_registry.csv` (19,
+  `segment_analysis_active`) — alle vier identisch, erst danach angefasst.
+- `merge_and_evaluate.py` (kaputter `from registry.run_registry import
+  RunRegistry`-Import, tote `gemini_old`-Quelle) und der komplette
+  `src/youtube_code/llm_analysis/registry/`-Ordner (alte `run_registry.py`-
+  Klasse + alle 3 CSVs) per `git mv` nach `src/youtube_code/archive/llm_analysis/`
+  verschoben (Historie erhalten, Import bewusst nicht repariert — Datei ist
+  tot).
+- Repo-Root-Ordner `llm_analysis/` (nur noch die migrierte
+  `registry/runs_registry.csv`) per `git rm -r` gelöscht, wie im Plan
+  explizit vorgesehen (nicht archiviert, da vollständig in `llm_runs.sqlite`
+  vorhanden und durch keinen Call-Site mehr referenziert).
+
+### Offener Punkt (nicht Teil dieser Session)
+`scripts/adhoc/migrate_llm_runs_to_store.py` und
+`scripts/adhoc/verify_llm_runs_migration.py` referenzieren noch die jetzt
+verschobenen/gelöschten CSV-Pfade (`SRC / "llm_analysis" / "registry" /
+"runs_registry.csv"`, Repo-Root-Äquivalent). Beide sind einmalige,
+bereits erfolgreich gelaufene Migrationsskripte (die Migration nach
+`llm_runs.sqlite` ist abgeschlossen und verifiziert) — ein erneuter Lauf
+wäre ohnehin sinnlos, ein Fix war daher kein Bestandteil der 4b-Aufgabe.
+Falls die Skripte als Dokumentation/Referenz erhalten bleiben sollen, wäre
+ein Pfad-Update oder eine Verschiebung nach `archive/` ein Kandidat für
+eine spätere Aufräum-Runde (z. B. Phase 5).
+
+### Verifikation erfüllt
+Alle 14 betroffenen Module (10 Call-Sites + 3 Configs + `llm_run_store.py`,
+plus die 4 aus Schritt 1 zur Kontrolle) importieren fehlerfrei mit
+`PYTHONPATH=src` aus der `.venv` heraus (reines `python -c` ohne venv
+schlägt an `google.genai`/`sklearn` fehl — Umgebungsproblem, nicht
+codebezogen, siehe "Neue Erkenntnisse" oben). Neues
+`scripts/adhoc/verify_llm_run_callsites.py` geschrieben und ausgeführt:
+Import-Check über alle 14 Module + Funktions-Check von
+`add_run()`/`update_run()`/`next_run_id()` gegen eine **temporäre Kopie**
+von `llm_runs.sqlite` (bestätigt: `update_run()` verändert nur die
+übergebenen Felder, `add_run()` zählt `run_id` korrekt je `source`, andere
+`source`-Werte bleiben unberührt). `llm_run_store.source_counts()`/
+`total_count()` gegen die reale DB vor und nach allen Änderungen identisch
+(83 Zeilen gesamt: 25 `screening_active`, 25 `screening_legacy`, 19
+`segment_analysis_active`, 14 `gemini_old`) — keine versehentliche
+Schreiboperation gegen die Produktiv-DB. `grep -rn "RunRegistry\|runs_registry\.csv"
+src/ scripts/` liefert außerhalb von `archive/` nur noch erklärende
+Docstring-/Kommentarzeilen (kein aktiver Call-Site-Treffer mehr) plus die
+zwei oben dokumentierten Migrationsskripte. `pyflakes` über alle 10
+geänderten Dateien lief durch; der einzige durch diese Session verursachte
+ungenutzte Import (`ROOT` in `segment_analysis_config.py`) wurde entfernt,
+alle übrigen `pyflakes`-Funde waren bereits vor dieser Session vorhanden
+(gegen `HEAD` verifiziert) und daher nicht Teil dieser Aufgabe. **Noch
+nicht committet** — liegt zusammen mit Schritt 1 im selben uncommitteten
+Working-Tree-Diff (Repo-Status: nur die hier genannten Dateien als `M`/`R`/`D`
+markiert, keine Vermischung mit unabhängigen Änderungen).
+
 ## Nächster Schritt
-**Phase 4b (LLM-Run-Registry)** — Call-Sites auf `llm_run_store` umstellen
-(Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4b"). Danach 4c
-(Transkripte), 4d (Screening-State, hängt an 4b), 4e (Store-Modulverschiebung
-+ physische LLM-Ergebnis-Konsolidierung, hängt an 4b–4d). Sample-Membership-
-Ableitung aus `video_search_hits` bleibt laut Nutzerentscheidung komplett
-außerhalb von Phase 4, als eigenständiges Thema für eine spätere, separate
-Session.
+**Phase 4c — Transkripte** (Scraper + 5 Leser auf `transcript_store`
+umstellen, höchstes Einzelrisiko der Phase 4 wegen echter API-Calls; Plan:
+`.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4c"). Danach 4d
+(Screening-State, hängt an 4b — jetzt abgeschlossen), 4e
+(Store-Modulverschiebung + physische LLM-Ergebnis-Konsolidierung, hängt an
+4b–4d). Vor Beginn `git status` prüfen — Schritt 1 und Schritt 2–6 von 4b
+liegen beide noch uncommittet im selben Diff. Sample-Membership-Ableitung
+aus `video_search_hits` bleibt laut Nutzerentscheidung komplett außerhalb
+von Phase 4, als eigenständiges Thema für eine spätere, separate Session.

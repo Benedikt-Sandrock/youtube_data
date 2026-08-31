@@ -26,11 +26,11 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import OUTPUTS, PROJECT_ID, LOCATION
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.segment_analysis.segment_analysis_config import (
+    LLM_RUN_SOURCE,
     MANIFEST_DIR,
-    REGISTRY_PATH,
 )
+from youtube_code.utils import llm_run_store
 
 from youtube_code.segment_analysis.segment_prompts import get_bundle
 from youtube_code.segment_analysis.submit_segments import (
@@ -377,9 +377,9 @@ def print_qc(results: pd.DataFrame, expected: int) -> None:
 # EIN RUN
 # ============================================================
 
-def process_run(run_id: str, registry: RunRegistry, client, storage_client,
+def process_run(run_id: str, client, storage_client,
                 texts: dict[str, str] | None) -> str:
-    run = registry.get_run(run_id)
+    run = llm_run_store.get_run(LLM_RUN_SOURCE, run_id)
     prompt_key = str(run["prompt_id"])
     bundle = get_bundle(prompt_key)
 
@@ -391,7 +391,7 @@ def process_run(run_id: str, registry: RunRegistry, client, storage_client,
     print(f"  Status: {state}")
 
     if state in {"JOB_STATE_FAILED", "JOB_STATE_CANCELLED"}:
-        registry.update_run(run_id, status="failed")
+        llm_run_store.update_run(LLM_RUN_SOURCE, run_id, status="failed")
         return "failed"
     if state != "JOB_STATE_SUCCEEDED":
         return "pending"
@@ -455,7 +455,7 @@ def process_run(run_id: str, registry: RunRegistry, client, storage_client,
     print(f"  Gespeichert: {output_path}")
     print_qc(results, expected=len(manifest))
 
-    registry.update_run(run_id, status="downloaded", results_path=str(output_path))
+    llm_run_store.update_run(LLM_RUN_SOURCE, run_id, status="downloaded", results_path=str(output_path))
     return "downloaded"
 
 
@@ -464,14 +464,13 @@ def process_run(run_id: str, registry: RunRegistry, client, storage_client,
 # ============================================================
 
 def main() -> None:
-    registry = RunRegistry(REGISTRY_PATH)
     client = genai.Client(vertexai=True, project=PROJECT_ID, location=LOCATION)
     storage_client = storage.Client(project=PROJECT_ID)
 
     if RUN_IDS:
         run_ids = list(RUN_IDS)
     else:
-        open_runs = registry.get_runs(status="submitted")
+        open_runs = llm_run_store.get_runs(source=LLM_RUN_SOURCE, status="submitted")
         notes = open_runs.get("notes", pd.Series(dtype=str)).fillna("")
         run_ids = open_runs.loc[
             notes.str.startswith("segments"), "run_id"
@@ -494,7 +493,7 @@ def main() -> None:
     for run_id in run_ids:
         try:
             summary[run_id] = process_run(
-                run_id, registry, client, storage_client, texts
+                run_id, client, storage_client, texts
             )
         except Exception as error:
             print(f"  Fehlgeschlagen: {error}")

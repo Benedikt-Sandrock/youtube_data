@@ -18,7 +18,6 @@ import pandas as pd
 
 from youtube_code.config import SAMPLES
 from youtube_code.llm_analysis.prompts import prompts_populism_all
-from youtube_code.llm_analysis.registry.run_registry import RunRegistry
 from youtube_code.llm_analysis.submit_batch_jobs import (
     run_all_prompts,
 )
@@ -26,8 +25,8 @@ from youtube_code.politics_screening.screening_config import (
     BATCH_INPUT_DIR,
     GROUPING_SEED,
     MANIFEST_DIR,
-    REGISTRY_PATH,
 )
+from youtube_code.utils.llm_run_store import get_runs
 
 
 # ============================================================
@@ -170,16 +169,19 @@ def require_no_existing_runs(
     if ALLOW_EXISTING_RUN:
         return
 
-    registry = RunRegistry(REGISTRY_PATH)
     conflicts = []
 
     for prompt_key in prompt_keys:
-        existing = registry.get_runs(
+        existing = get_runs(
+            source="screening_active",
             dataset_id=dataset_id,
-            dataset_version=DATASET_VERSION,
-            prompt_id=prompt_key,
             target_variable=TARGET_VARIABLE,
         )
+        if not existing.empty:
+            existing = existing[
+                (existing["dataset_version"] == DATASET_VERSION)
+                & (existing["prompt_id"] == prompt_key)
+            ]
         if not existing.empty:
             conflicts.append(existing)
 
