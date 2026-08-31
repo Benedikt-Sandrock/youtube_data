@@ -652,7 +652,7 @@ if __name__ == "__main__":
 
     save_json(VIDEOS_TOTAL_FILE, videos_total)
 
-    # Zentrale Video-Registry mitfuehren (data/raw/video_registry.sqlite),
+    # Zentrale Video-Registry mitfuehren (data/store/video_registry.sqlite),
     # unabhaengig vom Modus - siehe youtube_code.store.video_registry.
     n_registry = _registry_upsert(new_videos)
     print(f"In zentrale Registry geschrieben: {n_registry}")

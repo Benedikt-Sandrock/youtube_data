@@ -64,9 +64,9 @@ phase_4.md) - direkte upsert_runs()-Aufrufe bleiben fuer Bulk-Schreiben
 """
 import sqlite3
 
-from youtube_code.config import RAW
+from youtube_code.config import STORE
 
-DB_PATH = RAW / "llm_runs.sqlite"
+DB_PATH = STORE / "llm_runs.sqlite"
 
 # Identisch zu RunRegistry.REGISTRY_COLUMNS
 # (src/youtube_code/llm_analysis/registry/run_registry.py), ohne id/source.

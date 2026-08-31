@@ -24,9 +24,9 @@ Nutzung in einem Fetch-Skript:
 import json
 import sqlite3
 
-from youtube_code.config import RAW
+from youtube_code.config import STORE
 
-DB_PATH = RAW / "video_registry.sqlite"
+DB_PATH = STORE / "video_registry.sqlite"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS videos (

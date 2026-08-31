@@ -48,3 +48,9 @@ __pycache__
 
 # Phase 0b: lokale Sicherungskopien (Restrukturierung) - nie tracken
 /_backups/
+
+# Phase 5: zentrale SQLite-Stores (data/store/) - zu groß für Git, nie tracken.
+# Sidecar-Dateien (WAL-Modus) koennen jederzeit entstehen.
+/data/store/*.sqlite
+/data/store/*.sqlite-wal
+/data/store/*.sqlite-shm

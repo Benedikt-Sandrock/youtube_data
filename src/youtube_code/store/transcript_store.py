@@ -28,9 +28,9 @@ Nutzung in einem Scraping-/Analyse-Skript:
 import json
 import sqlite3
 
-from youtube_code.config import RAW
+from youtube_code.config import STORE
 
-DB_PATH = RAW / "transcripts.sqlite"
+DB_PATH = STORE / "transcripts.sqlite"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS transcripts (

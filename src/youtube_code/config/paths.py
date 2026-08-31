@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[3]
 DATA = ROOT / "data"
 
 RAW = DATA / "raw"
+STORE = DATA / "store"
 CHANNEL_LISTS = DATA / "channel_lists"
 TRANSCRIPTS = DATA / "transcripts"
 SAMPLES = DATA / "samples"
@@ -20,8 +21,5 @@ LLM = OUTPUTS / "llm"
 
 OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
-REPORTS = OUTPUTS / "reports"
-GRAPHS = OUTPUTS / "graphs"
-ACTIVITY = OUTPUTS / "activity_over_time"
 
 SRC = ROOT / "src" / "youtube_code"

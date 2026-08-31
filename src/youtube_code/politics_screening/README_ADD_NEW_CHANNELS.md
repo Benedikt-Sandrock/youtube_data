@@ -1,10 +1,11 @@
 # Neue Kanäle zum longitudinalen Screening hinzufügen
 
 Diese Anleitung beschreibt den Prozess, um zusätzliche Kanäle in das bestehende
-longitudinale Politik-Screening (`data/raw/screening_state.sqlite`, über
+longitudinale Politik-Screening (`data/store/screening_state.sqlite`, über
 `src/youtube_code/store/screening_state_store.py` — seit Phase 4d der
 Restrukturierung die alleinige Quelle der Wahrheit, nicht mehr die frühere
-`data/samples/russia/longitudinal_screening_state.csv`) einzuspeisen — egal ob
+`data/samples/russia/longitudinal_screening_state.csv`; seit Phase 5 liegt die
+Datei unter `data/store/`, nicht mehr unter `data/raw/`) einzuspeisen — egal ob
 es sich um Kanäle handelt, die komplett neu sind, oder um Kanäle, die schon
 Zeilen im State haben (z.B. nur für Kriegsperioden), denen aber noch das
 Vorkriegs-Baseline-Fenster fehlt. Der Ablauf ist in beiden Fällen identisch;
@@ -61,7 +62,7 @@ Am Kopf des Skripts konfigurieren:
 
 Schreibt neue Video-IDs (`video_id`, `channel_id`, `published_at`, `title`) nach
 `data/raw/sample_50k_channels_russia_ukraine.json` und in die zentrale Registry
-(`data/raw/video_registry.sqlite`).
+(`data/store/video_registry.sqlite`).
 
 **Vorsicht bei den Eingabedateien:** `TARGETED_CHANNEL_INPUT` /
 `TARGETED_SEARCH_YTDLP_CHANNEL_INPUT` zeigen oft noch auf Dateien von einem früheren
@@ -110,8 +111,8 @@ with open("data/raw/video_metadata_detailed_total.jsonl", encoding="utf-8") as f
 **Vorher immer ein Backup anlegen** — die State-DB hat keine Git-Historie:
 
 ```bash
-cp data/raw/screening_state.sqlite \
-   data/raw/screening_state.sqlite.bak_<kurze_beschreibung>
+cp data/store/screening_state.sqlite \
+   data/store/screening_state.sqlite.bak_<kurze_beschreibung>
 ```
 
 Dann:
@@ -176,7 +177,7 @@ schreibt nur lokale Vorschau-Dateien (JSONL, Manifest), noch **keine** echte
 Einreichung. Erst wenn diese Vorschau plausibel aussieht, `DRY_RUN = False` setzen und
 das Skript erneut laufen lassen — das reicht den Batch-Job wirklich bei Vertex AI ein
 (Gemini 2.5 Flash, Prompt 32) und trägt ihn in die Registry
-(`data/raw/llm_runs.sqlite`, Quelle `screening_active`, siehe
+(`data/store/llm_runs.sqlite`, Quelle `screening_active`, siehe
 `src/youtube_code/store/llm_run_store.py`) ein.
 
 `ALLOW_EXISTING_RUN = True` nur für einen bewussten Retry setzen — Standard `False`
@@ -233,7 +234,7 @@ das Ziel erreicht ist oder ihr Kandidatenpool erschöpft ist (Status
 - `TARGET_POLITICAL_PER_INTERVAL = 10`, `TARGET_WITH_BUFFER_PER_INTERVAL = 12`: Ziel
   pro Kanal/Interval — 10 politische Videos, 12 als Puffer für z.B. fehlende
   Transkripte.
-- Zentrale State-Ablage seit Phase 4d: `data/raw/screening_state.sqlite`
+- Zentrale State-Ablage seit Phase 4d: `data/store/screening_state.sqlite`
   (`src/youtube_code/store/screening_state_store.py`), nicht git-getrackt. Die
   frühere `STATE_FILE`-Konstante (`screening_config.py`,
   `longitudinal_screening_state.csv`) ist nur noch historisch, wird von den

@@ -29,9 +29,9 @@ Nutzung in einem Screening-Skript:
 """
 import sqlite3
 
-from youtube_code.config import RAW
+from youtube_code.config import STORE
 
-DB_PATH = RAW / "screening_state.sqlite"
+DB_PATH = STORE / "screening_state.sqlite"
 
 # Reihenfolge identisch zur Quell-CSV (siehe export_csv).
 COLUMNS = [

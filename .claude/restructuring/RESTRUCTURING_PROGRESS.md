@@ -1264,3 +1264,123 @@ Phase 5 (aus den Progress-Notizen der einzelnen Teilschritte gesammelt):
 Sample-Membership-Ableitung aus `video_search_hits` bleibt laut
 Nutzerentscheidung komplett außerhalb von Phase 4, als eigenständiges
 Thema für eine spätere, separate Session.
+
+---
+
+## Phase 5 — Konfiguration und Dokumentation
+**Status: ABGESCHLOSSEN (2026-08-31)**
+
+Plan lag vor Sessionbeginn bereits als `.claude/plans/phase_5.md` vor. Diese
+Session hat den Plan vollständig umgesetzt, auf expliziten Nutzerauftrag
+("lies den Plan für Phase 5 ... und führe ihn aus") — abweichend von der
+sonst geltenden Standing-Entscheidung "nur Pläne, keine autonome Umsetzung"
+(siehe `project-restructuring-decisions`-Memory), analog zur Ausnahme in
+Phase 3c/3d.
+
+**Auslöser für die im Plan als "Sofortmaßnahme" markierten Schritte 1+2:**
+zu Sessionbeginn des Plans hatte der Nutzer die 4 SQLite-Stores bereits
+manuell von `data/raw/` nach `data/store/` verschoben, wodurch der komplette
+in Phase 4 migrierte Store-Zugriffscode (`DB_PATH` zeigte noch auf `RAW`)
+faktisch funktionsunfähig war und `data/store/screening_state.sqlite`
+(1,7 GB) gestaged im Git-Index stand.
+
+### Durchgeführt
+1. **Store-Pfade repariert**: `config/paths.py` um `STORE = DATA / "store"`
+   ergänzt; alle 4 Store-Module (`video_registry`, `transcript_store`,
+   `screening_state_store`, `llm_run_store`) von `DB_PATH = RAW / "..."` auf
+   `DB_PATH = STORE / "..."` umgestellt. Verifiziert per Import +
+   `total_count()` aller 4 Stores — Referenzwerte exakt bestätigt
+   (2.307.005 / 72.443 / 1.012.206 / 83).
+2. **`REPORTS`/`GRAPHS`-Konstanten entfernt** (komplett unreferenziert laut
+   `grep`). **`ACTIVITY`-Konstante** nach Nutzerrückfrage ebenfalls entfernt
+   (die beiden einzigen Referenzen, `scripts/archive/channel_activity_over_time.py`
+   und `src/youtube_code/archive/outcome_analysis/activity_over_time_updated.py`,
+   gelten als tot).
+3. **Git-Absicherung**: `.gitignore` um `/data/store/*.sqlite` sowie
+   `*-wal`/`*-shm`-Sidecars ergänzt; `data/store/screening_state.sqlite`
+   per `git restore --staged` aus dem Index genommen. `git status` zeigt
+   danach keine der 4 `.sqlite`-Dateien mehr als `A`/`??`.
+4. **`.claude/CLAUDE.md` aktualisiert**: Transkript-Verfügbarkeitsregel zeigt
+   jetzt auf `transcript_store`/`data/store/transcripts.sqlite`
+   (`attempted_video_ids()`/`has_transcript()`/`get_transcripts()`) statt auf
+   das in 4c gelöschte `all_transcripts_segments.csv`. Neue Regel ergänzt:
+   Ad-hoc-Skripte/Daten gehören nach `scripts/adhoc/`, nicht lose in
+   `src/youtube_code/` oder ins Repo-Root.
+5. **Root-`README.md` neu angelegt** (existierte vorher gar nicht):
+   Ordnerstruktur-Überblick (Stores als Quelle der Wahrheit vs. kuratierte
+   Zulieferdateien, `outputs/llm_results/` als nicht-regenerierbar,
+   `scripts/adhoc/`, `src/youtube_code/store/`), inkl. Verweis auf
+   `.claude/CLAUDE.md` und alle Sub-READMEs.
+6. **Sub-READMEs korrigiert**:
+   - `README_PIPELINE.md`: die 4 nicht mehr existierenden Skriptnamen
+     (`create_longitudinal_screening_round.py`, `update_longitudinal_state.py`,
+     `select_longitudinal_transcripts.py`, `analyze_longitudinal_coverage.py`)
+     ersetzt durch die tatsächlich aktuelle Skript-Tabelle; per
+     `git log --all --name-only` bestätigt, dass diese 4 Namen in der
+     gesamten Git-History nie existiert haben (vermutlich nie umgesetzte
+     Planungs-Altlast, unabhängig von der Store-Migration).
+   - `README_ADD_NEW_CHANNELS.md`: entgegen der Plan-Annahme ("laut Progress
+     bereits in 4e aktualisiert") beim Gegenprüfen doch noch 5 Stellen mit
+     `data/raw/<store>.sqlite` gefunden (4e hatte nur die CSV→DB-Referenzen
+     korrigiert, nicht die zwischenzeitliche `raw/`→`store/`-Verschiebung
+     antizipieren können) — auf `data/store/` korrigiert.
+   - `segment_analysis/README.md`: gegengeprüft, keine Store-relevanten
+     Pfade enthalten, unverändert gelassen.
+   - Zusätzlich (über den Plantext hinaus, aber direkt aus Schritt 1
+     folgend): 3 weitere aktive Code-Kommentare mit veralteten `data/raw/`-
+     Pfadangaben gefunden und korrigiert (`collection/channel_all_videos.py`,
+     `segment_analysis/segment_analysis_config.py`,
+     `politics_screening/screening_config.py`) — die Docstrings der bereits
+     archivierten `scripts/adhoc/migrate_*_to_store.py`-Migrationsskripte
+     wurden bewusst NICHT angefasst, da sie den historisch korrekten Stand
+     zum Zeitpunkt ihrer Ausführung beschreiben.
+7. **Altlasten-Rückfragen** (per `AskUserQuestion`, nicht unilateral
+   entschieden): `scraping/transcript_scraping.py` und
+   `politics_screening/longitudinal/prepare_longitudinal_screening.py` auf
+   Nutzerentscheidung per `git mv` nach `src/youtube_code/archive/scraping/`
+   bzw. `src/youtube_code/archive/politics_screening_legacy/` verschoben
+   (History erhalten). `data/external/media_type_russia_merged.xlsx.bak`
+   auf Nutzerentscheidung gelöscht (unklarer Zweck, keine Code-Referenz).
+
+### Backup-Strategie für `data/store/` (jetzt außerhalb von Git)
+Da die 4 Stores seit diesem Schritt per `.gitignore` ausgeschlossen sind,
+existiert für sie **kein Git-basiertes Backup mehr**. Empfohlener Mechanismus
+für künftige Sitzungen: `sqlite3 <datei> ".backup <ziel>"` (konsistente
+Kopie auch bei offener WAL-Verbindung, im Gegensatz zu einem rohen
+Dateikopiervorgang) auf ein externes Medium/Cloud-Ziel, in regelmäßigem
+Abstand oder vor größeren State-Änderungen (analog zu den bisherigen
+`.bak_pre_migration`-Einzelkopien der Phase-3-Migrationsskripte, aber als
+dauerhafter statt einmaliger Mechanismus). Bisher **nicht** eingerichtet —
+offener Punkt für den Nutzer.
+
+### Zusammenfassung der Gesamt-Restrukturierung (Phasen 0–5)
+- **Phase 0a/0b**: Committer-Check, Referenz-/Duplikat-Analyse,
+  physische Sicherung (`_backups/git_mirror_2026-08-28.git`, lokaler
+  Mirror-Clone vor dem History-Rewrite — spiegelt nur den Git-Stand vom
+  2026-08-28, **nicht** die heutige `data/store/`-Struktur, die zu dem
+  Zeitpunkt noch gar nicht existierte).
+- **Phase 1**: ~24 GB eindeutige Duplikate/Backups gelöscht, 23 verstreute
+  Ad-hoc-Skripte nach `scripts/adhoc/` konsolidiert.
+- **Phase 2**: Git-History per `git-filter-repo` bereinigt, `.git` von
+  13 GB auf 10 MB reduziert.
+- **Phase 3 (3a–3d)**: 4 CSV-/JSON-Datenformate (Video-Metadaten,
+  Transkripte, Screening-State, LLM-Run-Registry) vollständig nach
+  SQLite migriert (`video_registry`, `transcript_store`,
+  `screening_state_store`, `llm_run_store`), je mit Feld-für-Feld-
+  verifizierter Migration.
+- **Phase 4 (4a–4e)**: Code auf die neuen Stores umgestellt (Scraper,
+  Screening-Skripte, Downstream-Leser), tote/kaputte Module archiviert,
+  LLM-Ergebnisse physisch nach `outputs/llm_results/<source>__<run_id>/`
+  konsolidiert, Store-Module nach `src/youtube_code/store/` verschoben.
+- **Phase 5**: Store-Pfade repariert (durch die manuelle `raw/`→`store/`-
+  Verschiebung des Nutzers akut geworden), Git-Absicherung, `.claude/CLAUDE.md`
+  und alle READMEs auf den aktuellen Stand gebracht, Root-`README.md` neu
+  angelegt.
+
+**Damit ist die Restrukturierung laut Gesamtplan vollständig abgeschlossen.**
+Eine neue Session versteht die Datenlage jetzt allein anhand `README.md` +
+`.claude/CLAUDE.md` + `config/paths.py`, ohne den Restrukturierungsverlauf
+kennen zu müssen. Offene Einzelpunkte (nicht blockierend): externe
+Backup-Strategie für `data/store/` einrichten (siehe oben);
+Sample-Membership-Ableitung aus `video_search_hits` (siehe Phase 3a);
+GitHub-seitige LFS-Bereinigung (siehe Phase 2).
