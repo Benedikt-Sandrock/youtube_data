@@ -35,6 +35,11 @@ Annahme:
 
 Benötigt:
     pandas, numpy, matplotlib, seaborn, openpyxl
+
+Run pattern: this script is meant to be executed directly (`python descriptive_analysis.py`),
+never imported. That is why `from success_data_utils import ...` below works as a bare
+sibling import (Python puts the script's own directory on sys.path[0]) - success_data_utils.py
+must be in the same folder or otherwise on PYTHONPATH.
 """
 
 from __future__ import annotations

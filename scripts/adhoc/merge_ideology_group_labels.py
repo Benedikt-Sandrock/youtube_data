@@ -1,5 +1,5 @@
 from youtube_code.config import TRANSCRIPTS, RAW, OUTPUT_GEMINI
-from src.youtube_code.utils.io import load_json, merge_channel_name
+from youtube_code.utils.io import load_json, merge_channel_name
 import json
 import pandas as pd
 

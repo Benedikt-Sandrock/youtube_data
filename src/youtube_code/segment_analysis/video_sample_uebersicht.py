@@ -12,6 +12,11 @@ lohnt (groesstes Defizit zum Zielwert).
 Bezieht sich NUR auf bereits klassifizierte Videos - keine Aussage darueber, ob es im
 Rohsample (YouTube-Metadaten) ueberhaupt noch unklassifizierte Videos fuer eine duenne
 Zelle gibt.
+
+Run pattern: this script is meant to be executed directly (`python video_sample_uebersicht.py`),
+never imported. That is why `from deskriptiv_aggregation import ...` below works as a bare
+sibling import (Python puts the script's own directory on sys.path[0]) - deskriptiv_aggregation.py
+must be in the same folder or otherwise on PYTHONPATH.
 """
 
 import pandas as pd

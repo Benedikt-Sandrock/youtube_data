@@ -37,6 +37,12 @@ date range and recover exactly which videos/channels they identified - see
 Every successful run appends to the existing project store (no overwrite
 prompt). To deliberately wipe the store and start over, call
 `reset_project()`.
+
+Run pattern: this script is meant to be executed directly (`python video_identification.py`),
+never imported. That is why `from settings_variables import ...` below works as a bare
+sibling import (Python puts the script's own directory on sys.path[0]), while
+`from youtube_code... import ...` still resolves normally because that package is
+importable independent of cwd.
 """
 
 from datetime import datetime

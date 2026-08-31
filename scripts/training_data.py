@@ -6,7 +6,7 @@ import pandas as pd
 import json
 import random
 import os
-from src.youtube_code.config.paths import EXPLORATION, SAMPLES, TRANSCRIPTS
+from youtube_code.config.paths import EXPLORATION, SAMPLES, TRANSCRIPTS
 
 seed_number = 42
 sample_path = SAMPLES / "sampled_per_channel.json"

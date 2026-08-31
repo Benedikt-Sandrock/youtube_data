@@ -323,3 +323,343 @@ Danach **Phase 3b — Transkripte → `transcripts.parquet`/SQLite** (nächster
 Teilschritt laut Plan-Reihenfolge), oder je nach Nutzerpriorität 3c/3d — 3c
 (Screening-State) weiterhin erst angehen, wenn kein Screening-Batch gerade aktiv
 läuft (siehe Hinweis zu Rundenverarbeitung oben).
+
+---
+
+## Phase 3b — Transkripte → `data/raw/transcripts.sqlite`
+**Status: ABGESCHLOSSEN (2026-08-31)**
+
+Plan lag vor Sessionbeginn bereits als `.claude/plans/phase_3b.md` vor (siehe
+dortige Recherche-Befunde). Diese Session hat den Plan vollständig umgesetzt,
+in vier vom Nutzer freigegebenen Schritten (Modul → Migrationsskript →
+Verifikationsskript → autonomer Abschluss ohne Rückfrage je Schritt).
+
+### Durchgeführt
+1. `src/youtube_code/utils/transcript_store.py` (neu): WAL-Mode-Connection nach
+   `video_registry.py`-Muster, Tabelle `transcripts` (`video_id` PK,
+   `transcript_segments`, `language_code`, `is_generated`, `status`,
+   `n_segments`). Kernstück `upsert_transcripts()` mit der im Plan
+   spezifizierten `ON CONFLICT`-Prioritätsregel (`"OK"` > `"Kein Transkript"` >
+   `"Fehler: ..."`, Last-Wins bei Gleichstand) direkt in der SQL-Klausel — gilt
+   damit automatisch auch für künftige Phase-4-Direktschreibvorgänge des
+   Scrapers. Weitere Funktionen wie geplant: `get_transcripts`/`get_transcript`,
+   `attempted_video_ids`, `has_transcript`, `total_count`, `status_counts`,
+   `export_jsonl`.
+2. `scripts/adhoc/migrate_transcripts_to_store.py` (neu): Preflight-
+   Duplikatreport (Referenzwert-Checkpoint gegen die Plan-Erwartung ~72.443),
+   500er-Chunk-Migration mit NaN→None-Konvertierung, Backup-vor-Migration
+   (`.bak_pre_migration`, idempotent).
+3. `scripts/adhoc/verify_transcripts_migration.py` (neu): Reservoir-Sampling
+   (n=200) + erzwungener Sonderfall `QsVgwJ40-zo`, voller CSV-Durchlauf zum
+   Einsammeln aller Vorkommen der Ziel-IDs, `expected_winner()` simuliert die
+   Prioritäts-/Last-Wins-Regel in Python zum Feld-für-Feld-Vergleich gegen eine
+   Read-only-Connection, abschließender Zeilenzahl-Check.
+
+### Ergebnis
+- Preflight: **72.443 Zeilen, 72.443 eindeutige `video_id`s, 0 Duplikate** —
+  exakt der Plan-Referenzwert, keine tatsächlichen Mehrfach-Scrape-Versuche in
+  der aktuellen CSV (anders als ursprünglich für möglich gehalten).
+- Migration: alle 72.443 Records upserted, `total_count()` danach = 72.443.
+  `status_counts()`: 65.440 `OK`, 3.449 `Kein Transkript`, Rest verteilt auf
+  3.556 verschiedene (meist Video-spezifische) `Fehler: ...`-Texte.
+- Verifikation: **1.005 Feld-Vergleiche über 201 `video_id`s, 0 Abweichungen**;
+  `QsVgwJ40-zo`-Sonderfall OK (DB-`status` zeichen-für-zeichen identisch zur
+  CSV-Zelle inkl. eingebettetem Newline); Zeilenzahl-Check 72.443 (CSV) =
+  72.443 (DB) OK.
+- Idempotenz-Test (zweiter Migrationslauf): `total_count()` unverändert bei
+  72.443, kein Fehler.
+- Manuelle Stichprobenkontrolle (`QsVgwJ40-zo` per `get_transcript()`) plausibel.
+- `transcripts.sqlite.bak_pre_migration` nach erfolgreicher Verifikation wieder
+  gelöscht (analog Phase 3a, kein Dauerzustand, spart zusätzlich ~2,7 GB).
+- `data/transcripts/all_transcripts_segments.csv` (2,9 GB) unangetastet
+  liegengelassen (Quelle, wird erst nach Phase-4-Umstellung aller Konsumenten
+  gelöscht).
+- Der vorab dokumentierte Sicherheits-Checkpoint (kein paralleler
+  `transcript_scraping_segments.py`-Lauf) wurde vor der Migration per
+  Prozessliste geprüft — keine laufende `python.exe`-Instanz gefunden.
+
+**Verifikation erfüllt:** alle 5 Punkte aus der Plan-Datei (Migrationslauf
+fehlerfrei, Verifikationsskript OK für Stichprobe/Zeilenzahl/Sonderfall,
+`total_count()` plausibel, Idempotenz-Test, dieser Progress-Eintrag).
+
+### Explizit NICHT Teil dieser Session (laut Plan → Phase 4/5)
+- Scraper-Umstellung (`transcript_scraping_segments.py`) auf
+  `upsert_transcripts()`/`attempted_video_ids()` statt CSV-Append.
+- Downstream-Leseskripte (`process_scraped_segments.py`,
+  `new_analysis/segment_transcripts.py`, `scraping/get_baseline_ids.py`,
+  `scripts/adhoc/segment_analysis_result_checks.py`,
+  `scripts/adhoc/sample_feasibility_helpers.py`) umstellen.
+- Löschen der Quell-CSV.
+- `.claude/CLAUDE.md`-Regel-Update (Transkript-Source-of-Truth →
+  `data/store/transcripts.*`).
+- Modul-Verschiebung nach `store/transcript_store.py`.
+
+## Nächster Schritt
+Phase 3c (Screening-State) oder Phase 3d, je nach Nutzerpriorität — 3c weiterhin
+erst angehen, wenn kein Screening-Batch gerade aktiv läuft. Danach Phase 4
+(Code-Reorganisation), die die oben gelisteten Folgepunkte aus 3a und 3b
+gebündelt aufgreift (Scraper-Umstellung, Downstream-Leseskripte, Sample-
+Membership-Ableitung, Modul-Verschiebungen nach `store/`).
+
+---
+
+## Phase 3c — Screening-State → `data/raw/screening_state.sqlite`
+**Status: ABGESCHLOSSEN (2026-08-31)**
+
+Plan lag vor Sessionbeginn bereits als `.claude/plans/phase_3c.md` vor (siehe
+dortige Recherche-Befunde). Diese Session hat den Plan vollständig umgesetzt,
+auf expliziten Nutzerauftrag ("Führe den Plan für Phase 3c aus") — abweichend
+von der sonst für die Restrukturierung geltenden Standing-Entscheidung
+"nur Pläne, keine autonome Umsetzung" (siehe `project-restructuring-decisions`-
+Memory), da diese Session eine ausdrückliche Ausführungs-Anweisung erhielt.
+Sicherheits-Checkpoint (keine laufende `python.exe`-Instanz der vier
+Schreib-Orte) vor der Migration technisch per Prozessliste geprüft, wie im
+Plan gefordert.
+
+### Durchgeführt
+1. `src/youtube_code/utils/screening_state_store.py` (neu): WAL-Mode-Connection
+   nach `video_registry.py`/`transcript_store.py`-Muster, eine flache Tabelle
+   `screening_state` mit allen 19 Spalten der Quell-CSV (`video_id` PK).
+   Kernstück `upsert_state_rows()` mit Feld-für-Feld-COALESCE (wie
+   `video_registry.upsert_videos`, nicht das "ganze-Zeile-gewinnt"-Muster aus
+   `transcript_store`) — welche Spalten ein Call-Site übergibt und Label-
+   Schutzregeln bleiben bewusst Business-Logik der aufrufenden Skripte, wie
+   im Plan festgelegt. Weitere Funktionen wie geplant: `get_state`,
+   `total_count`, `round_counts`, `label_counts`, `export_csv`.
+2. `scripts/adhoc/migrate_screening_state_to_store.py` (neu): technischer
+   Sicherheits-Checkpoint (Prozessliste), Backup-vor-Migration
+   (`.bak_pre_migration`, idempotent), Preflight-Eindeutigkeitscheck gegen den
+   Plan-Referenzwert (1.012.206 Zeilen, 0 Duplikate), 5000er-Chunk-Migration
+   mit NaN→None-Konvertierung.
+3. `scripts/adhoc/verify_screening_state_migration.py` (neu): Reservoir-
+   Sampling (n=300) plus gezielte Stichproben je `politics_final`-Bucket
+   (-1/0/1/NULL, je 25) und `screening_round=10` (25) — Feld-für-Feld-
+   Vergleich aller 19 Spalten gegen eine Read-only-Connection;
+   Konsistenz-Check über `update_screening_state.validate_state_consistency()`
+   auf den DB-Export angewendet (keine Duplizierung der Validierungslogik);
+   `round_counts()`/`label_counts()`-Gegenprobe gegen `value_counts()` der
+   Quell-CSV.
+
+### Ergebnis
+- Preflight: **1.012.206 Zeilen, 1.012.206 eindeutige `video_id`s, 0
+  Duplikate** — exakt der Plan-Referenzwert.
+- Migration: alle 1.012.206 Records upserted, `total_count()` danach =
+  1.012.206. `screening_round`/`politics_final` je 699.134 NULL (= 313.072
+  gescreente Zeilen) — deckt sich mit dem Recherche-Befund aus dem Plan.
+- Verifikation: **7.650 Feld-Vergleiche über 425 `video_id`s, 0
+  Abweichungen**; Konsistenz-Check (`validate_state_consistency()` auf
+  DB-Export) OK; Zeilenzahl-Check 1.012.206 (CSV) = 1.012.206 (DB) OK;
+  `round_counts()`/`label_counts()` stimmen exakt mit den CSV-`value_counts()`
+  überein (alle 11 Runden-Werte + NULL, alle 4 Label-Ausprägungen + NULL).
+- Idempotenz-Test (zweiter Migrationslauf): `total_count()` unverändert bei
+  1.012.206, kein Fehler. `screening_state.sqlite.bak_pre_migration` (dabei
+  automatisch angelegt, ~1,7 GB) nach erfolgreicher Verifikation wieder
+  gelöscht, analog Phase 3a/3b (kein Dauerzustand).
+- `data/samples/russia/longitudinal_screening_state.csv` (1,3 GB) unangetastet
+  liegengelassen (Quelle, wird erst nach Phase-4-Umstellung aller vier
+  Schreib-Orte gelöscht).
+
+**Verifikation erfüllt:** alle 5 Punkte aus der Plan-Datei (Migrationslauf
+fehlerfrei, Verifikationsskript OK für Zeilenzahl/Stichprobe/Konsistenz-Check,
+`total_count()` plausibel, Idempotenz-Test, dieser Progress-Eintrag).
+
+### Explizit NICHT Teil dieser Session (laut Plan → Phase 4/5)
+- Umstellung der vier Schreib-Orte (`append_channels_to_state.py`,
+  `create_longitudinal_screening.py`, `assign_postwar_baseline.py`,
+  `update_screening_state.py`) auf `upsert_state_rows()` statt CSV-Vollkopie.
+- Löschen der Quell-CSV.
+- Löschen der `state_backups/`-Vollkopien (`before_run_0024.csv`,
+  `before_run_0025.csv`, ~2,6 GB) und von
+  `longitudinal_screening_state.csv.bak_pre_27channels_step3` (1,29 GB) —
+  separat freizugebender Aufräum-Vorschlag, siehe Plan-Abschnitt 6
+  (Rückhalte-Begründung aus der Fachaufgabe ist laut Plan inzwischen erfüllt,
+  da Runden 009/010 gemergt sind).
+- `screening_state_history`-Diff-Table (optional laut ursprünglichem
+  Plan-Text).
+- `.claude/CLAUDE.md`-Regel-Update, Modul-Verschiebung nach `store/`.
+
+## Nächster Schritt
+Phase 3d (LLM-Run-Registry) oder direkt Phase 4 (Code-Reorganisation) —
+bündelt dann die Folgepunkte aus 3a, 3b und 3c: Scraper-/Screening-Skript-
+Umstellung auf die neuen Stores, Downstream-Leseskripte, Sample-Membership-
+Ableitung, Modul-Verschiebungen nach `store/`. Außerdem offen: der in diesem
+Abschnitt oben genannte Aufräum-Vorschlag für die drei Screening-State-
+Vollkopie-Backups (~3,9 GB), separat vom Nutzer freizugeben.
+
+---
+
+## Phase 3d — LLM-Run-Registry → `data/raw/llm_runs.sqlite`
+**Status: ABGESCHLOSSEN (2026-08-31)**
+
+Plan lag vor Sessionbeginn bereits als `.claude/plans/phase_3d.md` vor (siehe
+dortige Recherche-Befunde). Diese Session hat den Plan vollständig umgesetzt,
+auf expliziten Nutzerauftrag ("Führe den Plan phase_3d ... aus") — abweichend
+von der sonst für die Restrukturierung geltenden Standing-Entscheidung
+"nur Pläne, keine autonome Umsetzung" (siehe `project-restructuring-decisions`-
+Memory), analog zur Ausnahme in Phase 3c. Sicherheits-Checkpoint (keine
+laufende `python.exe`-Instanz der sechs Batch-Job-Schreib-Skripte) vor der
+Migration technisch per Prozessliste geprüft, wie im Plan gefordert.
+
+Wichtigster Recherche-Befund aus dem Plan (korrigiert eine Top-Level-Plan-
+Annahme): die als "abweichende Top-Level-Kopie" bezeichnete
+`llm_analysis/registry/runs_registry.csv` (Repo-Root) ist **keine Kopie**,
+sondern eine zweite, unabhängig aktive Registry (Segment-Analyse-Pipeline,
+19 Zeilen) mit eigenem `run_id`-Zähler, der mit dem der aktiven Screening-
+Registry (`src/youtube_code/llm_analysis/registry/runs_registry.csv`,
+25 Zeilen) kollidiert — beide starten bei `run_0001`. Zusammen mit den zwei
+toten Varianten (`_legacy` 25 Zeilen, `_old` 14 Zeilen, deren referenzierte
+Ergebnisdateien physisch nicht mehr existieren) waren **83 Zeilen aus vier
+Quellen** zu migrieren, mit einem synthetischen Primärschlüssel (`id` +
+`UNIQUE(source, run_id)`) statt einer einfachen `run_id`-Tabelle.
+
+### Durchgeführt
+1. `src/youtube_code/utils/llm_run_store.py` (neu): WAL-Mode-Connection nach
+   `video_registry.py`/`transcript_store.py`/`screening_state_store.py`-
+   Muster, eine flache Tabelle `llm_runs` mit synthetischem `id`-Primärschlüssel
+   und `UNIQUE(source, run_id)`. Kernstück `upsert_runs(source, records)` mit
+   "ganze-Zeile-gewinnt"-Konfliktauflösung (wie `transcript_store`, passend
+   da keine Quellen-Fusion nötig ist — jede Quelle bleibt in ihrer eigenen
+   `source`, Upsert dient nur der Idempotenz). Weitere Funktionen wie
+   geplant: `get_runs(source=, dataset_id=, target_variable=, status=)`,
+   `get_run(source, run_id)` (bewusster API-Bruch gegenüber `RunRegistry.get_run`,
+   da `run_id` jetzt Pflicht-`source` braucht), `total_count`, `source_counts`,
+   `export_csv`.
+2. `scripts/adhoc/migrate_llm_runs_to_store.py` (neu): Sicherheits-Checkpoint
+   (Prozessliste gegen sechs Batch-Job-Skriptnamen), Backup-vor-Migration
+   (`.bak_pre_migration`, idempotent), Preflight-Zeilenzahl-Check je Quelle
+   gegen die Plan-Referenzwerte (25/19/25/14 = 83), dann Import aller vier
+   Quellen mit fest zugeordnetem `source`-Tag.
+3. `scripts/adhoc/verify_llm_runs_migration.py` (neu): vollständiger
+   Feld-für-Feld-Vergleich (kein Sampling, da nur 83 Zeilen insgesamt) —
+   jede CSV-Zeile per `(source, run_id)` in der DB nachgeschlagen, alle 15
+   Facheinheiten-Spalten verglichen; Zeilenzahl-Check je Quelle und gesamt;
+   `results_path`-Existenz-Stichprobe (informativ, kein OK/MISMATCH-Kriterium).
+
+### Ergebnis
+- Preflight: **25 / 19 / 25 / 14 = 83 Zeilen**, exakt die Plan-Referenzwerte
+  für alle vier Quellen.
+- Migration: alle 83 Records upserted, `total_count()` danach = 83.
+  `source_counts()`: `{gemini_old: 14, screening_active: 25,
+  screening_legacy: 25, segment_analysis_active: 19}` — exakt wie erwartet.
+- Verifikation: **1.245 Feld-Vergleiche über alle 83 Zeilen, 0 Abweichungen**;
+  Zeilenzahl-Check je Quelle und gesamt OK; `results_path`-Stichprobe bestätigt
+  den Recherche-Stand (2 aktive Pfade existieren, 2 tote Pfade fehlen wie
+  erwartet).
+- Idempotenz-Test (zweiter Migrationslauf): `total_count()` unverändert bei
+  83, kein Fehler. `llm_runs.sqlite.bak_pre_migration` nach erfolgreicher
+  Verifikation wieder gelöscht (analog Phase 3a–3c, kein Dauerzustand).
+- Alle vier Quell-CSVs unangetastet liegengelassen (Quellen, werden erst nach
+  Phase-4-Umstellung aller Call-Sites gelöscht).
+
+**Verifikation erfüllt:** alle 6 Punkte aus der Plan-Datei (Migrationslauf
+fehlerfrei, Verifikationsskript OK für alle vier Quellen bei vollständigem
+Feld-Vergleich, `total_count()`-Check = 83, `source_counts()` exakt wie
+erwartet, Idempotenz-Test, dieser Progress-Eintrag).
+
+### Explizit NICHT Teil dieser Session (laut Plan → Phase 4)
+- Umstellung der 12 aktiven Call-Sites auf `llm_run_store.upsert_runs()`/
+  `get_runs()`/`get_run()` statt `RunRegistry` (inkl. Entscheidung Wrapper vs.
+  Direktumbau).
+- Löschen einer der vier Quell-CSVs.
+- Physische Ergebnis-Konsolidierung nach `outputs/llm_results/<source>__<run_id>/`
+  (konkreter Vorschlag in Plan-Abschnitt 6 festgehalten, separat freizugebender
+  Folgeschritt).
+- Bereinigung der Top-Level-`llm_analysis/`-Verzeichnisstruktur.
+- `.claude/CLAUDE.md`-Regel-Update, Modul-Verschiebung nach `store/`.
+
+**Damit ist Phase 3 (Format-Migration) vollständig abgeschlossen** — alle vier
+Teilschritte (3a Video-Metadaten, 3b Transkripte, 3c Screening-State, 3d
+LLM-Runs) sind umgesetzt und verifiziert.
+
+## Phase 4a — Mechanisches Aufräumen (2026-08-31, abgeschlossen)
+
+Erster Teilschritt von Phase 4 (Plan: `.claude/plans/phase_4.md`), auf
+expliziten Ausführungsauftrag durchgeführt (Abweichung von der sonst
+geltenden Standing-Entscheidung "nur Pläne liefern" — siehe Plan-Kontext,
+analog 3c/3d).
+
+### Durchgeführt
+1. **Backup-Cleanup (~3,9 GB)**: Vor dem Löschen per Pandas-Zeilenvergleich
+   (nicht `wc -l`, da die CSV mehrzeilige gequotete Felder enthält und
+   `wc -l` deshalb ~18 Mio. statt der tatsächlichen 1.012.206 Zeilen zählt)
+   verifiziert, dass alle drei Kandidaten Teilmengen bzw. exakte Kopien der
+   aktuellen `longitudinal_screening_state.csv` sind (`screening_round`-
+   Verteilung Zeile für Zeile identisch bzw. Teilmenge; zusätzlich gegen
+   `screening_state_store.total_count()`/`round_counts()` gegengeprüft — exakte
+   Übereinstimmung, 1.012.206 Zeilen). Kein aktiver Python-Prozess zum
+   Zeitpunkt der Löschung. Gelöscht:
+   `batches_longitudinal/state_backups/politics_screening_state_before_run_0024.csv`
+   (1,3 GB), `..._before_run_0025.csv` (1,3 GB),
+   `longitudinal_screening_state.csv.bak_pre_27channels_step3` (1,2 GB).
+2. **`sample_50k_channels_russia_ukraine.jsonl`** (ohne `_wo_shorts`, 1,8 GB,
+   `data/samples/russia/`) gelöscht — einzige Referenz in `screening_config.py`
+   war bereits auskommentiert.
+3. **`legacy/` archiviert**: `src/youtube_code/politics_screening/legacy/`
+   (3 Dateien + `__init__.py`) per `git mv` nach
+   `src/youtube_code/archive/politics_screening_legacy/` — keine aktiven
+   Importe gefunden.
+4. **Kaputte, tote Skripte archiviert**: `src/youtube_code/collection/{video_sampling,comment_download}.py`
+   per `git mv` nach `src/youtube_code/archive/collection/` — keine aktiven
+   Importe gefunden, damit ist auch die Namenskollision mit dem aktiven
+   `scripts/video_sampling.py` (625 Zeilen) aufgelöst.
+5. **Import-Konsistenz**: die 5 `from src.youtube_code...`-Stellen
+   (`collection/video_search.py:7-9`,
+   `scripts/adhoc/merge_ideology_group_labels.py:2`,
+   `scripts/training_data.py:9`) auf `from youtube_code...` umgestellt.
+   Für die nackten Sibling-Importe (`from settings_variables import ...` in
+   `channel_all_videos.py`/`video_identification.py`/`video_search.py`,
+   `from success_data_utils import ...` in den 3
+   `archive/success_analysis/*.py`-Dateien, `from deskriptiv_aggregation
+   import ...`/`from fe_signifikanz_test import ...` in `segment_analysis/*.py`)
+   wurde **keine** Umstellung auf Paket-relative Importe vorgenommen: alle
+   betroffenen Module sind reine, nirgends importierte Standalone-Skripte
+   (verifiziert per Codebase-weiter Suche), die direkt per
+   `python skriptname.py` mit dem eigenen Verzeichnis als `cwd` ausgeführt
+   werden — Python legt dabei automatisch das Skriptverzeichnis auf
+   `sys.path[0]`, wodurch der bare Sibling-Import funktioniert, während
+   `from youtube_code...` unabhängig vom `cwd` auflöst. Eine relative
+   Importumstellung (`from .settings_variables import ...`) hätte genau
+   diesen Ausführungsweg gebrochen ("attempted relative import with no known
+   parent package" bei Ausführung als `__main__`). Stattdessen wurde das
+   bewusste Muster im Docstring dokumentiert (neu ergänzt in
+   `channel_all_videos.py`, `video_identification.py`, `video_search.py`,
+   `descriptive_analysis.py`, `video_sample_uebersicht.py`; in
+   `success_trend_analysis.py`, `success_advanced_analysis.py`,
+   `fe_signifikanz_test.py`, `geglaettete_kurve.py` war es bereits
+   dokumentiert).
+6. **`scripts/old/` archiviert** (Nutzerentscheidung nach Rückfrage, da "alt"
+   laut Plan nicht automatisch "tot" heißt): alle 12 Dateien
+   (`channel_activity_over_time.py`, `evaluate_title_classification.py`,
+   `run_title_{retry,screening,training}_batch.py`,
+   `outcome_analysis/{success_analysis,youtube_success}.py`,
+   `transcript_analysis/{api_request_vertexai,channel_analysis,
+   download_results_vertexai,flexible_pipeline_vertexai,results_analysis}.py`)
+   per `git mv` nach `scripts/archive/` — keine aktiven Importe irgendwo im
+   Code gefunden; für die drei `run_title_*_batch.py` existieren erkennbare
+   Nachfolger unter `src/youtube_code/llm_analysis/`.
+
+### Offene Punkte (bewusst nicht in 4a entschieden)
+- `data/external/media_type_russia_merged.xlsx.bak` (31 KB, unklarer Zweck,
+  keine Code-Referenz — im Unterschied zur aktiven `.xlsx`-Datei ohne `.bak`,
+  die von 5 Stellen referenziert wird).
+- JSONL-Doppelspurigkeit in `src/youtube_code/utils/io.py:get_video_metadata()`
+  (Zeilen 120ff.): schreibt Metadaten sowohl in eine JSONL-Datei als auch
+  (an anderer Stelle) über `video_registry.upsert_videos()` — welche der
+  beiden Schreibwege künftig der maßgebliche sein soll, ist Business-Logik
+  und wird nicht in 4a vorweggenommen.
+
+### Verifikation erfüllt
+`du -sh data/` vor/nach zeigt einen Rückgang von ca. 5,8 GB (3,9 GB
+State-Backups + 1,8 GB Sample-JSONL); `grep -r "from src.youtube_code" src/
+scripts/` liefert keine Treffer mehr; `python -c "import youtube_code"`
+weiterhin fehlerfrei (mit `src/` auf dem Pfad); `git log --follow` bestätigt
+die Historie für alle `git mv`-Verschiebungen.
+
+## Nächster Schritt
+**Phase 4b (LLM-Run-Registry)** — Call-Sites auf `llm_run_store` umstellen
+(Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4b"). Danach 4c
+(Transkripte), 4d (Screening-State, hängt an 4b), 4e (Store-Modulverschiebung
++ physische LLM-Ergebnis-Konsolidierung, hängt an 4b–4d). Sample-Membership-
+Ableitung aus `video_search_hits` bleibt laut Nutzerentscheidung komplett
+außerhalb von Phase 4, als eigenständiges Thema für eine spätere, separate
+Session.

@@ -1,12 +1,22 @@
+"""
+video_search.py
+
+Run pattern: this script is meant to be executed directly (`python video_search.py`),
+never imported. That is why `from settings_variables import ...` below works as a bare
+sibling import (Python puts the script's own directory on sys.path[0]), while
+`from youtube_code... import ...` still resolves normally because that package is
+importable independent of cwd.
+"""
+
 from googleapiclient.discovery import build
 import json
 import os
 from dateutil.relativedelta import relativedelta
 
 from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
-from src.youtube_code.utils import load_set
-from src.youtube_code.utils.video_registry import upsert_videos as _registry_upsert
-from src.youtube_code.config import API_KEY, API_KEY_C
+from youtube_code.utils import load_set
+from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
+from youtube_code.config import API_KEY, API_KEY_C
 
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
 

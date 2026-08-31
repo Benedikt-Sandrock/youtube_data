@@ -34,6 +34,12 @@ Modes:
                           window filter actually uses.
 
 Switch between modes by setting MODE below.
+
+Run pattern: this script is meant to be executed directly (`python channel_all_videos.py`),
+never imported. That is why `from settings_variables import ...` below works as a bare
+sibling import (Python puts the script's own directory on sys.path[0]), while
+`from youtube_code... import ...` still resolves normally because that package is
+importable independent of cwd.
 """
 
 import csv
