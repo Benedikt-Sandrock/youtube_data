@@ -15,8 +15,8 @@ from youtube_code.utils.video_registry import get_channel_map, get_videos_for_ch
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 0
-VIDEO_LIST = "kriegsvideo_luecken_fill_vids.json"
+SPEED_DOWNLOAD = 1
+VIDEO_LIST = "baseline_now_sufficient_fill_vids.json"
 # VIDEO_LIST = OUTPUTS / "sample_feasibility" / "war_vids.json"
 # VIDEO_LIST =  SRC / "new_analysis" / "out_screening" / "primary_pilot_ids.json"
 # VIDEO_LIST = SAMPLES / "russia" / "political_ids.json"  # "keyword_videos_50k_channels.json"

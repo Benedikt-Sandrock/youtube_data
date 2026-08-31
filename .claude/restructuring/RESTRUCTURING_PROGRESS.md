@@ -238,3 +238,88 @@ erfolgreich validiert) — Abschicken bewusst dem Nutzer überlassen. Volle Deta
    bestehenden State-/Rohdaten-Struktur ergänzt, keine neuen toten Pfade oder
    Duplikate hinterlassen (die einzige neu erzeugte Zwischen-Datei, eine gefilterte
    ~248MB-JSONL-Kopie, wurde nach Gebrauch wieder gelöscht).
+
+---
+
+## Phase 3a — Video-Metadaten → `videos.sqlite`
+**Status: ABGESCHLOSSEN (2026-08-31)**
+
+### Stand-Check zu Sessionbeginn (Fachaufgabe seit Phase 2 fortgeschritten)
+Vor Beginn verifiziert statt blind auf dem Phase-2-Stand aufgesetzt: die parallele
+Screening-Fachaufgabe war zwischenzeitlich weitergelaufen (Runden 9 und 10 Titel
+gemerged, Runde 10 Beschreibung während der Vorbereitung dieser Session abgeschlossen,
+`runs_registry.csv` jetzt bis `run_0025`). Kein Einfluss auf Phase 3a, da diese nur
+Video-Metadaten betrifft, keinen Screening-State.
+
+### Design-Entscheidungen (mit Nutzer abgestimmt, siehe Plan-Datei der Session)
+- Zwei Tabellen statt einer flachen: `videos` (schlanke, günstige Felder) +
+  `video_details` (teure, seltener geänderte Felder wie description/tags).
+- Ursprünglich geplante `video_sample_membership`-Tabelle mit zwei fest verdrahteten
+  Tags **verworfen** (Nutzerkorrektur): stattdessen wird die vorhandene
+  Such-Provenienz-Registry unter `data/channel_lists/all_identification/` roh in
+  zwei neue Tabellen importiert (`search_runs`, `video_search_hits` — video_id,
+  Suchbegriff, Recherche-Lauf-Zeitfenster). Eine echte Sample-Definition (z. B.
+  "russia_base" = Videos vor dem 24.2.2022, gefunden über bestimmte Suchbegriffe)
+  ist daraus **noch nicht** abgeleitet — offener Folgeschritt, siehe unten.
+- Eine seit Plan-Erstellung neu entstandene Datei (`neue_kanaele_video_metadata_detailed.jsonl`,
+  129.568 Zeilen, aus der laufenden Fachaufgabe) zusätzlich zum Plan-Text mit importiert.
+- `data/samples/russia/sample_50k_channels_russia_ukraine.jsonl` (ohne `_wo_shorts`,
+  975.480 Zeilen) **nicht importiert** — keine aktive Code-Referenz gefunden (nur
+  auskommentierte Stellen), Nutzerentscheidung: vorerst nur dokumentieren, nicht
+  migrieren. Lösch-/Archiv-Entscheidung steht noch aus.
+- Alte Quelldateien bleiben unangetastet liegen (nicht gelöscht) — die lesenden
+  Skripte (`feasibility.py`, `attention_diagnostics.py`) werden erst in Phase 4 auf
+  DB-Zugriff umgestellt.
+
+### Durchgeführt
+1. `src/youtube_code/utils/video_registry.py` erweitert: `videos` um
+   `channel_title`/`duration`/`view_count`/`like_count`/`comment_count` (per
+   `ALTER TABLE`, rückwärtskompatibel zu bestehenden Aufrufern wie
+   `channel_all_videos.py`); neue Tabellen `video_details`, `search_runs`,
+   `video_search_hits`; neue Funktionen `upsert_video_details`,
+   `upsert_search_runs`, `upsert_search_hits` (gleiches COALESCE-Muster wie
+   `upsert_videos`, reine Fakten-Tabellen `search_runs`/`video_search_hits`
+   per `INSERT OR IGNORE`).
+2. `scripts/adhoc/migrate_video_metadata_to_registry.py` (einmaliges
+   Migrationsskript, kein Pipeline-Bestandteil) geschrieben und ausgeführt:
+   sichert die DB vorher (`.bak_pre_phase3a`), importiert die 5 Video-Metadaten-
+   Quellen + die 2 Such-Provenienz-Dateien.
+3. `scripts/adhoc/verify_video_metadata_migration.py` geschrieben und ausgeführt:
+   simuliert für eine Stichprobe von 200 `video_id`s (verteilt über alle
+   Quellen) den vollständigen COALESCE-Merge (inkl. Vor-Migrations-Zustand aus
+   dem Backup) und vergleicht Feld für Feld gegen die migrierte DB — nicht nur
+   ein reiner Datei-vs-DB-Abgleich, sondern inklusive korrekter
+   Precedence-Reihenfolge zwischen den 5 Quellen.
+
+### Ergebnis
+- `videos`: 2.307.005 Zeilen vor **und** nach der Migration (kein Zuwachs) —
+  plausibel, da `channel_all_videos.py` über `upsert_videos` bereits laufend in
+  dieselbe Registry schreibt und die 5 Quelldateien historische Dumps desselben,
+  bereits erfassten Kanal-Universums sind. Alle ~3,9 Mio. gelesenen Zeilen wurden
+  angereichert (neue Spalten befüllt), keine neuen `video_id`s hinzugekommen.
+- `video_details`: 1.073.309 Zeilen (= genau die Größe von
+  `video_metadata_detailed_total.jsonl` — die beiden anderen Detail-Quellen sind
+  nahezu vollständige Teilmengen davon).
+- `search_runs`: 17/17 erwartet. `video_search_hits`: 33.600/33.600 erwartet.
+- Verifikation: 4.000 Feld-Vergleiche über 200 `video_id`s, **0 Abweichungen**.
+- Bestehende API (`get_channel_map`, `get_videos_for_channels`, `coverage_report`)
+  nach dem Schema-Update ungebrochen getestet.
+- `video_registry.sqlite.bak_pre_phase3a` nach erfolgreicher Verifikation wieder
+  gelöscht (kein Dauerzustand, wie geplant).
+
+**Verifikation erfüllt:** alle 6 Punkte aus der Plan-Datei (`import youtube_code`,
+Migrationslauf-Zeilenzahlen, Verify-Skript OK, `total_count()`-Vergleich,
+Smoke-Test bestehender Aufrufer, dieser Progress-Eintrag).
+
+## Nächster Schritt
+Zwei offene Folgepunkte aus 3a, unabhängig von der weiteren Phasen-Reihenfolge:
+- **Sample-Membership-Ableitung** aus `video_search_hits` + Zeitraum-/Suchbegriff-
+  Regeln (z. B. "russia_base") — mit Nutzer die konkreten Regeln klären, dann
+  kleines Skript/View statt einer weiteren fest befüllten Tabelle.
+- Entscheidung zu `sample_50k_channels_russia_ukraine.jsonl` (ohne `_wo_shorts`,
+  vermutlich tot) — löschen/archivieren oder Referenz-Check wiederholen.
+
+Danach **Phase 3b — Transkripte → `transcripts.parquet`/SQLite** (nächster
+Teilschritt laut Plan-Reihenfolge), oder je nach Nutzerpriorität 3c/3d — 3c
+(Screening-State) weiterhin erst angehen, wenn kein Screening-Batch gerade aktiv
+läuft (siehe Hinweis zu Rundenverarbeitung oben).

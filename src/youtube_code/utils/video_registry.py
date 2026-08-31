@@ -1,6 +1,11 @@
 """
 Zentrale SQLite-Registry fuer alle je ueber die YouTube-API abgefragten
-Video-Metadaten (video_id, channel_id, published_at, title).
+Video-Metadaten (video_id, channel_id, published_at, title, ... siehe
+_NEW_VIDEO_COLUMNS fuer die seit Phase 3a der Restrukturierung ergaenzten
+Felder), die zugehoerigen Detail-Metadaten (Beschreibung/Tags/... in
+video_details) sowie die Such-Provenienz aus der Kanal-Identifikations-
+Recherche (search_runs, video_search_hits: mit welchem Suchbegriff und in
+welchem Recherche-Lauf ein Video gefunden wurde).
 
 Jedes Fetch-Skript soll seine frisch abgerufenen Videos hierueber
 upserten (upsert_videos), damit jederzeit klar ist, fuer welche Kanaele
@@ -28,18 +33,130 @@ CREATE TABLE IF NOT EXISTS videos (
     video_id TEXT PRIMARY KEY,
     channel_id TEXT,
     published_at TEXT,
-    title TEXT
+    title TEXT,
+    channel_title TEXT,
+    duration TEXT,
+    view_count INTEGER,
+    like_count INTEGER,
+    comment_count INTEGER
+)
+"""
+
+# Seit Phase 3a hinzugekommene Spalten - fuer eine schon vor der Erweiterung
+# angelegte DB per ALTER TABLE nachgezogen (siehe _ensure_video_columns).
+_NEW_VIDEO_COLUMNS = {
+    "channel_title": "TEXT",
+    "duration": "TEXT",
+    "view_count": "INTEGER",
+    "like_count": "INTEGER",
+    "comment_count": "INTEGER",
+}
+
+_DETAILS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS video_details (
+    video_id TEXT PRIMARY KEY,
+    description TEXT,
+    tags TEXT,
+    category_id TEXT,
+    default_language TEXT,
+    default_audio_language TEXT,
+    live_broadcast_content TEXT,
+    privacy_status TEXT,
+    upload_status TEXT,
+    license TEXT,
+    topic_relevant_topic_ids TEXT,
+    topic_categories TEXT,
+    location_description TEXT
+)
+"""
+
+_SEARCH_RUNS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS search_runs (
+    run_id TEXT PRIMARY KEY,
+    query TEXT,
+    search_start TEXT,
+    search_end TEXT,
+    month_interval INTEGER,
+    executed_at TEXT
+)
+"""
+
+_SEARCH_HITS_SCHEMA = """
+CREATE TABLE IF NOT EXISTS video_search_hits (
+    video_id TEXT,
+    run_id TEXT,
+    query TEXT,
+    PRIMARY KEY (video_id, run_id, query)
 )
 """
 
 _UPSERT_SQL = """
-INSERT INTO videos (video_id, channel_id, published_at, title)
-VALUES (?, ?, ?, ?)
+INSERT INTO videos (
+    video_id, channel_id, published_at, title,
+    channel_title, duration, view_count, like_count, comment_count
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(video_id) DO UPDATE SET
     channel_id = COALESCE(videos.channel_id, excluded.channel_id),
     published_at = COALESCE(videos.published_at, excluded.published_at),
-    title = COALESCE(videos.title, excluded.title)
+    title = COALESCE(videos.title, excluded.title),
+    channel_title = COALESCE(videos.channel_title, excluded.channel_title),
+    duration = COALESCE(videos.duration, excluded.duration),
+    view_count = COALESCE(videos.view_count, excluded.view_count),
+    like_count = COALESCE(videos.like_count, excluded.like_count),
+    comment_count = COALESCE(videos.comment_count, excluded.comment_count)
 """
+
+_DETAILS_UPSERT_SQL = """
+INSERT INTO video_details (
+    video_id, description, tags, category_id, default_language,
+    default_audio_language, live_broadcast_content, privacy_status,
+    upload_status, license, topic_relevant_topic_ids, topic_categories,
+    location_description
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(video_id) DO UPDATE SET
+    description = COALESCE(video_details.description, excluded.description),
+    tags = COALESCE(video_details.tags, excluded.tags),
+    category_id = COALESCE(video_details.category_id, excluded.category_id),
+    default_language = COALESCE(video_details.default_language, excluded.default_language),
+    default_audio_language = COALESCE(video_details.default_audio_language, excluded.default_audio_language),
+    live_broadcast_content = COALESCE(video_details.live_broadcast_content, excluded.live_broadcast_content),
+    privacy_status = COALESCE(video_details.privacy_status, excluded.privacy_status),
+    upload_status = COALESCE(video_details.upload_status, excluded.upload_status),
+    license = COALESCE(video_details.license, excluded.license),
+    topic_relevant_topic_ids = COALESCE(video_details.topic_relevant_topic_ids, excluded.topic_relevant_topic_ids),
+    topic_categories = COALESCE(video_details.topic_categories, excluded.topic_categories),
+    location_description = COALESCE(video_details.location_description, excluded.location_description)
+"""
+
+
+def _ensure_video_columns(con) -> None:
+    """
+    Faengt den Fall ab, dass DB_PATH schon vor Phase 3a existierte: die
+    obige _SCHEMA (CREATE TABLE IF NOT EXISTS) legt die neuen Spalten nur
+    bei einer frisch erzeugten Tabelle an. Bei einer bestehenden Tabelle
+    werden fehlende Spalten hier per ALTER TABLE nachgezogen.
+    """
+    existing = {row[1] for row in con.execute("PRAGMA table_info(videos)")}
+    for col, col_type in _NEW_VIDEO_COLUMNS.items():
+        if col not in existing:
+            con.execute(f"ALTER TABLE videos ADD COLUMN {col} {col_type}")
+
+
+def _to_int(value):
+    """Wandelt Zaehl-Felder (oft als String aus der API) robust in int/None."""
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_json(value):
+    """Kodiert Listen-/Dict-Felder (tags, topic_*) als JSON-Text, None bleibt None."""
+    return json.dumps(value, ensure_ascii=False) if value is not None else None
 
 
 def _connect() -> sqlite3.Connection:
@@ -48,6 +165,10 @@ def _connect() -> sqlite3.Connection:
     con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA busy_timeout=30000")
     con.execute(_SCHEMA)
+    con.execute(_DETAILS_SCHEMA)
+    con.execute(_SEARCH_RUNS_SCHEMA)
+    con.execute(_SEARCH_HITS_SCHEMA)
+    _ensure_video_columns(con)
     return con
 
 
@@ -70,6 +191,11 @@ def upsert_videos(records) -> int:
             r.get("channel_id"),
             r.get("published_at"),
             r.get("title"),
+            r.get("channel_title"),
+            r.get("duration"),
+            _to_int(r.get("view_count")),
+            _to_int(r.get("like_count")),
+            _to_int(r.get("comment_count")),
         ))
     if not rows:
         return 0
@@ -77,6 +203,112 @@ def upsert_videos(records) -> int:
     con = _connect()
     try:
         con.executemany(_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def upsert_video_details(records) -> int:
+    """
+    Schreibt die "teuren", selten geaenderten Detail-Felder aus dem
+    detaillierten Metadaten-Fetch (description/tags/category_id/...) in
+    video_details. Gleiches COALESCE-Verhalten wie upsert_videos: nie
+    Vorhandenes mit leeren Werten ueberschreiben. Listen-/Dict-Felder
+    (tags, topic_relevant_topic_ids, topic_categories) werden als JSON-Text
+    gespeichert.
+    """
+    rows = []
+    for r in records:
+        vid = r.get("video_id")
+        if not vid or "no_video_found" in str(vid):
+            continue
+        rows.append((
+            str(vid).strip(),
+            r.get("description"),
+            _to_json(r.get("tags")),
+            r.get("category_id"),
+            r.get("default_language"),
+            r.get("default_audio_language"),
+            r.get("live_broadcast_content"),
+            r.get("privacy_status"),
+            r.get("upload_status"),
+            r.get("license"),
+            _to_json(r.get("topic_relevant_topic_ids")),
+            _to_json(r.get("topic_categories")),
+            r.get("location_description"),
+        ))
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_DETAILS_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def upsert_search_runs(records) -> int:
+    """
+    Schreibt die Recherche-Laeufe aus runs_registry.json (je run_id: Such-
+    begriff + Zeitfenster) in search_runs. Reine Fakten-Tabelle (run_id ist
+    bereits eindeutig durch den Zeitstempel), daher INSERT OR IGNORE statt
+    COALESCE-Merge - ein bestehender Lauf wird nie nachtraeglich geaendert.
+    """
+    rows = []
+    for r in records:
+        run_id = r.get("run_id")
+        if not run_id:
+            continue
+        rows.append((
+            str(run_id),
+            r.get("query"),
+            r.get("search_start"),
+            r.get("search_end"),
+            r.get("month_interval"),
+            r.get("executed_at"),
+        ))
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(
+            "INSERT OR IGNORE INTO search_runs "
+            "(run_id, query, search_start, search_end, month_interval, executed_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            rows,
+        )
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def upsert_search_hits(records) -> int:
+    """
+    Schreibt die Such-Provenienz aus identification_vids.json (je Video: mit
+    welchem Suchbegriff es in welchem Recherche-Lauf gefunden wurde) in
+    video_search_hits. Ein Video kann mehrfach vorkommen, einmal je
+    (run_id, query)-Treffer. Reine Fakten-Tabelle, INSERT OR IGNORE.
+    """
+    rows = []
+    for r in records:
+        vid, run_id, query = r.get("video_id"), r.get("run_id"), r.get("query")
+        if not vid or not run_id or not query:
+            continue
+        rows.append((str(vid).strip(), str(run_id), str(query)))
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(
+            "INSERT OR IGNORE INTO video_search_hits (video_id, run_id, query) VALUES (?, ?, ?)",
+            rows,
+        )
         con.commit()
     finally:
         con.close()
