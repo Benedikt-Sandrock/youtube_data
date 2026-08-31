@@ -40,7 +40,9 @@ __pycache__
 /outputs/segment_analysis/plots/
 /outputs/sample_feasibility/
 /outputs/pilot/
-/outputs/llm/longitudinal/
+# Phase 4e: LLM-Ergebnisse konsolidiert nach outputs/llm_results/
+# (outputs/llm/longitudinal/ existiert seitdem nicht mehr).
+/outputs/llm_results/
 /data/samples/russia/batches_longitudinal/
 /data/samples/russia/classification/
 

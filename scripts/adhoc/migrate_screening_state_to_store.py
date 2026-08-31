@@ -6,7 +6,7 @@ Einmaliges Migrationsskript fuer Phase 3c der Restrukturierung
 Importiert data/samples/russia/longitudinal_screening_state.csv (1,3 GB,
 1.012.206 Zeilen, zentrale Tabelle des Longitudinal-Screening-Workflows)
 nach data/raw/screening_state.sqlite (Tabelle screening_state, siehe
-youtube_code.utils.screening_state_store). Upsert-basiert ueber
+youtube_code.store.screening_state_store). Upsert-basiert ueber
 upsert_state_rows() (Feld-fuer-Feld-COALESCE), daher idempotent bei
 mehrfacher Ausfuehrung. Loescht die Quell-CSV nicht. Kein Bestandteil einer
 laufenden Pipeline, danach nicht mehr regelmaessig auszufuehren.
@@ -26,7 +26,7 @@ import subprocess
 import pandas as pd
 
 from youtube_code.politics_screening.screening_config import STATE_FILE
-from youtube_code.utils.screening_state_store import (
+from youtube_code.store.screening_state_store import (
     COLUMNS,
     DB_PATH,
     label_counts,

@@ -23,7 +23,7 @@ Was das Skript für dich erledigt:
      normal mit der ursprünglichen RUN_ID weiterarbeiten kann.
 
 Seit Phase 4b der Restrukturierung laeuft die Registry-Seite ueber
-youtube_code.utils.llm_run_store (source="screening_active") statt ueber
+youtube_code.store.llm_run_store (source="screening_active") statt ueber
 die alte RunRegistry-CSV-Klasse. Seit Phase 4d liest enrich_retry_file() den
 Screening-State aus screening_state_store statt aus der CSV.
 """
@@ -49,7 +49,7 @@ from youtube_code.politics_screening.screening_config import (
     MAX_DESCRIPTION_CHARS,
     TITLES_PER_REQUEST,
 )
-from youtube_code.utils import llm_run_store, screening_state_store
+from youtube_code.store import llm_run_store, screening_state_store
 
 REVERSE_MODEL_ALIASES = {value: key for key, value in MODEL_ALIASES.items()}
 

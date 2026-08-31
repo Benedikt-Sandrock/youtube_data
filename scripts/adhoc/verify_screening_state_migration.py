@@ -24,7 +24,7 @@ from youtube_code.politics_screening.screening_config import STATE_FILE
 from youtube_code.politics_screening.update_screening_state import (
     validate_state_consistency,
 )
-from youtube_code.utils.screening_state_store import COLUMNS, DB_PATH, get_state
+from youtube_code.store.screening_state_store import COLUMNS, DB_PATH, get_state
 
 SOURCE_CSV = STATE_FILE
 CSV_CHUNKSIZE = 5_000

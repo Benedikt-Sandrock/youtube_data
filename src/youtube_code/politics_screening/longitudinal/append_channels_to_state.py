@@ -38,7 +38,7 @@ from youtube_code.politics_screening.longitudinal.prepare_longitudinal_screening
     assign_intervals,
     stable_random_key,
 )
-from youtube_code.utils import screening_state_store
+from youtube_code.store import screening_state_store
 
 REQUIRED_COLUMNS = ["video_id", "channel_id", "channel_title", "published_at", "title", "description"]
 REFERENCE_DATE = pd.Timestamp("2022-02-24", tz="UTC")

@@ -65,7 +65,7 @@ import yt_dlp
 from settings_variables import published_before_analysis, published_after_analysis
 from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS, OUTPUTS
 from youtube_code.utils import save_json
-from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
+from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 
 # ─────────────────────────────────────────────
 # MODE SWITCH  ←  change this line to switch
@@ -653,7 +653,7 @@ if __name__ == "__main__":
     save_json(VIDEOS_TOTAL_FILE, videos_total)
 
     # Zentrale Video-Registry mitfuehren (data/raw/video_registry.sqlite),
-    # unabhaengig vom Modus - siehe youtube_code.utils.video_registry.
+    # unabhaengig vom Modus - siehe youtube_code.store.video_registry.
     n_registry = _registry_upsert(new_videos)
     print(f"In zentrale Registry geschrieben: {n_registry}")
 

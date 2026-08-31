@@ -32,7 +32,7 @@ from youtube_code.politics_screening.screening_config import (
     TARGET_WITH_BUFFER_PER_INTERVAL,
     TITLES_PER_REQUEST,
 )
-from youtube_code.utils import screening_state_store
+from youtube_code.store import screening_state_store
 
 # First inspect the printed plan with DRY_RUN=True. Change it to False only
 # after the counts and the sample rows look plausible.

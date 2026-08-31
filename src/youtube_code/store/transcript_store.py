@@ -21,7 +21,7 @@ fuer kuenftige Scraper-Direktschreibvorgaenge (Phase 4), nicht nur fuer die
 einmalige Migration.
 
 Nutzung in einem Scraping-/Analyse-Skript:
-    from youtube_code.utils.transcript_store import upsert_transcripts, get_transcripts
+    from youtube_code.store.transcript_store import upsert_transcripts, get_transcripts
     upsert_transcripts(new_records)  # Liste von dicts mit mind. "video_id", "status"
     get_transcripts(video_ids)       # dict[video_id, dict] fuer einen Batch
 """

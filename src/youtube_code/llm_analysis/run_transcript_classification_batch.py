@@ -26,7 +26,7 @@ from youtube_code.politics_screening.screening_config import (
     GROUPING_SEED,
     MANIFEST_DIR,
 )
-from youtube_code.utils.llm_run_store import get_runs
+from youtube_code.store.llm_run_store import get_runs
 
 
 # ============================================================

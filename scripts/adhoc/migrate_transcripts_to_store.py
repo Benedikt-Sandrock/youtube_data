@@ -6,7 +6,7 @@ Einmaliges Migrationsskript fuer Phase 3b der Restrukturierung
 Importiert data/transcripts/all_transcripts_segments.csv (laut
 .claude/CLAUDE.md die einzige Source of Truth fuer Transkript-
 Verfuegbarkeit) nach data/raw/transcripts.sqlite (Tabelle transcripts,
-siehe youtube_code.utils.transcript_store). Upsert-basiert ueber
+siehe youtube_code.store.transcript_store). Upsert-basiert ueber
 upsert_transcripts() - ueberschreibt nie einen besseren vorhandenen
 Datensatz (Prioritaetsregel "OK" > "Kein Transkript" > "Fehler: ..."),
 daher idempotent bei mehrfacher Ausfuehrung. Loescht die Quell-CSV nicht.
@@ -24,7 +24,7 @@ import shutil
 import pandas as pd
 
 from youtube_code.config import TRANSCRIPTS
-from youtube_code.utils.transcript_store import DB_PATH, status_counts, total_count, upsert_transcripts
+from youtube_code.store.transcript_store import DB_PATH, status_counts, total_count, upsert_transcripts
 
 SOURCE_CSV = TRANSCRIPTS / "all_transcripts_segments.csv"
 CSV_CHUNKSIZE = 500

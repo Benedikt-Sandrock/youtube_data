@@ -3,7 +3,7 @@ import numpy as np
 import json
 
 from youtube_code.config import SAMPLES, EXTERNAL, OUTPUTS
-from youtube_code.utils.transcript_store import attempted_video_ids
+from youtube_code.store.transcript_store import attempted_video_ids
 
 
 def create_video_file_w_lables():

@@ -17,7 +17,7 @@ import json
 import shutil
 
 from youtube_code.config import CHANNEL_LISTS, RAW, SAMPLES
-from youtube_code.utils.video_registry import (
+from youtube_code.store.video_registry import (
     DB_PATH,
     total_count,
     upsert_search_hits,

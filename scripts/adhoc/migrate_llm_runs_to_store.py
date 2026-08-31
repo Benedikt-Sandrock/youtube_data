@@ -6,7 +6,7 @@ Einmaliges Migrationsskript fuer Phase 3d der Restrukturierung
 Importiert die vier parallelen LLM-Run-Registry-CSVs (identisches Schema,
 aber vier getrennte run_id-Zaehler, die alle bei run_0001 beginnen) nach
 data/raw/llm_runs.sqlite (Tabelle llm_runs, siehe
-youtube_code.utils.llm_run_store). Upsert-basiert ueber (source, run_id),
+youtube_code.store.llm_run_store). Upsert-basiert ueber (source, run_id),
 daher idempotent bei mehrfacher Ausfuehrung. Loescht keine der vier
 Quell-CSVs.
 
@@ -25,7 +25,7 @@ import subprocess
 import pandas as pd
 
 from youtube_code.config import ROOT, SRC
-from youtube_code.utils.llm_run_store import (
+from youtube_code.store.llm_run_store import (
     DB_PATH,
     REGISTRY_COLUMNS,
     source_counts,

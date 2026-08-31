@@ -19,7 +19,7 @@ import sqlite3
 import pandas as pd
 
 from youtube_code.config import ROOT, SRC
-from youtube_code.utils.llm_run_store import DB_PATH, REGISTRY_COLUMNS
+from youtube_code.store.llm_run_store import DB_PATH, REGISTRY_COLUMNS
 
 SOURCES = [
     ("screening_active",        SRC / "llm_analysis" / "registry" / "runs_registry.csv"),

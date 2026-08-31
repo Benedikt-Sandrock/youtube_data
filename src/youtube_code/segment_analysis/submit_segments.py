@@ -31,7 +31,7 @@ from youtube_code.segment_analysis.segment_analysis_config import (
     LLM_RUN_SOURCE,
     MANIFEST_DIR,
 )
-from youtube_code.utils import llm_run_store
+from youtube_code.store import llm_run_store
 
 from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
 

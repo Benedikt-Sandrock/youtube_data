@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import json
 from youtube_code.config import SAMPLES, OUTPUTS, SRC
-from youtube_code.utils.transcript_store import attempted_video_ids
+from youtube_code.store.transcript_store import attempted_video_ids
 
 IDS ={"DoH_MWRZhIE", "5_Qi6u23hPc", "3ZXGvYQI5Y8", "YjKKy361zZ0"}
 

@@ -18,7 +18,7 @@ im engeren Sinn (aeltestes/neuestes Video je Kanal) ist keine separat
 gepflegte Buchfuehrung, sondern eine einfache Abfrage (coverage_report).
 
 Nutzung in einem Fetch-Skript:
-    from youtube_code.utils.video_registry import upsert_videos
+    from youtube_code.store.video_registry import upsert_videos
     upsert_videos(new_videos)   # Liste von dicts mit mind. "video_id"
 """
 import json

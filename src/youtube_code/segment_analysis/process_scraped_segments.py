@@ -44,7 +44,7 @@ import sys
 import pandas as pd
 
 from youtube_code.config import SAMPLES, OUTPUTS
-from youtube_code.utils.transcript_store import get_transcripts
+from youtube_code.store.transcript_store import get_transcripts
 
 # ============================================================
 # CONFIG
@@ -60,7 +60,7 @@ VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
 
 
 # Transkript-Quelle: transcript_store.get_transcripts() (siehe
-# youtube_code.utils.transcript_store), nicht mehr die CSV-Datei direkt.
+# youtube_code.store.transcript_store), nicht mehr die CSV-Datei direkt.
 # "transcript_segments" darf entweder eine JSON-Liste von Untertitel-
 # Eintraegen ({"text": "..."} je Zeile, mit ueberlappenden rollenden
 # Zeitstempeln) oder bereits reiner Fliesstext sein - beides wird erkannt.

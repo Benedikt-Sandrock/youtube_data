@@ -6,8 +6,8 @@ import json
 from datetime import datetime, timezone
 
 from youtube_code.config import SAMPLES, OUTPUTS, SRC
-from youtube_code.utils.video_registry import get_channel_map, get_videos_for_channels
-from youtube_code.utils.transcript_store import upsert_transcripts, get_transcripts, attempted_video_ids
+from youtube_code.store.video_registry import get_channel_map, get_videos_for_channels
+from youtube_code.store.transcript_store import upsert_transcripts, get_transcripts, attempted_video_ids
 
 # =====================================================
 # CONFIGURATION

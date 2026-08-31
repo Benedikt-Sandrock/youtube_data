@@ -9,7 +9,7 @@ from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, EXPLORATION, SAMPLES
 from youtube_code.politics_screening.screening_config import LLM_RUN_SOURCE
-from youtube_code.utils import llm_run_store
+from youtube_code.store import llm_run_store
 # ===============================================
 # CONFIG
 # ===============================================

@@ -41,7 +41,7 @@ from pathlib import Path
 import pandas as pd
 
 from youtube_code.config import EXTERNAL, OUTPUTS, SAMPLES
-from youtube_code.utils.transcript_store import (
+from youtube_code.store.transcript_store import (
     get_transcripts as store_get_transcripts,
     attempted_video_ids,
 )
@@ -56,7 +56,7 @@ from youtube_code.utils.transcript_store import (
 QUELLE         = "csv"
 TRANSCRIPT_DIR = Path("transcripts")          # nur fuer QUELLE = "dir"
 
-# Felder aus transcript_store (siehe youtube_code.utils.transcript_store)
+# Felder aus transcript_store (siehe youtube_code.store.transcript_store)
 COL_VIDEO_ID   = "video_id"
 COL_TRANSCRIPT = "transcript_segments"
 COL_STATUS     = "status"                     # None, wenn es keine gibt

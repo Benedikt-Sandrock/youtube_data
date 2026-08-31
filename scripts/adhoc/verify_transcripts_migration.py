@@ -22,7 +22,7 @@ import sqlite3
 import pandas as pd
 
 from youtube_code.config import TRANSCRIPTS
-from youtube_code.utils.transcript_store import DB_PATH, _n_segments, _to_bool_int
+from youtube_code.store.transcript_store import DB_PATH, _n_segments, _to_bool_int
 
 SOURCE_CSV = TRANSCRIPTS / "all_transcripts_segments.csv"
 CSV_CHUNKSIZE = 500

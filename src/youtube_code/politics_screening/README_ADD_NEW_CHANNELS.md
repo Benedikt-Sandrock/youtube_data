@@ -1,18 +1,23 @@
 # Neue Kanäle zum longitudinalen Screening hinzufügen
 
 Diese Anleitung beschreibt den Prozess, um zusätzliche Kanäle in das bestehende
-longitudinale Politik-Screening (`data/samples/russia/longitudinal_screening_state.csv`)
-einzuspeisen — egal ob es sich um Kanäle handelt, die komplett neu sind, oder um
-Kanäle, die schon Zeilen im State haben (z.B. nur für Kriegsperioden), denen aber noch
-das Vorkriegs-Baseline-Fenster fehlt. Der Ablauf ist in beiden Fällen identisch; das
-Skript in Schritt 3 erkennt automatisch, welcher Fall vorliegt.
+longitudinale Politik-Screening (`data/raw/screening_state.sqlite`, über
+`src/youtube_code/store/screening_state_store.py` — seit Phase 4d der
+Restrukturierung die alleinige Quelle der Wahrheit, nicht mehr die frühere
+`data/samples/russia/longitudinal_screening_state.csv`) einzuspeisen — egal ob
+es sich um Kanäle handelt, die komplett neu sind, oder um Kanäle, die schon
+Zeilen im State haben (z.B. nur für Kriegsperioden), denen aber noch das
+Vorkriegs-Baseline-Fenster fehlt. Der Ablauf ist in beiden Fällen identisch;
+das Skript in Schritt 3 erkennt automatisch, welcher Fall vorliegt.
 
-**Grundprinzip:** Das State-File wird durch Anhängen (append) erweitert, nie durch
+**Grundprinzip:** Der State wird durch Anhängen (append) erweitert, nie durch
 Neuaufbau. `prepare_longitudinal_screening.py` ("einmal"-Skript laut
-`README_PIPELINE.md`) baut den State komplett neu auf einer festen Rohdatendatei
-(`videos_wo_shorts_description.jsonl`) auf und ist für nachträgliche Ergänzungen NICHT
-gedacht — dafür würden bestehende Labels/`screening_round`-Zuweisungen riskiert. Für
-neue Kanäle immer den Append-Weg unten nehmen.
+`README_PIPELINE.md`) baute den State ursprünglich komplett neu auf einer
+festen Rohdatendatei (`videos_wo_shorts_description.jsonl`) auf und ist für
+nachträgliche Ergänzungen NICHT gedacht — dafür würden bestehende Labels/
+`screening_round`-Zuweisungen riskiert; seit der SQLite-Migration ist das
+Skript ohnehin nicht mehr sinnvoll ausführbar (schreibt gegen die alte CSV,
+nicht gegen die DB). Für neue Kanäle immer den Append-Weg unten nehmen.
 
 ## Voraussetzungen
 
@@ -24,9 +29,8 @@ neue Kanäle immer den Append-Weg unten nehmen.
   `print()` von Emoji-/Sonderzeichen-Kanalnamen in der cp1252-Windows-Konsole — der
   Crash passiert erst beim Drucken, bereits geschriebene Dateien bleiben unberührt,
   aber sicherheitshalber trotzdem immer mitgeben).
-- Lange Skripte (API-Sammlung, State-Verarbeitung mit der 1.2GB-CSV) laufen oft länger
-  als 2 Minuten — im Hintergrund laufen lassen und auf Abschluss warten statt mit
-  `sleep` zu pollen.
+- Lange Skripte (API-Sammlung, State-Verarbeitung) laufen oft länger als 2 Minuten —
+  im Hintergrund laufen lassen und auf Abschluss warten statt mit `sleep` zu pollen.
 
 ## Schritt 1 — Kanal-IDs sammeln
 
@@ -103,11 +107,11 @@ with open("data/raw/video_metadata_detailed_total.jsonl", encoding="utf-8") as f
 
 ## Schritt 4 — State erweitern (`src/youtube_code/politics_screening/longitudinal/append_channels_to_state.py`)
 
-**Vorher immer ein Backup anlegen** — der State hat keine Git-Historie (~1.2GB):
+**Vorher immer ein Backup anlegen** — die State-DB hat keine Git-Historie:
 
 ```bash
-cp data/samples/russia/longitudinal_screening_state.csv \
-   data/samples/russia/longitudinal_screening_state.csv.bak_<kurze_beschreibung>
+cp data/raw/screening_state.sqlite \
+   data/raw/screening_state.sqlite.bak_<kurze_beschreibung>
 ```
 
 Dann:
@@ -172,7 +176,8 @@ schreibt nur lokale Vorschau-Dateien (JSONL, Manifest), noch **keine** echte
 Einreichung. Erst wenn diese Vorschau plausibel aussieht, `DRY_RUN = False` setzen und
 das Skript erneut laufen lassen — das reicht den Batch-Job wirklich bei Vertex AI ein
 (Gemini 2.5 Flash, Prompt 32) und trägt ihn in die Registry
-(`src/youtube_code/llm_analysis/registry/runs_registry.csv`) ein.
+(`data/raw/llm_runs.sqlite`, Quelle `screening_active`, siehe
+`src/youtube_code/store/llm_run_store.py`) ein.
 
 `ALLOW_EXISTING_RUN = True` nur für einen bewussten Retry setzen — Standard `False`
 verhindert versehentliche Doppel-Einreichungen für dieselbe Runde/Stufe.
@@ -180,7 +185,7 @@ verhindert versehentliche Doppel-Einreichungen für dieselbe Runde/Stufe.
 ## Schritt 7 — Ergebnisse abholen (`src/youtube_code/llm_analysis/download_results.py`)
 
 Prüft den Job-Status in der Registry und lädt fertige Ergebnisse herunter (als CSV nach
-`outputs/llm/longitudinal/title_classification/`).
+`outputs/llm_results/screening_active__<run_id>/`).
 
 ## Schritt 8 — Ergebnisse in den State zurückführen (`src/youtube_code/politics_screening/update_screening_state.py`)
 
@@ -228,8 +233,12 @@ das Ziel erreicht ist oder ihr Kandidatenpool erschöpft ist (Status
 - `TARGET_POLITICAL_PER_INTERVAL = 10`, `TARGET_WITH_BUFFER_PER_INTERVAL = 12`: Ziel
   pro Kanal/Interval — 10 politische Videos, 12 als Puffer für z.B. fehlende
   Transkripte.
-- `STATE_FILE = data/samples/russia/longitudinal_screening_state.csv` — die zentrale,
-  nicht git-getrackte State-Datei. **Vor jedem schreibenden Schritt (4) sichern.**
+- Zentrale State-Ablage seit Phase 4d: `data/raw/screening_state.sqlite`
+  (`src/youtube_code/store/screening_state_store.py`), nicht git-getrackt. Die
+  frühere `STATE_FILE`-Konstante (`screening_config.py`,
+  `longitudinal_screening_state.csv`) ist nur noch historisch, wird von den
+  Schreiber-Skripten nicht mehr verwendet. **Vor jedem schreibenden Schritt
+  (4) sichern.**
 
 ## Optional: Master-Kanalliste
 

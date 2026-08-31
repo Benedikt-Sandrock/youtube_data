@@ -1138,17 +1138,128 @@ Working Tree, noch nicht committet.**
 **Noch nicht committet** — liegt im Working Tree (4a–4c sind laut
 Commit-Log bereits committet, siehe oben).
 
+## Phase 4e — Store-Modulverschiebung + physische LLM-Ergebnis-Konsolidierung (2026-08-31, abgeschlossen)
+
+Ausgeführt auf explizitem Ausführungsauftrag ("führe Abschnitt 4e aus").
+Vorbedingung geprüft: 4a–4d waren zu Beginn der Sitzung bereits vollständig
+committet (`git status` zeigte nur unbezogene, neue Datendateien als
+untracked, keine offenen Modified-Dateien aus 4a–4d) — die im Plan
+vorgesehene Rückfrage/Klärung war damit nicht mehr nötig.
+
+**Schritt 1 — Store-Modulverschiebung:** `video_registry.py`,
+`transcript_store.py`, `screening_state_store.py`, `llm_run_store.py` per
+`git mv` von `src/youtube_code/utils/` nach neu angelegtem
+`src/youtube_code/store/` verschoben (Historie erhalten), plus leeres
+`store/__init__.py`. Alle Call-Sites angepasst: 39 Treffer von
+`youtube_code.utils.<store_modul>` per `sed` auf `youtube_code.store.<store_modul>`
+umgeschrieben (18 Dateien unter `src/`, 11 unter `scripts/`), zusätzlich 10
+Stellen im `from youtube_code.utils import <store_modul>[, <store_modul>]`-Stil
+manuell auf `from youtube_code.store import ...` umgestellt (Skript-Ersetzung
+hatte hier das Komma bei Zwei-Modul-Imports verschluckt — von Hand in
+`retry_run.py`/`update_screening_state.py` korrigiert). `utils/io.py`
+importiert `video_registry` weiterhin, jetzt aus `store` statt `utils` — sonst
+keine Querabhängigkeiten zwischen den vier Store-Modulen oder zu `utils/io.py`
+gefunden (jedes importiert nur `youtube_code.config`).
+**Verifikation:** `ast.parse()` über alle 23 geänderten Dateien fehlerfrei;
+tatsächlicher Modul-Import (`PYTHONPATH=src .venv/Scripts/python.exe`, **mit**
+`.venv`-Interpreter — der System-Python hat die Projekt-Dependencies nicht,
+siehe Merksatz unten) aller 22 betroffenen Call-Sites: 18 importieren
+sauber durch, 4 scheitern an vorbestehenden, nicht mit dieser Änderung
+zusammenhängenden Problemen (fehlendes `google.genai`/`sklearn`/
+`youtube_transcript_api`/`googleapiclient` im Interpreter, ein interaktiver
+`input()`-Prompt beim Modul-Import von `transcript_scraping_segments.py`,
+der bereits in 4a dokumentierte `settings_variables`-Sibling-Import-Fall bei
+den drei `collection/*.py`-Dateien).
+
+**Schritt 2 — Physische LLM-Ergebnis-Konsolidierung:** neues
+`scripts/adhoc/consolidate_llm_results.py` (Dry-Run-fähig) verschiebt alle
+Dateien mit erkennbarem `run_NNNN`-Präfix aus
+`outputs/llm/longitudinal/{title,description}_classification/` (55 Dateien,
+Quelle `screening_active`) und den flachen `outputs/segment_analysis/run_*.csv`
+(27 Dateien inkl. `_corrected`-Varianten, Quelle `segment_analysis_active`)
+nach `outputs/llm_results/<source>__<run_id>/` (Muster aus
+`.claude/plans/phase_3d.md` Abschnitt 6) und biegt die `results_path`-Spalte
+in `llm_runs.sqlite` auf den neuen Pfad um. Ergebnis: 83 Dateien in 43
+Run-Ordnern (24 screening_active + 19 segment_analysis_active — `run_0001`
+von `screening_active` hatte nie eine Ergebnisdatei, `status='error'`, daher
+44 Runs aber 43 Ordner); alle 43 `results_path`-Werte zeigen verifiziert auf
+existierende Dateien. Leere Quellordner (`title_classification/`,
+`description_classification/`, `outputs/llm/longitudinal/` selbst) entfernt.
+Die ~45 abgeleiteten Analysedateien ohne `run_NNNN`-Präfix in
+`outputs/segment_analysis/` (`channel_classification_*.csv`, `baseline_*.csv`,
+`uebersicht_*.csv` usw.) sowie die zwei HANDOFF-Dokus und `download_stats.txt`
+bewusst **nicht** verschoben (waren bereits strukturell von den Run-Ergebnissen
+getrennt, sobald Letztere weg sind — der im Plan als Beispiel genannte
+zusätzliche Zielort `outputs/reports/` wurde nicht umgesetzt, da "z.B." im
+Plantext als Vorschlag zu lesen war und ein zusätzlicher Move ohne Prüfung
+aller ~45 Call-Sites unnötiges Risiko gewesen wäre). `outputs/llm/gemini/
+nahost_descriptive_figures/` (164 MB) wie in der Nutzerentscheidung
+vorgesehen unangetastet gelassen.
+
+Zusätzlich zum reinen Verschieben (über den Plantext hinaus, aber ohne dies
+wäre die Konsolidierung beim nächsten produktiven Download-Lauf sofort wieder
+aufgebrochen): die drei Download-Skripte, die künftige Ergebnisse
+schreiben, wurden auf den neuen Ablageort umgestellt.
+`download_results.py`: `RESULTS_DIRS`-Dict (nach `target_variable` getrennt)
+und `DEFAULT_RESULTS_DIR` durch `get_results_dir(run_id)` ersetzt, das
+`outputs/llm_results/screening_active__<run_id>/` zurückgibt.
+`download_segments.py`/`download_segments_simple.py`: `RESULTS_DIR`-Konstante
+(flach `outputs/segment_analysis/`) durch `RESULTS_ROOT` plus
+`RESULTS_ROOT / f"{LLM_RUN_SOURCE}__{run_id}"` pro Aufruf ersetzt. Aktive
+Leser (`evaluate_politics_screening.py`) lesen `results_path` bereits
+dynamisch aus der Registry/DB und brauchten keine Änderung.
+**Verifikation:** alle drei Skripte importieren fehlerfrei mit
+`.venv`-Interpreter (inkl. echtem `google.genai`-Client-Setup beim
+Modul-Import, das mehrere Minuten dauert — vorab per Hintergrund-Task statt
+blockierendem Foreground-Call laufen lassen).
+
+`.gitignore` angepasst: `/outputs/llm/longitudinal/`-Eintrag entfernt (Pfad
+existiert nicht mehr), `/outputs/llm_results/` neu ergänzt.
+`/outputs/segment_analysis/*.csv` bewusst unverändert gelassen (deckt weiter
+die verbliebenen abgeleiteten Analyse-CSVs ab).
+
+**Schritt 3 — README_ADD_NEW_CHANNELS.md aktualisiert:** über die im
+Plantext explizit genannte `runs_registry.csv`-Referenz hinaus (jetzt
+`data/raw/llm_runs.sqlite` / `llm_run_store.py`) auch mehrere weitere, beim
+Gegenprüfen gefundene veraltete Pfad-Referenzen korrigiert, die auf die
+durch Phase 4d bereits abgelöste State-CSV zeigten: die einleitende
+Pfadangabe, der `cp`-Backup-Befehl in Schritt 4 (jetzt
+`data/raw/screening_state.sqlite` statt `longitudinal_screening_state.csv`),
+die `STATE_FILE`-Konstanten-Erwähnung am Ende (jetzt mit Hinweis, dass sie
+nur noch historisch ist), sowie der Download-Ergebnis-Pfad in Schritt 7
+(`outputs/llm_results/screening_active__<run_id>/`). Nicht angefasst:
+Pfade zu Screening-Runden-Planungsartefakten (`screening_rounds/`,
+`description_rounds/` usw.) — die sind unabhängig von der Store-Migration
+und weiterhin CSV-Dateien.
+
+**Neue Erkenntnis für künftige Sitzungen:** Modul-Level-`google.genai.Client(...)`-
+Instanziierung in `download_results.py`/`download_segments*.py`/
+`submit_batch_jobs.py` löst beim reinen Import (nicht erst beim Aufruf) einen
+echten Google-Cloud-Auth-Check aus, der mehrere Minuten dauern kann (ADC-
+Warnung erscheint zuerst, dann folgt der eigentliche Check) — bei
+Import-Verifikationen dieser drei Module immer als Hintergrund-Task starten,
+nicht im Vordergrund auf ein 120s-Timeout laufen lassen.
+
+**Alle 4e-Änderungen liegen im Working Tree, noch nicht committet.**
+
 ## Nächster Schritt
-Zwei mögliche Fortsetzungen, unabhängig voneinander:
-- **Batch-Runner-Merge nachholen** (der in 4d offen gelassene
-  Plan-Schritt 6) — eigenständig genug für eine kurze Folgesitzung, kein
-  Blocker für 4e.
-- **Phase 4e — Store-Modulverschiebung + physische
-  LLM-Ergebnis-Konsolidierung** (hängt an 4b–4d, beide inhaltlich
-  abgeschlossen; Plan: `.claude/plans/phase_4.md`, Abschnitt
-  "Teilschritt 4e"). Vor Beginn `git status` prüfen (4a–4d-Änderungen
-  noch uncommittet, mit Nutzer klären ob/wie committet wird, bevor 4e
-  weitere Dateien anfasst).
+
+**Phase 4 ist damit vollständig abgeschlossen (4a–4e).** Kandidaten für
+Phase 5 (aus den Progress-Notizen der einzelnen Teilschritte gesammelt):
+
+- `.claude/CLAUDE.md`-Regel-Update: die Transkript-Verfügbarkeits-Regel
+  verweist noch auf `all_transcripts_segments.csv`, obwohl seit 4c
+  `transcript_store`/`transcripts.sqlite` die Wahrheit ist.
+- Nicht im Plantext gelistete, vermutlich tote Bootstrap-/Vorgänger-Skripte,
+  die bewusst nicht angefasst wurden: `scraping/transcript_scraping.py` (4c),
+  `politics_screening/longitudinal/prepare_longitudinal_screening.py` (4d) —
+  beide Kandidaten für eine kurze Rückfrage.
+- `data/external/media_type_russia_merged.xlsx.bak` (4a, unklarer Zweck).
+- `outputs/llm/gemini/nahost_descriptive_figures/` (164 MB) — bewusst nie
+  konsolidiert, siehe 4e.
+- `config/paths.py`-Bereinigung, README-Gesamtüberholung (`README_PIPELINE.md`
+  u. a. referenzieren vermutlich ebenfalls noch alte Pfade außerhalb des in
+  4e geprüften `README_ADD_NEW_CHANNELS.md`).
 
 Sample-Membership-Ableitung aus `video_search_hits` bleibt laut
 Nutzerentscheidung komplett außerhalb von Phase 4, als eigenständiges

@@ -25,7 +25,7 @@ from youtube_code.segment_analysis.segment_analysis_config import (
     LLM_RUN_SOURCE,
     MANIFEST_DIR,
 )
-from youtube_code.utils import llm_run_store
+from youtube_code.store import llm_run_store
 
 from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
 from youtube_code.segment_analysis.submit_segments import (
@@ -40,7 +40,10 @@ from youtube_code.segment_analysis.submit_segments import (
 
 RUN_IDS: list[str] = []
 
-RESULTS_DIR = OUTPUTS / "segment_analysis"
+# Konsolidierter Ablageort (Phase 4e der Restrukturierung, .claude/plans/
+# phase_4.md): outputs/llm_results/segment_analysis_active__<run_id>/, statt
+# des frueheren flachen outputs/segment_analysis/.
+RESULTS_ROOT = OUTPUTS / "llm_results"
 SEGMENT_MANIFEST_DIR = MANIFEST_DIR / "segments"
 
 SEGMENT_FILE_FOR_CHECK = None
@@ -380,8 +383,9 @@ def process_run(run_id: str, client, storage_client,
     if state != "JOB_STATE_SUCCEEDED":
         return "pending"
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = RESULTS_DIR / f"{run_id}_{prompt_key}.csv"
+    results_dir = RESULTS_ROOT / f"{LLM_RUN_SOURCE}__{run_id}"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    output_path = results_dir / f"{run_id}_{prompt_key}.csv"
     if output_path.exists() and not OVERWRITE:
         print(f"  Existiert bereits: {output_path} (OVERWRITE=False)")
         return "skipped"

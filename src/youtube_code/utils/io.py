@@ -5,7 +5,7 @@ import os
 import time
 import json
 
-from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
+from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 
 
 def filter_blacklist(total_videos_input, blacklist_file, german_videos_output):

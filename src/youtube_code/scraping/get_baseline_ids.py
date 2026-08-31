@@ -1,8 +1,8 @@
 import json
 import pandas as pd
 
-from youtube_code.utils.transcript_store import attempted_video_ids
-from youtube_code.utils.screening_state_store import get_state
+from youtube_code.store.transcript_store import attempted_video_ids
+from youtube_code.store.screening_state_store import get_state
 
 df = get_state()[
     ["video_id", "channel_id", "channel_title", "interval_index", "politics_final"]

@@ -19,7 +19,7 @@ import random
 import sqlite3
 
 from youtube_code.config import CHANNEL_LISTS, RAW, SAMPLES
-from youtube_code.utils.video_registry import DB_PATH
+from youtube_code.store.video_registry import DB_PATH
 
 SAMPLE_PER_SOURCE = 40
 

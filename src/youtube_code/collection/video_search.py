@@ -15,7 +15,7 @@ from dateutil.relativedelta import relativedelta
 
 from settings_variables import query_list, target_directory, start_date, final_end_date, month_interval
 from youtube_code.utils import load_set
-from youtube_code.utils.video_registry import upsert_videos as _registry_upsert
+from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 from youtube_code.config import API_KEY, API_KEY_C
 
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)

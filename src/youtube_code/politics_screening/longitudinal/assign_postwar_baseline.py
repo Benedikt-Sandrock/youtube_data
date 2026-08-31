@@ -39,7 +39,7 @@ from youtube_code.politics_screening.screening_config import (
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
 )
-from youtube_code.utils import screening_state_store
+from youtube_code.store import screening_state_store
 
 # ============================================================
 # CONFIG

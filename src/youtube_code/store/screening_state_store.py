@@ -23,7 +23,7 @@ Business-Logik der aufrufenden Skripte und wird erst in Phase 4 auf die
 neuen Call-Sites uebertragen, nicht hier im Storage-Modul entschieden.
 
 Nutzung in einem Screening-Skript:
-    from youtube_code.utils.screening_state_store import upsert_state_rows, get_state
+    from youtube_code.store.screening_state_store import upsert_state_rows, get_state
     upsert_state_rows(new_or_changed_rows)  # Liste von dicts mit mind. "video_id", "channel_id"
     get_state(screening_round=10)           # DataFrame fuer eine Teilmenge
 """

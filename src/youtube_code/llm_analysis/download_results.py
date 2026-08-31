@@ -5,21 +5,20 @@ import pandas as pd
 from google import genai
 from google.cloud import storage
 
-from youtube_code.config import LLM, PROJECT_ID, LOCATION
+from youtube_code.config import OUTPUTS, PROJECT_ID, LOCATION
 from youtube_code.politics_screening.screening_config import LLM_RUN_SOURCE, MANIFEST_DIR
-from youtube_code.utils import llm_run_store
+from youtube_code.store import llm_run_store
 
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-RESULTS_DIRS = {
-    "politics_title": LLM /"longitudinal" / "title_classification",
-    "politics_title_desc": LLM /"longitudinal" / "description_classification",
-}
-# Preserve the previous location for older/non-screening run types.
-DEFAULT_RESULTS_DIR = LLM / "title_classification"
+# Konsolidierter Ablageort (Phase 4e der Restrukturierung, .claude/plans/
+# phase_4.md): outputs/llm_results/screening_active__<run_id>/, statt der
+# frueheren nach target_variable getrennten Ordner unter
+# outputs/llm/longitudinal/.
+RESULTS_ROOT = OUTPUTS / "llm_results"
 SUPPORTED_GROUPED_TARGETS = {
     "politics_title",
     "politics_title_desc",
@@ -130,9 +129,9 @@ def save_dataframe(
     print(f"  Saved: {output_path}")
 
 
-def get_results_dir(target_variable: str) -> Path:
-    """Choose a separate output folder for every screening stage."""
-    return RESULTS_DIRS.get(target_variable, DEFAULT_RESULTS_DIR)
+def get_results_dir(run_id: str) -> Path:
+    """Consolidated per-run output folder (outputs/llm_results/<source>__<run_id>/)."""
+    return RESULTS_ROOT / f"{LLM_RUN_SOURCE}__{run_id}"
 
 
 # ============================================================
@@ -994,7 +993,7 @@ def process_run(run_id: str, save_format: str = "CSV") -> str:
         else str(raw_target_variable).strip()
     )
 
-    results_dir = get_results_dir(target_variable)
+    results_dir = get_results_dir(run_id)
     results_dir.mkdir(parents=True, exist_ok=True)
     extension = "csv" if save_format == "CSV" else "xlsx"
     output_path = results_dir / f"{run_id}.{extension}"

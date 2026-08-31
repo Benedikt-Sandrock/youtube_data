@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
 CALLSITE_MODULES = [
-    "youtube_code.utils.llm_run_store",
+    "youtube_code.store.llm_run_store",
     "youtube_code.politics_screening.screening_config",
     "youtube_code.segment_analysis.segment_analysis_config",
     "youtube_code.llm_analysis.submit_batch_jobs",
@@ -59,7 +59,7 @@ def check_imports() -> bool:
 
 def check_store_functions() -> bool:
     print("\n=== 2/2 Funktions-Check (llm_run_store, temporaere DB-Kopie) ===")
-    import youtube_code.utils.llm_run_store as store
+    import youtube_code.store.llm_run_store as store
 
     real_db_path = store.DB_PATH
     with tempfile.TemporaryDirectory() as tmp_dir:

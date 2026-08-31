@@ -47,7 +47,7 @@ Skriptlauf derselben Quelle ("ganze Zeile gewinnt" bei Konflikt auf
 (source, run_id), analog transcript_store).
 
 Nutzung:
-    from youtube_code.utils.llm_run_store import (
+    from youtube_code.store.llm_run_store import (
         upsert_runs, get_runs, get_run, add_run, update_run,
     )
     upsert_runs("screening_active", records)  # Liste von dicts, REGISTRY_COLUMNS-Felder
