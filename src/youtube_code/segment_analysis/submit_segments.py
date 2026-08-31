@@ -40,7 +40,7 @@ from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
 # CONFIG
 # ============================================================
 
-SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "pilot_classification_segments.csv"
+SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "war_vids_segments.csv"
 
 PROMPT_KEY = "POPULISMUS_P"
 

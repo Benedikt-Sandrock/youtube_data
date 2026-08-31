@@ -43,7 +43,7 @@ import sys
 
 import pandas as pd
 
-from youtube_code.config import SAMPLES, OUTPUTS
+from youtube_code.config import SAMPLES, OUTPUTS, EXPLORATION
 from youtube_code.store.transcript_store import get_transcripts
 
 # ============================================================
@@ -54,9 +54,9 @@ BEFEHL = "segmente"                    # "segmente" | "sample"
 
 # CSV mit mindestens der Spalte "video_id" - die zu verarbeitenden Videos.
 
-# VIDEO_ID_SOURCE = SAMPLES / "russia" / "out_segments" / "descriptive_sample_baseline.csv"
+VIDEO_ID_SOURCE = EXPLORATION / "war_vids.csv"
 # VIDEO_ID_SOURCE = OUTPUTS / "sample_feasibility" / "descriptive_sample.csv"
-VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
+# VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
 
 
 # Transkript-Quelle: transcript_store.get_transcripts() (siehe
@@ -96,7 +96,7 @@ EXCERPT_N_CHUNKS = 4
 EXCERPT_SNAP_WINDOW = 100
 
 OUT_DIR = SAMPLES / "russia" / "out_segments"
-OUT_FILE = OUT_DIR / "pilot_classification_segments.csv"    # direkt als SEGMENT_FILE nutzbar
+OUT_FILE = OUT_DIR / "war_vids_segments.csv"    # direkt als SEGMENT_FILE nutzbar
 
 # Nur fuer BEFEHL = "sample"
 SAMPLE_N = 200

@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS video_search_hits (
 )
 """
 
+_LANGUAGE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS language_classification (
+    channel_id TEXT PRIMARY KEY,
+    is_german INTEGER,
+    german_ratio REAL,
+    country TEXT    
+)
+"""
+
 _UPSERT_SQL = """
 INSERT INTO videos (
     video_id, channel_id, published_at, title,
@@ -131,6 +140,18 @@ ON CONFLICT(video_id) DO UPDATE SET
 """
 
 
+_UPSERT_CLASSIFICATION_SQL = """
+INSERT INTO language_classification (
+    channel_id, is_german, german_ratio, country
+)
+VALUES (?,?,?,?)
+ON CONFLICT(channel_id) DO UPDATE SET
+    is_german = COALESCE(excluded.is_german, language_classification.is_german),
+    german_ratio = COALESCE(excluded.german_ratio, language_classification.german_ratio),
+    country = COALESCE(excluded.country, language_classification.country)
+"""
+
+
 def _ensure_video_columns(con) -> None:
     """
     Faengt den Fall ab, dass DB_PATH schon vor Phase 3a existierte: die
@@ -168,6 +189,7 @@ def _connect() -> sqlite3.Connection:
     con.execute(_DETAILS_SCHEMA)
     con.execute(_SEARCH_RUNS_SCHEMA)
     con.execute(_SEARCH_HITS_SCHEMA)
+    con.execute(_LANGUAGE_SCHEMA)
     _ensure_video_columns(con)
     return con
 
@@ -315,6 +337,34 @@ def upsert_search_hits(records) -> int:
     return len(rows)
 
 
+def upsert_language_classification(records) -> int:
+    """
+    Schreibt die Sprach-Klassifikation der Kanäle in language_classification.
+    COALESCE-Verhalten wie bei upsert_videos.
+    """
+    rows = []
+    for r in records:
+        cid = r.get("channel_id")
+        if not cid:
+            continue
+        rows.append((
+            str(cid).strip(),
+            r.get("is_german"),
+            r.get("german_ratio"),
+            r.get("country")
+        ))
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_UPSERT_CLASSIFICATION_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
 def export_jsonl(output_path, include_title: bool = False) -> int:
     """
     Schreibt einen vollstaendigen Snapshot der Registry als JSONL nach
@@ -371,6 +421,14 @@ def total_count() -> int:
     con = _connect()
     try:
         return con.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
+    finally:
+        con.close()
+
+
+def language_classification_count() -> int:
+    con = _connect()
+    try:
+        return con.execute("SELECT COUNT(*) FROM language_classification").fetchone()[0]
     finally:
         con.close()
 

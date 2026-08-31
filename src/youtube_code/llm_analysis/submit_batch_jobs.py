@@ -813,7 +813,7 @@ if __name__ == "__main__":
     prompts = {"PROMPT_33": prompts_title_classification["PROMPT_33"]}
     PROMPTS_TO_RUN = list(prompts.keys())
     csv_file = Path(
-        r"C:\Users\bened\PycharmProjects\youtube_data\outputs\llm\longitudinal"
+        r"/outputs/archive/llm\longitudinal"
         r"\description_classification\run_0006_retry.csv"
     )
 

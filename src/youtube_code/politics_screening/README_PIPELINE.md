@@ -8,7 +8,9 @@ existieren unter diesen Namen nirgends im Repo und tauchen auch in der
 gesamten Git-History nicht auf — vermutlich Altlast einer nie umgesetzten
 früheren Planung. Für den Schritt-für-Schritt-Ablauf (inkl. Konfiguration,
 Reihenfolge, Stolpersteine) siehe `README_ADD_NEW_CHANNELS.md` im selben
-Verzeichnis — die dortige "Kurzreferenz"-Tabelle ist die maßgebliche.
+Verzeichnis — die dortige "Kurzreferenz"-Tabelle ist die maßgebliche. Für die
+Definition des Baseline-Fensters pro Kanal und den Abruf der Baseline-Videos
+siehe `README_BASELINE_WINDOW.md`.
 
 | Skript                                                                     | Eingabe                              | Ausgabe                            | Ausführung        |
 | --------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------- | ------------------ |
