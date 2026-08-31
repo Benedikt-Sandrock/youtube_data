@@ -2,13 +2,11 @@ import json
 import pandas as pd
 
 from youtube_code.utils.transcript_store import attempted_video_ids
+from youtube_code.utils.screening_state_store import get_state
 
-df = pd.read_csv(
-    "data/samples/russia/longitudinal_screening_state.csv",
-    usecols=["video_id", "channel_id", "channel_title", "interval_index", "politics_final"],
-    dtype={"channel_id": "string", "video_id": "string"},
-    low_memory=False,
-)
+df = get_state()[
+    ["video_id", "channel_id", "channel_title", "interval_index", "politics_final"]
+]
 
 # --- Vorkriegs-27-Kanäle-Projekt ---
 todo = pd.read_csv("outputs/segment_analysis/kanaele_baseline_collection_todo.csv", dtype={"channel_id": "string"})

@@ -15,12 +15,20 @@ description:
 
 The script only accepts fully downloaded and validated Registry runs. Before
 any write, it demands an exact ID match between the expected pending State
-rows and the result file. Existing labels are never overwritten.
+rows and the result file. Existing labels are never overwritten - the merge
+functions only ever touch rows whose target label column is still NULL, so
+the protection lives in that row mask, not in a separate check.
+
+Since Phase 4d, the state is read from and written to
+``screening_state_store`` instead of a CSV. Only the two changed columns
+(``politics_title``/``politics_title_desc`` + ``politics_final``) for the
+masked rows are pushed via ``upsert_state_rows`` - no full-table rewrite and
+no manual state backup (SQLite needs neither); the merge audit CSV under
+``merge_reports/`` remains the record of what was applied.
 """
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -28,9 +36,8 @@ import pandas as pd
 from youtube_code.politics_screening.screening_config import (
     LLM_RUN_SOURCE,
     SCREENING_ROUND_DIR,
-    STATE_FILE,
 )
-from youtube_code.utils import llm_run_store
+from youtube_code.utils import llm_run_store, screening_state_store
 
 
 # ============================================================
@@ -57,7 +64,6 @@ CONFIRM_BEFORE_WRITE = True
 BATCH_DIR = SCREENING_ROUND_DIR.parent
 DESCRIPTION_ROUND_DIR = BATCH_DIR / "description_rounds"
 MERGE_REPORT_DIR = BATCH_DIR / "merge_reports"
-STATE_BACKUP_DIR = BATCH_DIR / "state_backups"
 
 VALID_MODES = {"title", "description"}
 VALID_LABELS = {-1, 0, 1}
@@ -197,11 +203,11 @@ def convert_label_column(
     return converted
 
 
-def load_state(state_path: Path) -> pd.DataFrame:
-    state = normalize_video_ids(
-        read_table(state_path),
-        "screening state",
-    )
+def load_state() -> pd.DataFrame:
+    state = screening_state_store.get_state()
+    if state.empty:
+        raise FileNotFoundError("screening_state_store ist leer.")
+    state = normalize_video_ids(state, "screening state")
 
     missing = STATE_REQUIRED_COLUMNS - set(state.columns)
     if missing:
@@ -627,8 +633,6 @@ def build_output_paths(
     paths = {
         "audit": MERGE_REPORT_DIR
         / f"screening_round_{round_label}_{mode}_{run_id}_merge.csv",
-        "backup": STATE_BACKUP_DIR
-        / f"politics_screening_state_before_{run_id}.csv",
     }
     if mode == "title":
         paths["description_candidates"] = (
@@ -646,7 +650,7 @@ def require_new_output_paths(
     *,
     description_candidates_exist: bool,
 ) -> None:
-    checked = ["audit", "backup"]
+    checked = ["audit"]
     if description_candidates_exist:
         checked.append("description_candidates")
 
@@ -657,7 +661,7 @@ def require_new_output_paths(
     ]
     if existing:
         raise FileExistsError(
-            "The merge would overwrite existing audit/backup files: "
+            "The merge would overwrite an existing audit file: "
             f"{[str(path) for path in existing]}. "
             "This run may already have been applied."
         )
@@ -672,7 +676,6 @@ def print_merge_plan(
     paths: dict[str, Path],
     description_candidates: pd.DataFrame | None,
     dry_run: bool,
-    state_path: Path,
 ) -> None:
     print("\n" + "=" * 68)
     print(f"SCREENING STATE MERGE: {mode.upper()}")
@@ -702,8 +705,7 @@ def print_merge_plan(
             )
 
     print(f"Audit report           : {paths['audit']}")
-    print(f"State backup           : {paths['backup']}")
-    print(f"Updated state          : {state_path}")
+    print("Updated state          : screening_state_store (upsert, no full-table rewrite)")
 
     preview_columns = [
         column
@@ -723,13 +725,36 @@ def print_merge_plan(
     print("=" * 68)
 
 
+def build_state_records(mode: str, audit: pd.DataFrame) -> list[dict]:
+    """Baut die upsert_state_rows()-Records aus dem Audit-DataFrame - exakt die
+    Zeilen/Spalten, die merge_title_results/merge_description_results anhand
+    ihrer eigenen Maske (nur vorher-NULL-Zellen) tatsaechlich aendern. Dadurch
+    bildet sich die "Labels werden nie ueberschrieben"-Regel automatisch auf
+    die COALESCE-Upsert-Semantik des Stores ab: nur diese Zeilen/Spalten
+    werden ueberhaupt uebergeben."""
+    if mode == "title":
+        records = audit[
+            ["video_id", "new_politics_title", "new_politics_final"]
+        ].rename(columns={
+            "new_politics_title": "politics_title",
+            "new_politics_final": "politics_final",
+        })
+    else:
+        records = audit[
+            ["video_id", "new_politics_title_desc", "new_politics_final"]
+        ].rename(columns={
+            "new_politics_title_desc": "politics_title_desc",
+            "new_politics_final": "politics_final",
+        })
+    return records.to_dict("records")
+
+
 def write_merge_outputs(
-    original_state_path: Path,
-    updated_state: pd.DataFrame,
+    mode: str,
     audit: pd.DataFrame,
     paths: dict[str, Path],
     description_candidates: pd.DataFrame | None,
-) -> None:
+) -> int:
     has_description_candidates = (
         description_candidates is not None
         and not description_candidates.empty
@@ -738,9 +763,6 @@ def write_merge_outputs(
         paths,
         description_candidates_exist=has_description_candidates,
     )
-
-    paths["backup"].parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(original_state_path, paths["backup"])
 
     atomic_write_csv(audit, paths["audit"])
 
@@ -755,11 +777,8 @@ def write_merge_outputs(
             paths["description_candidates"],
         )
 
-    atomic_write_csv(
-        updated_state,
-        original_state_path,
-        encoding="utf-8",
-    )
+    records = build_state_records(mode, audit)
+    return screening_state_store.upsert_state_rows(records)
 
 
 # ============================================================
@@ -770,7 +789,6 @@ def update_screening_state(
     mode: str,
     round_number: int,
     run_id: str,
-    state_path: Path = STATE_FILE,
     dry_run: bool = True,
     confirm_before_write: bool = True,
 ) -> dict:
@@ -792,7 +810,7 @@ def update_screening_state(
         else "politics_title_desc"
     )
 
-    state = load_state(state_path)
+    state = load_state()
     metadata, results, results_path = load_run_and_results(
         run_id=run_id,
         expected_target=target_variable,
@@ -830,7 +848,6 @@ def update_screening_state(
         paths=paths,
         description_candidates=description_candidates,
         dry_run=dry_run,
-        state_path=state_path,
     )
 
     if dry_run:
@@ -855,15 +872,13 @@ def update_screening_state(
                 "paths": paths,
             }
 
-    write_merge_outputs(
-        original_state_path=state_path,
-        updated_state=updated_state,
+    written = write_merge_outputs(
+        mode=mode,
         audit=audit,
         paths=paths,
         description_candidates=description_candidates,
     )
 
-    print(f"Saved State backup      : {paths['backup']}")
     print(f"Saved merge audit       : {paths['audit']}")
     if (
         description_candidates is not None
@@ -873,7 +888,7 @@ def update_screening_state(
             "Saved description input : "
             f"{paths['description_candidates']}"
         )
-    print(f"Updated screening State : {state_path}")
+    print(f"Updated screening State : {written:,} rows in screening_state_store")
 
     return {
         "status": "merged",
@@ -889,7 +904,6 @@ def main() -> None:
         mode=MODE,
         round_number=ROUND_NUMBER,
         run_id=RUN_ID,
-        state_path=STATE_FILE,
         dry_run=DRY_RUN,
         confirm_before_write=CONFIRM_BEFORE_WRITE,
     )

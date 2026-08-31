@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Fuegt neu gesammelte Videos (Titel + Beschreibung) fuer eine Liste von Kanaelen als
-neue Kandidatenzeilen zu longitudinal_screening_state.csv hinzu - mit exakt derselben
-Interval-/Rank-Logik wie prepare_longitudinal_screening.py, aber als APPEND statt
-Neuaufbau, damit bestehende Labels/screening_round-Zuweisungen erhalten bleiben.
+neue Kandidatenzeilen zum Screening-State (screening_state_store) hinzu - mit exakt
+derselben Interval-/Rank-Logik wie prepare_longitudinal_screening.py, aber als APPEND
+statt Neuaufbau, damit bestehende Labels/screening_round-Zuweisungen erhalten bleiben.
 
 Kontext: manche Kanaele stehen schon im State (z.B. nur mit Kriegsperioden-Zeilen aus
 einem frueheren TARGETED_SEARCH_YTDLP-Lauf), aber nicht mit Baseline-Zeilen (period<0).
@@ -16,24 +16,20 @@ Nutzung:
   2. Beschreibungen dafuer holen (metadata_collection.py, video_metadata=True,
      DETAILED=True) -> JSONL mit video_id, channel_id, channel_title, published_at,
      title, description.
-  3. VOR jedem Lauf: State-Datei sichern (siehe Kommentar unten, keine Git-Historie,
-     ~1.2GB).
-  4. Dieses Skript mit NEW_CHANNELS_LIST (CSV mit channel_id-Spalte) und
+  3. Dieses Skript mit NEW_CHANNELS_LIST (CSV mit channel_id-Spalte) und
      NEW_VIDEOS_FILE (das JSONL aus Schritt 2) aufrufen.
 
-WICHTIG: Vor dem Ausfuehren IMMER ein Backup von STATE_FILE anlegen, z.B.:
-  cp data/samples/russia/longitudinal_screening_state.csv \\
-     data/samples/russia/longitudinal_screening_state.csv.bak_<beschreibung>
+Seit Phase 4d schreibt dieses Skript nur noch die tatsaechlich neuen Kandidatenzeilen
+per screening_state_store.upsert_state_rows() (kein Vollkopie-CSV-Rewrite mehr, kein
+manuelles Backup noetig - SQLite ist die alleinige Ablage).
 """
 import argparse
-import sys
 
 import pandas as pd
 
 from youtube_code.politics_screening.screening_config import (
     INTERVAL_START,
     INTERVAL_SIZE,
-    STATE_FILE,
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
     SELECTION_SEED,
@@ -42,6 +38,7 @@ from youtube_code.politics_screening.longitudinal.prepare_longitudinal_screening
     assign_intervals,
     stable_random_key,
 )
+from youtube_code.utils import screening_state_store
 
 REQUIRED_COLUMNS = ["video_id", "channel_id", "channel_title", "published_at", "title", "description"]
 REFERENCE_DATE = pd.Timestamp("2022-02-24", tz="UTC")
@@ -58,7 +55,7 @@ def main(new_channels_list: str, new_videos_file: str, dry_run: bool = False) ->
     ziel_ids = set(neue_kanaele["channel_id"])
     print(f"{len(ziel_ids)} Zielkanaele aus {new_channels_list}.")
 
-    state = pd.read_csv(STATE_FILE, dtype={"video_id": "string", "channel_id": "string"}, low_memory=False)
+    state = screening_state_store.get_state()
     print(f"Bestehender State: {len(state):,} Zeilen, {state['channel_id'].nunique():,} Kanaele.")
 
     bereits_im_state = ziel_ids & set(state["channel_id"])
@@ -131,23 +128,18 @@ def main(new_channels_list: str, new_videos_file: str, dry_run: bool = False) ->
         print("\nDRY RUN: State-Datei wurde NICHT veraendert.")
         return
 
-    kombiniert = pd.concat([state, df], ignore_index=True)
-    kombiniert.to_csv(STATE_FILE, index=False, date_format="%Y-%m-%dT%H:%M:%SZ", encoding="utf-8")
-    print(f"\nGespeichert: {STATE_FILE} ({len(kombiniert):,} Zeilen gesamt, vorher {len(state):,}).")
+    written = screening_state_store.upsert_state_rows(df.to_dict("records"))
+    print(
+        f"\nGespeichert in screening_state_store: {written:,} neue Zeilen "
+        f"({len(state) + len(df):,} Zeilen gesamt, vorher {len(state):,})."
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--channels", required=True, help="CSV mit channel_id-Spalte (Zielkanaele).")
     parser.add_argument("--videos", required=True, help="JSONL mit video_id/channel_id/channel_title/published_at/title/description.")
-    parser.add_argument("--dry-run", action="store_true", help="Nur Plan ausgeben, State-Datei nicht schreiben.")
+    parser.add_argument("--dry-run", action="store_true", help="Nur Plan ausgeben, Store nicht schreiben.")
     args = parser.parse_args()
-
-    if not STATE_FILE.with_suffix(".csv.bak_manual_check").exists():
-        print(
-            "HINWEIS: Stelle sicher, dass vorher ein Backup von "
-            f"{STATE_FILE} angelegt wurde (keine Git-Historie, ~1.2GB).",
-            file=sys.stderr,
-        )
 
     main(args.channels, args.videos, dry_run=args.dry_run)

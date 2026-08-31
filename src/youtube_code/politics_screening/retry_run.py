@@ -24,7 +24,8 @@ Was das Skript für dich erledigt:
 
 Seit Phase 4b der Restrukturierung laeuft die Registry-Seite ueber
 youtube_code.utils.llm_run_store (source="screening_active") statt ueber
-die alte RunRegistry-CSV-Klasse.
+die alte RunRegistry-CSV-Klasse. Seit Phase 4d liest enrich_retry_file() den
+Screening-State aus screening_state_store statt aus der CSV.
 """
 
 from pathlib import Path
@@ -46,10 +47,9 @@ from youtube_code.politics_screening.screening_config import (
     LLM_RUN_SOURCE,
     MANIFEST_DIR,
     MAX_DESCRIPTION_CHARS,
-    STATE_FILE,
     TITLES_PER_REQUEST,
 )
-from youtube_code.utils import llm_run_store
+from youtube_code.utils import llm_run_store, screening_state_store
 
 REVERSE_MODEL_ALIASES = {value: key for key, value in MODEL_ALIASES.items()}
 
@@ -87,9 +87,7 @@ def enrich_retry_file(retry_path: Path) -> None:
     it) never stores these columns, but input_mode="title_description"
     requires both.
     """
-    state = pd.read_csv(
-        STATE_FILE, dtype={"video_id": "string"}, low_memory=False
-    )
+    state = screening_state_store.get_state()
     retry_df = pd.read_csv(
         retry_path, dtype={"video_id": "string"}, low_memory=False
     )
@@ -108,7 +106,7 @@ def enrich_retry_file(retry_path: Path) -> None:
     if missing:
         raise ValueError(
             f"{missing} video_ids aus der Retry-Datei wurden nicht im "
-            f"State gefunden ({STATE_FILE}). Breche ab, bevor etwas "
+            "screening_state_store gefunden. Breche ab, bevor etwas "
             "kaputtgeht."
         )
 

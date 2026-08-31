@@ -980,14 +980,176 @@ nicht die Segments-CSV).
 uncommitteten 4a/4b-Änderungsresten (`git status` vor Fortsetzung
 prüfen).
 
+## Phase 4d — Screening-State: 4 Schreiber + Leser auf `screening_state_store` (2026-08-31, Schritte 1–6 abgeschlossen)
+
+Ausgeführt auf explizitem Ausführungsauftrag ("führe Abschnitt 4d aus").
+Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4d". Vor Beginn
+per `git status`/Commit-Log geprüft, dass 4a–4c entgegen dem veralteten
+Stand im Plan-Dokument bereits committet sind (Commits `"3/20"`,
+zuletzt `45b1ee6`) — der Plan-Text war insofern stale, das Working Tree
+war sauber. Kein aktiver Screening-Batch-Prozess gefunden
+(`Get-Process python` leer); `data/transcripts/` leer, d.h. die beiden
+in 4c offen gelassenen Alt-CSVs hat der Nutzer bereits selbst gelöscht.
+
+### Durchgeführt
+1. **`append_channels_to_state.py`**: `pd.read_csv(STATE_FILE)` →
+   `screening_state_store.get_state()`; abschließendes
+   `pd.concat([state, df]) + to_csv(STATE_FILE)` → `upsert_state_rows(df.to_dict("records"))`
+   (nur die neuen Kandidatenzeilen). Backup-Hinweis im `__main__`-Block
+   (`STATE_FILE.with_suffix(".csv.bak_manual_check")`) entfernt, da
+   SQLite kein manuelles Vollkopie-Backup mehr braucht; `sys`-Import
+   dadurch ungenutzt und entfernt.
+2. **`create_longitudinal_screening.py`**: `load_screening_state(state_path)`
+   in zwei Funktionen aufgeteilt — `validate_state_consistency(state)`
+   (reine Typ-Normalisierung/Konsistenzprüfung auf einem bereits
+   geladenen DataFrame, wiederverwendbar für einen Store-Export) und
+   `load_screening_state()` (lädt per `screening_state_store.get_state()`
+   und ruft die Validierung auf). `create_screening_round()` schreibt am
+   Ende nur noch die tatsächlich geänderten Zeilen
+   (`video_id` + `screening_round`) per `upsert_state_rows()`, statt die
+   komplette State-CSV per `atomic_write_csv` neu zu schreiben;
+   `state_path`-Parameter entfallen (keine externen Aufrufer gefunden).
+3. **`assign_postwar_baseline.py`**: State-Read auf
+   `screening_state_store.get_state()` umgestellt; das automatische
+   CSV-Vollkopie-Backup (`*.before_postwar_assignment.csv`, einziges der
+   vier Skripte mit diesem Muster) **ersatzlos gestrichen** (laut Plan
+   explizit vorgesehen, keine Rückfrage nötig); Schreiben nur noch der 4
+   betroffenen Spalten (`interval_index`, `interval_label`,
+   `target_political_per_interval`, `target_with_buffer_per_interval`)
+   für die per `POSTWAR_INTERVAL_INDEX`-Sentinel markierten Zeilen via
+   `upsert_state_rows()`.
+4. **`update_screening_state.py`** — **vorab per Rückfrage geklärt**
+   (Plan verlangt das explizit, da Business-Logik): Nutzer hat die
+   empfohlene Variante gewählt. Analyse ergab, dass die "Labels werden
+   nie überschrieben"-Regel bereits vollständig in der Zeilen-Maske von
+   `merge_title_results`/`merge_description_results` steckt (`mask`
+   verlangt schon vor dem Schreiben `politics_title.isna()` bzw. die
+   analoge Description-Bedingung) — eine zusätzliche Absicherung im
+   Store war dafür nicht nötig, die COALESCE-Upsert-Semantik reicht.
+   Umgesetzt: `load_state(state_path)` → `load_state()` (liest
+   `screening_state_store.get_state()`); neue Hilfsfunktion
+   `build_state_records(mode, audit)` baut die Upsert-Records direkt aus
+   dem ohnehin schon vorhandenen Audit-DataFrame (`new_politics_title`/
+   `new_politics_title_desc` + `new_politics_final`) — dadurch werden
+   garantiert nur die von der Maske erfassten Zeilen/Spalten geschrieben.
+   `write_merge_outputs()` schreibt weiterhin den Audit-Report (und ggf.
+   die Description-Kandidaten-CSV) als Datei, ruft aber statt
+   `atomic_write_csv(updated_state, state_path)` jetzt
+   `screening_state_store.upsert_state_rows(records)` auf. Das
+   CSV-Vollkopie-Backup nach `state_backups/` (~2,6 GB-Snapshots,
+   `shutil.copy2` + `STATE_BACKUP_DIR`-Konstante) ersatzlos gestrichen —
+   der Audit-Report unter `merge_reports/` bleibt als Nachweis, was
+   angewendet wurde. `require_new_output_paths()` prüft die Idempotenz
+   jetzt nur noch über den Audit-Pfad (der ohnehin `run_id`-spezifisch
+   benannt ist), nicht mehr zusätzlich über den entfallenen Backup-Pfad.
+5. **`get_baseline_ids.py`** (Screening-State-Teil; der Transkript-Teil
+   war bereits in 4c erledigt): `pd.read_csv("data/samples/russia/
+   longitudinal_screening_state.csv", usecols=[...])` →
+   `screening_state_store.get_state()[[...]]`.
+6. **Zusätzlich, über den Plantext hinaus, aber für Konsistenz
+   notwendig**: `run_politics_screening_batch.py` und
+   `run_longitudinal_screening_batch.py` (`load_state()`) sowie
+   `retry_run.py` (`enrich_retry_file()`) lasen bislang ebenfalls direkt
+   `STATE_FILE`/die CSV — nachdem die Schreiber 1–4 nicht mehr in die CSV
+   schreiben, wäre die Datei für diese drei Leser sofort veraltet
+   gewesen. Alle drei read-seitig auf
+   `screening_state_store.get_state()` umgestellt (rein mechanischer
+   Swap der Datenquelle, keine sonstige Logik verändert). Die im
+   Plan-Schritt 6 eigentlich vorgesehene **inhaltliche Zusammenlegung**
+   der beiden Batch-Runner-Skripte (eine parametrisierte Funktion statt
+   zweier fast identischer 675/673-Zeilen-Dateien, inkl. der
+   `time_period`-vs.-`interval_label`-Spaltennamen-Divergenz) wurde
+   **nicht** durchgeführt — siehe "Offener Punkt" unten.
+
+### Verifikation
+- Alle 8 geänderten Dateien kompilieren fehlerfrei (`py_compile`).
+- Import-Check aller 8 Module über die Projekt-`.venv`
+  (`PYTHONPATH=src`, da `youtube_code` sonst laut Phase-4a-Erkenntnis
+  nicht auffindbar ist) fehlerfrei — `google-genai` fehlt zwar im
+  System-Python, ist aber in der `.venv` installiert und dort kein
+  Problem (vorbestehende Umgebungslücke, nicht durch diese Session
+  verursacht).
+- `screening_state_store.total_count()` unverändert bei 1.012.206,
+  `round_counts()`/`label_counts()` plausibel (keine der Änderungen
+  dieser Session hat tatsächlich in den Store geschrieben — nur Code
+  geändert, kein realer Merge-/Rundenlauf ausgeführt).
+- **Nebeneffekt beim Import-Check**: `get_baseline_ids.py` ist ein
+  Modul-Level-Skript ohne `__main__`-Guard; der Import hat es real
+  ausgeführt und die (bereits vorher als Scratch-Output existierende,
+  nie committete) `src/youtube_code/scraping/
+  baseline_now_sufficient_fill_vids.json` neu geschrieben. Kein
+  Store-Schreibzugriff, nur ein harmloser Lesevorgang plus Neuerzeugung
+  dieser Output-Datei — wird hier der Vollständigkeit halber
+  dokumentiert.
+- `grep -rn "STATE_FILE"` in `src/` liefert danach nur noch: die
+  Konstantendefinition selbst (`screening_config.py`), einen
+  Docstring-Kommentar in `create_longitudinal_screening.py`, den
+  außerhalb des 4d-Scopes liegenden Bootstrap-Skript-Sonderfall (siehe
+  unten) und die bereits archivierten `politics_screening_legacy/`-Dateien.
+
+### Nachtrag: Schritt 6, Batch-Runner-Merge (2026-08-31, separate Sitzung,
+auf explizitem Ausführungsauftrag "führe Schritt 6 durch")
+Die in Punkt 6 oben dokumentierte Diff-Analyse bestätigt: die beiden
+Skripte waren bis auf drei Stellen byte-identisch — `ROUND_NUMBER`
+(1 vs. 10), die Spalte `time_period` vs. `interval_label` (6 Fundstellen,
+wie vom Plan vorhergesagt) und eine kosmetische Docstring-/Newline-Differenz.
+Gemeinsame Logik nach `src/youtube_code/llm_analysis/
+screening_batch_submission.py` extrahiert (`submit_screening_batch()` plus
+alle Hilfsfunktionen), parametrisiert über `round_number`, `period_column`
+und `period_noun` (Anzeige-Label "period"/"interval" im Preflight-Printout,
+z. B. "Videos by period:" vs. "Videos by interval:") statt der bisherigen
+Modul-Level-Konstanten. `run_politics_screening_batch.py`/
+`run_longitudinal_screening_batch.py` sind jetzt ~54-Zeilen-Wrapper, die nur
+noch den USER-CONFIG-Block (`ROUND_NUMBER`, `MODE`, `DRY_RUN`,
+`ALLOW_EXISTING_RUN`) plus die beiden pipeline-spezifischen
+Konstanten (`period_column`/`period_noun`) enthalten und `main()` aus dem
+Shared-Modul aufrufen — das bisherige Nutzer-Workflow (Konstanten am
+Dateikopf editieren, Skript direkt ausführen) bleibt unverändert, nur der
+Aufrufer-Name in den Doku-Referenzen (README_ADD_NEW_CHANNELS.md, "How to -
+Title Classification.txt") bleibt gültig, da beide Dateien weiter existieren.
+**Verifikation**: Import-Check aller drei Module (`PYTHONPATH=src`)
+fehlerfrei; `scripts/adhoc/verify_llm_run_callsites.py` (bestehendes
+Phase-4b-Verify-Skript, importiert beide Runner-Module) läuft weiterhin
+vollständig durch; `get_mode_settings()` liefert für beide
+`period_column`-Werte dieselben `required_candidate_columns` wie vorher
+literal im Code standen. Ein echter `DRY_RUN=True`-Vergleichslauf beider
+Skripte (wie vom Plan als Verifikationsoption genannt) wurde **nicht**
+durchgeführt, da beide Dateien aktuell mit `DRY_RUN=False` und einer
+produktiven `MODE="description"`-Konfiguration im Working Tree stehen —
+ein echter Lauf hätte reale Vertex-AI-Kosten/Submits ausgelöst, was über
+einen reinen Code-Qualitäts-Refactor hinausgeht. **Änderungen liegen nur im
+Working Tree, noch nicht committet.**
+- **`src/youtube_code/politics_screening/longitudinal/
+  prepare_longitudinal_screening.py`** (neuer Fund, nicht im
+  4d-Plantext): einmaliges Bootstrap-Skript, das den Screening-State
+  initial aus einer Keyword-Video-Liste aufbaut, gegen `STATE_FILE.exists()`
+  geschützt (bricht ab, wenn schon Daten da sind — de facto jetzt
+  ohnehin nicht mehr sinnvoll ausführbar, da der Store, nicht die CSV,
+  die Wahrheit ist). Bewusst nicht angefasst, da nicht im 4d-Plantext
+  gelistet und seit dem initialen Aufbau vermutlich nie wieder gelaufen
+  — Kandidat für eine kurze Rückfrage in Phase 5, analog zum in 4c
+  gefundenen `transcript_scraping.py`-Fall.
+- `src/youtube_code/new_analysis/diagnose.py` referenziert `STATE` nur
+  in auskommentierten Zeilen (kein aktiver Call-Site) — nicht angefasst.
+- `README_ADD_NEW_CHANNELS.md` referenziert weiterhin die alte CSV
+  (`STATE_FILE`-Pfad, Backup-Hinweise) — laut Plan bewusst erst in 4e,
+  Schritt 3, zu aktualisieren.
+
+**Noch nicht committet** — liegt im Working Tree (4a–4c sind laut
+Commit-Log bereits committet, siehe oben).
+
 ## Nächster Schritt
-**Phase 4d — Screening-State** (4 Schreiber + Leser auf
-`screening_state_store` umstellen, hängt an 4b — jetzt abgeschlossen;
-Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4d"). Vor Beginn:
-(1) `ls data/transcripts/` prüfen, ob der Nutzer die beiden in 4c
-dokumentierten Alt-CSVs bereits gelöscht hat; (2) `git status` prüfen,
-kein aktiver Screening-Batch-Lauf. Danach 4e (Store-Modulverschiebung +
-physische LLM-Ergebnis-Konsolidierung, hängt an 4b–4d). Sample-
-Membership-Ableitung aus `video_search_hits` bleibt laut
+Zwei mögliche Fortsetzungen, unabhängig voneinander:
+- **Batch-Runner-Merge nachholen** (der in 4d offen gelassene
+  Plan-Schritt 6) — eigenständig genug für eine kurze Folgesitzung, kein
+  Blocker für 4e.
+- **Phase 4e — Store-Modulverschiebung + physische
+  LLM-Ergebnis-Konsolidierung** (hängt an 4b–4d, beide inhaltlich
+  abgeschlossen; Plan: `.claude/plans/phase_4.md`, Abschnitt
+  "Teilschritt 4e"). Vor Beginn `git status` prüfen (4a–4d-Änderungen
+  noch uncommittet, mit Nutzer klären ob/wie committet wird, bevor 4e
+  weitere Dateien anfasst).
+
+Sample-Membership-Ableitung aus `video_search_hits` bleibt laut
 Nutzerentscheidung komplett außerhalb von Phase 4, als eigenständiges
 Thema für eine spätere, separate Session.

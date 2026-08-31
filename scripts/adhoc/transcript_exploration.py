@@ -4,16 +4,32 @@ from youtube_code.config import RAW, OUTPUTS
 from youtube_code.utils.transcript_store import get_transcripts
 
 POPULISM_RUNS = OUTPUTS / "segment_analysis" / "populism_runs_combined.csv"
+POSITION_RUN = OUTPUTS/ "segment_analysis" / "run_0011_POSITION_V1.csv"
 DB_TRANSCRIPTS = RAW / "transcripts.sqlite"
 
 
 dfpop = pd.read_csv(POPULISM_RUNS)
-IDS = set(dfpop["video_id"])
-print(len(IDS))
+dfpos = pd.read_csv(POSITION_RUN)
+
+pos_ids= set(dfpos["video_id"])
+pop_ids = set(dfpop["video_id"])
 
 
-transcripts = get_transcripts(IDS)
-print(len(transcripts))
+print(len(pop_ids), len(pos_ids))
+
+new_ids = pop_ids - pos_ids
+print(len(new_ids))
+total_len = len(new_ids)
+
+
+chunk_size = (total_len +3) // 4
+for i, chunk in enumerate(chunks):
+    output_path = OUTPUTS / "segment_analysis" / f"missing_position_{i}.csv"
+
+    chunk.to_csv(output_path, index = False)
+
+
+df.to_csv("missing_position.csv")
 
 # query = """
 #     SELECT t.video_id, t.status, t.transcript_segments, l.source

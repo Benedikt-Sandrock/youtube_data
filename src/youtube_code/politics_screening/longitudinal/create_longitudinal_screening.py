@@ -1,8 +1,8 @@
 """Create the next adaptive title-screening round for longitudinal intervals.
 
-The script reads ``politics_screening_state.csv`` and selects new, previously
-unassigned title candidates separately for every channel and multi-month interval.
-An interval is skipped when:
+The script reads the screening state from ``screening_state_store`` and selects
+new, previously unassigned title candidates separately for every channel and
+multi-month interval. An interval is skipped when:
 
 - Target final political videos have already been found;
 - title results from an earlier round are still pending;
@@ -11,7 +11,9 @@ An interval is skipped when:
 
 The output CSV can be passed to the existing grouped title-batch pipeline.
 Selected videos are reserved in the state through ``screening_round`` so they
-cannot accidentally be submitted twice.
+cannot accidentally be submitted twice. Since Phase 4d, only the changed rows
+(``video_id`` + ``screening_round``) are pushed back via
+``screening_state_store.upsert_state_rows`` - no more full-table CSV rewrite.
 """
 
 import math
@@ -27,10 +29,10 @@ from youtube_code.politics_screening.screening_config import (
     ROUND_SAFETY_FACTOR,
     SCREENING_ROUND_DIR,
     SCREENING_ROUND_SUMMARY_DIR,
-    STATE_FILE,
     TARGET_WITH_BUFFER_PER_INTERVAL,
     TITLES_PER_REQUEST,
 )
+from youtube_code.utils import screening_state_store
 
 # First inspect the printed plan with DRY_RUN=True. Change it to False only
 # after the counts and the sample rows look plausible.
@@ -72,21 +74,15 @@ ROUND_OUTPUT_COLUMNS = [
 ]
 
 
-def load_screening_state(state_path: Path) -> pd.DataFrame:
-    if not state_path.exists():
-        raise FileNotFoundError(f"Screening state not found: {state_path}")
-
-    state = pd.read_csv(
-        state_path,
-        dtype={
-            "video_id": "string",
-            "channel_id": "string",
-            "title": "string",
-            "description": "string",
-            "interval_label": "string",
-        },
-        low_memory=False,
-    )
+def validate_state_consistency(state: pd.DataFrame) -> pd.DataFrame:
+    """Normalisiert Typen und prueft Konsistenz eines bereits geladenen
+    Screening-State-DataFrame (Spalten wie aus screening_state_store.get_state()).
+    Wirft ValueError bei Inkonsistenzen. Wiederverwendbar, um auch einen
+    Store-Export direkt zu verifizieren (analog Phase-3c-Verify-Muster)."""
+    state = state.copy()
+    for column in ["video_id", "channel_id", "title", "description", "interval_label"]:
+        if column in state.columns:
+            state[column] = state[column].astype("string")
 
     missing = REQUIRED_COLUMNS - set(state.columns)
     if missing:
@@ -179,6 +175,15 @@ def load_screening_state(state_path: Path) -> pd.DataFrame:
         )
 
     return state
+
+
+def load_screening_state() -> pd.DataFrame:
+    """Laedt den kompletten Screening-State aus screening_state_store und wendet
+    validate_state_consistency an. Ersatz fuer pd.read_csv(STATE_FILE)."""
+    state = screening_state_store.get_state()
+    if state.empty:
+        raise FileNotFoundError("screening_state_store ist leer.")
+    return validate_state_consistency(state)
 
 
 def get_next_round_number(state: pd.DataFrame) -> int:
@@ -461,12 +466,11 @@ def print_round_plan(
 
 
 def create_screening_round(
-        state_path: Path = STATE_FILE,
         round_dir: Path = SCREENING_ROUND_DIR,
         summary_dir: Path = SCREENING_ROUND_SUMMARY_DIR,
         dry_run: bool = DRY_RUN,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    state = load_screening_state(state_path)
+    state = load_screening_state()
     round_number = get_next_round_number(state)
 
     selected_round, summary = plan_screening_round(
@@ -523,15 +527,17 @@ def create_screening_round(
         selected_round=selected_round,
         round_number=round_number,
     )
-    atomic_write_csv(
-        updated_state,
-        state_path,
-        encoding="utf-8",
-    )
+    changed_records = updated_state.loc[
+        updated_state["video_id"].astype(str).isin(
+            selected_round["video_id"].astype(str)
+        ),
+        ["video_id", "screening_round"],
+    ].to_dict("records")
+    written = screening_state_store.upsert_state_rows(changed_records)
 
     print(f"Saved round candidates: {round_path}")
     print(f"Saved round summary   : {summary_path}")
-    print(f"Updated screening state: {state_path}")
+    print(f"Updated screening state in store: {written:,} rows (screening_round={round_number}).")
     return selected_round, summary
 
 

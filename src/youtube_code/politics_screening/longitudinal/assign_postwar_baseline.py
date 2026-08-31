@@ -1,6 +1,6 @@
 """
 Weist Kanaelen, die ERST NACH Kriegsbeginn erstellt wurden, eine eigene
-"Baseline"-Gruppe im longitudinal_screening_state.csv zu.
+"Baseline"-Gruppe im Screening-State (screening_state_store) zu.
 
 Hintergrund: Die normale Baseline-Logik (Monate -12 bis -1 relativ zum
 globalen Kriegsbeginn) setzt voraus, dass der Kanal vor dem Krieg existierte.
@@ -21,21 +21,25 @@ verworfen oder muss neu eingereicht werden.
 Kanaele mit zu wenigen Videos im Fenster werden automatisch erweitert
 (3 -> 6 -> 9 -> 12 Monate), bis TARGET_WITH_BUFFER_PER_INTERVAL erreicht ist
 oder das Maximalfenster ausgeschoepft ist.
+
+Seit Phase 4d werden nur die tatsaechlich geaenderten Zeilen (die 4 betroffenen
+Spalten) per screening_state_store.upsert_state_rows() geschrieben; das
+frueher hier erzeugte CSV-Vollkopie-Backup (*.before_postwar_assignment.csv)
+entfaellt ersatzlos - SQLite braucht kein manuelles Vollkopie-Backup-Muster.
 """
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pandas as pd
 
 from youtube_code.config import RAW
 from youtube_code.politics_screening.screening_config import (
-    STATE_FILE,
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
 )
+from youtube_code.utils import screening_state_store
 
 # ============================================================
 # CONFIG
@@ -154,8 +158,8 @@ def main():
     kandidaten = load_postwar_candidate_channels()
     print(f"{len(kandidaten)} Kandidaten-Kanaele.")
 
-    print(f"Lade State: {STATE_FILE}")
-    state = pd.read_csv(STATE_FILE, dtype={"video_id": "string", "channel_id": "string"}, low_memory=False)
+    print("Lade State aus screening_state_store...")
+    state = screening_state_store.get_state()
     print(f"{len(state):,} Zeilen im State.")
 
     updated_state, summary = assign_postwar_intervals(state, kandidaten)
@@ -187,12 +191,18 @@ def main():
         print("\nDRY RUN: State wurde NICHT geschrieben.")
         return
 
-    backup_path = Path(str(STATE_FILE) + ".before_postwar_assignment.csv")
-    state.to_csv(backup_path, index=False, encoding="utf-8-sig")
-    print(f"Backup gespeichert: {backup_path}")
-
-    updated_state.to_csv(STATE_FILE, index=False, encoding="utf-8")
-    print(f"State aktualisiert: {STATE_FILE}")
+    changed = updated_state.loc[
+        updated_state["interval_index"] == POSTWAR_INTERVAL_INDEX,
+        [
+            "video_id",
+            "interval_index",
+            "interval_label",
+            "target_political_per_interval",
+            "target_with_buffer_per_interval",
+        ],
+    ]
+    written = screening_state_store.upsert_state_rows(changed.to_dict("records"))
+    print(f"State aktualisiert in screening_state_store: {written:,} Zeilen.")
 
 
 if __name__ == "__main__":
