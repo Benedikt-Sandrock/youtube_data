@@ -836,13 +836,158 @@ nicht committet** — liegt zusammen mit Schritt 1 im selben uncommitteten
 Working-Tree-Diff (Repo-Status: nur die hier genannten Dateien als `M`/`R`/`D`
 markiert, keine Vermischung mit unabhängigen Änderungen).
 
+## Phase 4c — Transkripte: Scraper + 5 Leser auf `transcript_store` (2026-08-31, Code abgeschlossen, CSV-Löschung offen)
+
+Ausgeführt auf explizitem Ausführungsauftrag ("führe Abschnitt 4c durch").
+Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4c". Vor Beginn
+per Prozessliste geprüft, dass kein Scraper-Lauf aktiv ist (keine
+`transcript_scraping`/`single_transcript`-Prozesse gefunden).
+
+### Durchgeführt
+1. **Kern-Scraper** `src/youtube_code/scraping/transcript_scraping_segments.py`
+   umgestellt: Resume-Filter (`pd.read_csv(OUTPUT_FILE, usecols=["video_id","status"])`)
+   → `transcript_store.attempted_video_ids()`; Status je Video für den
+   Kanal-Vorfilter wird jetzt gezielt nur für die tatsächlich relevante
+   Teilmenge (`registry_videos & processed_video_ids` aller bekannten
+   Kanäle, eine gebatchte Abfrage) per `get_transcripts()` nachgeladen,
+   statt aus der beim CSV-Ansatz ohnehin vollständig im Speicher
+   liegenden `status_by_video_id`. Batch-Flush (alle `BATCH_SIZE`
+   Requests) und finaler Flush → `upsert_transcripts(daten)`. Der
+   Backup-Block (`api_request_count % 500 == 0`, erzeugte
+   `all_transcripts_backup.csv` neu) wurde ersatzlos gestrichen — das war
+   die strukturelle Ursache der in Phase 1 bereinigten ~2,9 GB
+   Backup-Datei. `save_to_csv()`, `OUTPUT_FILE`, `FILE_PATH_BACKUP` sowie
+   die dadurch toten Imports `pandas`/`os` und die `TRANSCRIPTS`-Import-
+   Konstante entfernt (nur noch in einer bereits vorher toten
+   `#FILE_PATH_ALL`-Kommentarzeile referenziert, die mitentfernt wurde).
+2. `single_transcript_downloader.py` (schrieb in die bereits in 4a
+   gelöschte `single_transcripts.csv`, keine aktiven Importe gefunden) per
+   `git mv` nach `src/youtube_code/archive/scraping/` verschoben (Historie
+   erhalten, neuer Ordner `archive/scraping/` angelegt).
+3. Alle 5 Downstream-Leser umgestellt (Muster: `pd.read_csv(TRANSCRIPTS /
+   "all_transcripts_segments.csv", ...)` → passender `transcript_store`-
+   Aufruf):
+   - `src/youtube_code/segment_analysis/process_scraped_segments.py`:
+     gechunktes CSV-Lesen mit Status-Nachfilterung → ein
+     `get_transcripts(wanted)`-Aufruf (Store filtert serverseitig auf die
+     angeforderten IDs, kein Full-Scan mehr nötig); Status-/Text-Filterung
+     inhaltlich unverändert übernommen.
+   - `src/youtube_code/new_analysis/segment_transcripts.py`:
+     `iter_transcripts()` (Generator-Schnittstelle nach außen unverändert)
+     liest jetzt in Blöcken von `CSV_CHUNKSIZE` video_ids aus
+     `get_transcripts()` statt in Blöcken von `CSV_CHUNKSIZE` CSV-Zeilen —
+     Statusverteilungs-Diagnose (`status_zaehler`) bezieht sich dadurch
+     nur noch auf die angeforderte Teilmenge statt auf die gesamte Datei,
+     das ist inhaltlich sogar aussagekräftiger für den Anwendungsfall.
+     `QUELLE = "dir"`-Zweig (Verzeichnis mit `{video_id}.json`) unverändert
+     belassen, war nicht Teil des Migrationsauftrags.
+   - `src/youtube_code/scraping/get_baseline_ids.py`,
+     `scripts/adhoc/segment_analysis_result_checks.py`,
+     `scripts/adhoc/sample_feasibility_helpers.py` (2 Call-Sites in einer
+     Datei): jeweils `pd.read_csv(..., usecols=["video_id"])` →
+     `attempted_video_ids()` (liefert direkt ein Set statt einer Liste,
+     an allen Call-Sites unproblematisch da nur auf Mitgliedschaft
+     geprüft wird).
+4. `data/transcripts/all_transcripts_segments.csv` (2,8 GB) und
+   `all_transcripts_backup.csv` (2,7 GB) **nicht** gelöscht — siehe
+   "Offener Punkt" unten.
+
+### Verifikation
+- Alle 6 geänderten Python-Dateien kompilieren fehlerfrei
+  (`py_compile`); die beiden gefahrlos importierbaren Module
+  (`process_scraped_segments.py`, `segment_transcripts.py`) importieren
+  mit `PYTHONPATH=src` ohne Fehler. Die übrigen 4 sind eigenständig
+  laufende Skripte mit Modul-Level-I/O (bereits vor dieser Session so) —
+  dort reicht der Compile-/AST-Check plus gezielte Prüfung der
+  geänderten Zeilen.
+- **Live-Smoke-Test des migrierten Scrapers** (aus
+  `src/youtube_code/scraping/` heraus, `.venv`-Python,
+  `PYTHONPATH=src`, `PYTHONIOENCODING=utf-8` wegen Emoji-Prints unter
+  Windows-cp1252-Konsole): temporäre 2-Video-Testliste
+  (`AAAAAAAAAAA` als erfundene, nicht existierende ID für den
+  Fehlerpfad; `dQw4w9WgXcQ` für den "Kein Transkript"-Pfad, da für
+  `languages=['de']` keine deutsche Spur existiert). Ergebnis:
+  `attempted_video_ids()` lädt beim Start korrekt (72.443 vor dem Lauf),
+  beide IDs werden verarbeitet und per finalem Flush über
+  `upsert_transcripts()` geschrieben (`total_count()` danach: 72.445),
+  Status-Werte stimmen (`Fehler: ...` bzw. `Kein Transkript`). Zweiter
+  Lauf mit derselben Liste: Resume-Filter erkennt beide IDs korrekt als
+  bereits vorhanden (`2/2 videos of this set already downloaded`, `0
+  videos left to process`) — keine erneuten API-Calls. `mtime` von
+  `all_transcripts_segments.csv`/`all_transcripts_backup.csv` vor und
+  nach dem Test identisch (`stat -c '%Y'`) — bestätigt, dass der
+  gestrichene Backup-Block tatsächlich keine neue CSV-Vollkopie mehr
+  erzeugt. Die 2 Test-Zeilen wurden danach per direktem `DELETE FROM
+  transcripts WHERE video_id IN (...)` wieder aus `transcripts.sqlite`
+  entfernt (`total_count()` wieder 72.443) — Store ist bereinigt, keine
+  Testartefakte verblieben. `VIDEO_LIST` und die temporäre Testdatei
+  wurden vor Abschluss zurückgesetzt/gelöscht.
+- **CSV-vs-Store-Abgleich vor der geplanten Löschung**: eindeutige
+  `video_id`s in der CSV (72.443) und `total_count()` im Store (72.443)
+  stimmen exakt überein — kein Drift seit der Phase-3b-Migration, obwohl
+  der Scraper bis zu dieser Session weiter gegen die CSV lief. Zusätzlich
+  Stichprobe von 30 zufälligen `video_id`s Feld-für-Feld (`status`)
+  zwischen CSV (Last-Wins über alle Vorkommen) und Store verglichen: 0
+  Abweichungen.
+
+### Offener Punkt: CSV-Löschung (Plan-Schritt 4) nicht ausgeführt
+Der Lösch-Versuch von `data/transcripts/all_transcripts_segments.csv`
+(2,8 GB) und `all_transcripts_backup.csv` (2,7 GB) wurde von der
+automatischen Berechtigungs-Klassifizierung blockiert (große,
+schwer reversible Aktion). Auf Nachfrage hat der Nutzer entschieden,
+die beiden Dateien **selbst** zu löschen, statt einen erneuten
+Claude-Versuch oder ein vorläufiges Liegenlassen zu wählen. Die
+Verifikation oben (exakte Übereinstimmung + Stichprobe) zeigt, dass die
+Löschung gefahrlos ist, sobald der Nutzer sie durchführt — kein
+Call-Site im Repo greift nach dieser Session noch auf die beiden Dateien
+zu (siehe Grep-Nachweis unten). Ein späterer Session-Start sollte per
+`ls data/transcripts/` prüfen, ob die Löschung bereits erfolgt ist, bevor
+Phase 4e (die u.a. `python -c "import youtube_code"`-Verifikation
+gegen einen sauberen Zustand voraussetzt) beginnt.
+
+### Neuer Fund (außerhalb des 4c-Scopes, nicht angefasst)
+`src/youtube_code/scraping/transcript_scraping.py` (171 Zeilen) ist ein
+älterer Vorgänger von `transcript_scraping_segments.py` — schreibt in
+eigene, andere Alt-Dateien (`all_transcripts.csv`/`all_transcripts_2.csv`,
+nicht die in 4c migrierten), liest seine Video-Liste aus einem Pfad
+(`SAMPLES / "combined" / "keyword_videos_50k_channels.json"`), der beim
+Recherche-Durchlauf nicht auffindbar war, und referenziert denselben
+Backup-Dateinamen `all_transcripts_backup.csv` wie der aktuelle Scraper
+(Namenskollision, kein gemeinsamer Code). War nicht Teil des
+4c-Plantexts (der nur `transcript_scraping_segments.py` als "Kern-
+Scraper" nennt) und wurde deshalb bewusst nicht angefasst — vermutlich
+tot/abgelöst analog zu `single_transcript_downloader.py`, aber laut
+Standing-Regel ("alt heißt nicht automatisch tot") nicht ohne
+Rückfrage archiviert. Kandidat für eine kurze Rückfrage in einer
+späteren Aufräum-Runde (z. B. Phase 5).
+
+### Grep-Nachweis: keine aktiven Call-Sites mehr
+`grep -rn "all_transcripts_segments.csv" --include="*.py"` liefert nach
+dieser Session nur noch: (a) einen erklärenden Kommentar in
+`transcript_store.py` (Docstring, beschreibt bewusst was der Store
+ersetzt), (b) zwei bereits vor dieser Session tote Kommentarzeilen
+(`segment_analysis_result_checks.py:113`,
+`filter_pilot_videos_primary.py:12`), (c) die beiden einmaligen,
+bereits erfolgreich gelaufenen Phase-3b-Migrations-/Verifikationsskripte
+(`scripts/adhoc/migrate_transcripts_to_store.py`,
+`scripts/adhoc/verify_transcripts_migration.py` — bewusst nicht
+angefasst, analog zum in 4b dokumentierten Umgang mit den
+LLM-Run-Migrationsskripten), (d) der neu gefundene, oben dokumentierte
+`transcript_scraping.py`-Sonderfall (nur `all_transcripts_backup.csv`,
+nicht die Segments-CSV).
+
+**Noch nicht committet** — liegt im Working Tree zusammen mit den noch
+uncommitteten 4a/4b-Änderungsresten (`git status` vor Fortsetzung
+prüfen).
+
 ## Nächster Schritt
-**Phase 4c — Transkripte** (Scraper + 5 Leser auf `transcript_store`
-umstellen, höchstes Einzelrisiko der Phase 4 wegen echter API-Calls; Plan:
-`.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4c"). Danach 4d
-(Screening-State, hängt an 4b — jetzt abgeschlossen), 4e
-(Store-Modulverschiebung + physische LLM-Ergebnis-Konsolidierung, hängt an
-4b–4d). Vor Beginn `git status` prüfen — Schritt 1 und Schritt 2–6 von 4b
-liegen beide noch uncommittet im selben Diff. Sample-Membership-Ableitung
-aus `video_search_hits` bleibt laut Nutzerentscheidung komplett außerhalb
-von Phase 4, als eigenständiges Thema für eine spätere, separate Session.
+**Phase 4d — Screening-State** (4 Schreiber + Leser auf
+`screening_state_store` umstellen, hängt an 4b — jetzt abgeschlossen;
+Plan: `.claude/plans/phase_4.md`, Abschnitt "Teilschritt 4d"). Vor Beginn:
+(1) `ls data/transcripts/` prüfen, ob der Nutzer die beiden in 4c
+dokumentierten Alt-CSVs bereits gelöscht hat; (2) `git status` prüfen,
+kein aktiver Screening-Batch-Lauf. Danach 4e (Store-Modulverschiebung +
+physische LLM-Ergebnis-Konsolidierung, hängt an 4b–4d). Sample-
+Membership-Ableitung aus `video_search_hits` bleibt laut
+Nutzerentscheidung komplett außerhalb von Phase 4, als eigenständiges
+Thema für eine spätere, separate Session.

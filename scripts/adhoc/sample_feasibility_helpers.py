@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 import json
 
-from youtube_code.config import TRANSCRIPTS, SAMPLES, EXTERNAL, OUTPUTS
+from youtube_code.config import SAMPLES, EXTERNAL, OUTPUTS
+from youtube_code.utils.transcript_store import attempted_video_ids
 
 
 def create_video_file_w_lables():
@@ -63,8 +64,7 @@ def draw(pool, max_n):
 
 
 def create_download_list_descriptive():
-    downloaded = set(pd.read_csv(TRANSCRIPTS / "all_transcripts_segments.csv",
-                                 usecols=["video_id"])["video_id"])
+    downloaded = attempted_video_ids()
 
     df = pd.read_csv("videos_compact_pol_labels.csv",
                      usecols=["video_id", "channel_id", "published_at",
@@ -108,8 +108,7 @@ def create_download_list_descriptive():
 
 def prepare():
     """Lädt Metadaten + Transkriptstatus, gibt (war, baseline, df) zurück."""
-    downloaded = set(pd.read_csv(TRANSCRIPTS / "all_transcripts_segments.csv",
-                                 usecols=["video_id"])["video_id"])
+    downloaded = attempted_video_ids()
 
     df = pd.read_csv("videos_compact_pol_labels.csv",
                      usecols=["video_id", "channel_id", "published_at",

@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import json
-from youtube_code.config import SAMPLES, TRANSCRIPTS, OUTPUTS, SRC
+from youtube_code.config import SAMPLES, OUTPUTS, SRC
+from youtube_code.utils.transcript_store import attempted_video_ids
 
 IDS ={"DoH_MWRZhIE", "5_Qi6u23hPc", "3ZXGvYQI5Y8", "YjKKy361zZ0"}
 
@@ -71,8 +72,7 @@ def check_open_transcripts(paths):
     with open(OUTPUTS / "sample_feasibility" / "wide_right.json", "r", encoding = "utf-8") as f:
         wide_right = json.load(f)
 
-    df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_segments.csv", usecols = ["video_id"])
-    transcripts = df2["video_id"].to_list()
+    transcripts = attempted_video_ids()
 
     classified = df["video_id"].to_list()
     classified = set(classified)

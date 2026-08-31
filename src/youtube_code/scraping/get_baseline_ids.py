@@ -1,6 +1,8 @@
 import json
 import pandas as pd
 
+from youtube_code.utils.transcript_store import attempted_video_ids
+
 df = pd.read_csv(
     "data/samples/russia/longitudinal_screening_state.csv",
     usecols=["video_id", "channel_id", "channel_title", "interval_index", "politics_final"],
@@ -25,9 +27,8 @@ new_prewar = prewar[prewar["channel_id"].isin(prewar_qual) & (prewar["politics_f
 new_postwar = postwar[postwar["channel_id"].isin(postwar_qual) & (postwar["politics_final"] == 1)]
 new_all = pd.concat([new_prewar, new_postwar])[["video_id", "channel_id"]].drop_duplicates()
 
-# Gegen bereits versuchte Transkripte abgleichen (Projektregel: NUR diese Datei zählt)
-tr = pd.read_csv("data/transcripts/all_transcripts_segments.csv", usecols=["video_id"], dtype={"video_id": "string"})
-tried = set(tr["video_id"].unique())
+# Gegen bereits versuchte Transkripte abgleichen (Source of Truth seit Phase 4c: transcript_store)
+tried = attempted_video_ids()
 fill_vids = new_all[~new_all["video_id"].isin(tried)]
 
 print(f"{len(new_all)} politische Videos in qualifizierenden Kanälen, davon {len(fill_vids)} noch offen")

@@ -43,7 +43,8 @@ import sys
 
 import pandas as pd
 
-from youtube_code.config import SAMPLES, TRANSCRIPTS, OUTPUTS
+from youtube_code.config import SAMPLES, OUTPUTS
+from youtube_code.utils.transcript_store import get_transcripts
 
 # ============================================================
 # CONFIG
@@ -58,13 +59,12 @@ BEFEHL = "segmente"                    # "segmente" | "sample"
 VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
 
 
-# Transkript-Quelle. Erwartete Spalten: video_id, transcript, status.
-# "transcript" darf entweder eine JSON-Liste von Untertitel-Eintraegen
-# ({"text": "..."} je Zeile, mit ueberlappenden rollenden Zeitstempeln)
-# oder bereits reiner Fliesstext sein - beides wird erkannt.
-TRANSCRIPT_FILE = TRANSCRIPTS / "all_transcripts_segments.csv"
+# Transkript-Quelle: transcript_store.get_transcripts() (siehe
+# youtube_code.utils.transcript_store), nicht mehr die CSV-Datei direkt.
+# "transcript_segments" darf entweder eine JSON-Liste von Untertitel-
+# Eintraegen ({"text": "..."} je Zeile, mit ueberlappenden rollenden
+# Zeitstempeln) oder bereits reiner Fliesstext sein - beides wird erkannt.
 NUR_STATUS_OK = True                   # nur Zeilen mit status == "ok"
-CSV_CHUNKSIZE = 500                    # Bloeckgroesse beim Streaming-Lesen
 
 # "segmente"           -> Segmentierung nach den bisherigen Regeln
 # "ganze_transkripte"  -> ein Segment (= das ganze Transkript) pro Video
@@ -307,11 +307,10 @@ def load_video_id_filter() -> set[str]:
 def build_segments_file() -> None:
     if MODUS not in ("segmente", "ganze_transkripte"):
         sys.exit(f"MODUS muss 'segmente' oder 'ganze_transkripte' sein, ist {MODUS!r}.")
-    if not TRANSCRIPT_FILE.exists():
-        sys.exit(f"{TRANSCRIPT_FILE} fehlt.")
 
     wanted = load_video_id_filter()
-    found: set[str] = set()
+    records = get_transcripts(wanted)
+    found: set[str] = set(records.keys())
     excluded_by_status: set[str] = set()
     n_skipped_short = 0
     n_rows = 0
@@ -324,46 +323,31 @@ def build_segments_file() -> None:
         writer = csv.writer(handle)
         writer.writerow(["video_id", "segment_index", "text", "n_woerter"])
 
-        reader = pd.read_csv(
-            TRANSCRIPT_FILE,
-            usecols=lambda c: c in {"video_id", "transcript_segments", "status"},
-            dtype={"video_id": "string"},
-            chunksize=CSV_CHUNKSIZE,
-            low_memory=False,
-        )
-        for chunk in reader:
-            chunk = chunk[chunk["video_id"].isin(wanted)]
-            if chunk.empty:
+        for video_id, rec in records.items():
+            if NUR_STATUS_OK and str(rec.get("status")).lower() != "ok":
+                excluded_by_status.add(video_id)
                 continue
-            found.update(chunk["video_id"].astype(str))
 
-            if NUR_STATUS_OK and "status" in chunk.columns:
-                keep = chunk["status"].astype(str).str.lower().eq("ok")
-                excluded_by_status.update(chunk.loc[~keep, "video_id"].astype(str))
-                chunk = chunk[keep]
+            text = transcript_to_text(rec.get("transcript_segments"))
+            if text is None:
+                n_skipped_short += 1
+                continue
 
-            for row in chunk.itertuples(index=False):
-                video_id = str(row.video_id)
-                text = transcript_to_text(getattr(row, "transcript_segments", None))
-                if text is None:
-                    n_skipped_short += 1
-                    continue
+            if MODUS == "ganze_transkripte":
+                if len(text.split()) > EXCERPT_WORD_BUDGET:
+                    n_excerpted += 1
+                rows = [(0, build_excerpt(text))]
+            else:  # "segmente"
+                all_segments = split_segments(text)
+                if MAX_SEGMENTS_PER_VIDEO is not None and len(all_segments) > MAX_SEGMENTS_PER_VIDEO:
+                    n_capped += 1
+                keep = select_capped_indices(len(all_segments), MAX_SEGMENTS_PER_VIDEO)
+                rows = [(i, all_segments[i]) for i in keep]
 
-                if MODUS == "ganze_transkripte":
-                    if len(text.split()) > EXCERPT_WORD_BUDGET:
-                        n_excerpted += 1
-                    rows = [(0, build_excerpt(text))]
-                else:  # "segmente"
-                    all_segments = split_segments(text)
-                    if MAX_SEGMENTS_PER_VIDEO is not None and len(all_segments) > MAX_SEGMENTS_PER_VIDEO:
-                        n_capped += 1
-                    keep = select_capped_indices(len(all_segments), MAX_SEGMENTS_PER_VIDEO)
-                    rows = [(i, all_segments[i]) for i in keep]
-
-                for segment_index, segment_text in rows:
-                    writer.writerow([video_id, segment_index, segment_text, len(segment_text.split())])
-                    word_counts.append(len(segment_text.split()))
-                    n_rows += 1
+            for segment_index, segment_text in rows:
+                writer.writerow([video_id, segment_index, segment_text, len(segment_text.split())])
+                word_counts.append(len(segment_text.split()))
+                n_rows += 1
 
     not_in_file = sorted(wanted - found)
 

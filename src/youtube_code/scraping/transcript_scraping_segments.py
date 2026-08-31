@@ -1,14 +1,13 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound
-import pandas as pd
 import time
 import random
-import os
 import json
 from datetime import datetime, timezone
 
-from youtube_code.config import TRANSCRIPTS, SAMPLES, OUTPUTS, SRC
+from youtube_code.config import SAMPLES, OUTPUTS, SRC
 from youtube_code.utils.video_registry import get_channel_map, get_videos_for_channels
+from youtube_code.utils.transcript_store import upsert_transcripts, get_transcripts, attempted_video_ids
 
 # =====================================================
 # CONFIGURATION
@@ -16,13 +15,10 @@ from youtube_code.utils.video_registry import get_channel_map, get_videos_for_ch
 
 STOP_WORD = "blocking"
 SPEED_DOWNLOAD = 1
-VIDEO_LIST = "baseline_now_sufficient_fill_vids.json"
+VIDEO_LIST = "baseline_fill_vids.json"
 # VIDEO_LIST = OUTPUTS / "sample_feasibility" / "war_vids.json"
 # VIDEO_LIST =  SRC / "new_analysis" / "out_screening" / "primary_pilot_ids.json"
 # VIDEO_LIST = SAMPLES / "russia" / "political_ids.json"  # "keyword_videos_50k_channels.json"
-#FILE_PATH_ALL = [TRANSCRIPTS / "all_transcripts.csv", TRANSCRIPTS /"all_transcripts_2.csv"]
-OUTPUT_FILE = TRANSCRIPTS / "all_transcripts_segments.csv"
-FILE_PATH_BACKUP = TRANSCRIPTS / "all_transcripts_backup.csv"
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]
@@ -41,18 +37,6 @@ MIN_AVAILABLE_REQUIRED = 2
 def get_transcript(video_id):
     yta = YouTubeTranscriptApi()
     return yta.fetch(video_id, languages=['de'])
-
-
-def save_to_csv(daten_chunk, file_path):
-    df = pd.DataFrame(daten_chunk)
-    write_header = not os.path.exists(file_path)
-    df.to_csv(
-        file_path,
-        mode="a",
-        header=write_header,
-        index=False,
-        encoding="utf-8"
-    )
 
 
 # =====================================================
@@ -92,25 +76,15 @@ else:
 
 print(f"Number of video-IDs: {len(video_ids_sorted)}")
 
-# Loading processed video-IDs (inkl. status, fuer den Kanal-Vorfilter unten)
+# Loading processed video-IDs (Status je Video wird weiter unten fuer den
+# Kanal-Vorfilter gezielt nachgeladen, siehe status_by_video_id dort)
 
-if os.path.exists(OUTPUT_FILE):
-    print("Existing CSV found – Loading already processed video IDs…")
-    existing_df = pd.read_csv(OUTPUT_FILE, usecols=["video_id", "status"])
-    existing_df["video_id"] = existing_df["video_id"].astype(str)
+print("Loading already processed video IDs from transcript_store…")
+processed_video_ids = attempted_video_ids()
+print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
 
-    processed_video_ids = set(existing_df["video_id"])
-    status_by_video_id = dict(zip(existing_df["video_id"], existing_df["status"]))
-
-    print(f"\n➡️ {len(processed_video_ids)} video IDs already existing.")
-
-    already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
-    print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
-
-else:
-    print("No existing CSV found")
-    processed_video_ids = set()
-    status_by_video_id = {}
+already_downloaded = [v for v in video_ids_sorted if v in processed_video_ids]
+print(f"\n{len(already_downloaded)}/{len(video_ids_sorted)} videos of this set already downloaded.")
 
 # =====================================================
 # KANAL-VORFILTER
@@ -134,6 +108,18 @@ unmapped_count = len(video_ids_sorted) - sum(1 for v in video_ids_sorted if v in
 
 if known_channel_ids:
     videos_by_channel = get_videos_for_channels(known_channel_ids)
+
+    # Status nur fuer die tatsaechlich relevante Teilmenge nachladen (alle
+    # bereits versuchten Videos der bekannten Kanaele), statt fuer die
+    # gesamte Ablage - eine gebatchte Abfrage statt N Einzelabfragen.
+    all_registry_videos = set()
+    for cid in known_channel_ids:
+        all_registry_videos |= videos_by_channel.get(cid, set())
+    attempted_registry_ids = all_registry_videos & processed_video_ids
+    status_by_video_id = {
+        vid: rec.get("status")
+        for vid, rec in get_transcripts(attempted_registry_ids).items()
+    } if attempted_registry_ids else {}
 
     blocked_channels = set()
     for cid in known_channel_ids:
@@ -249,7 +235,7 @@ for video_id in videos_to_process:
     # Batch-break after 5 requests
     if api_request_count % BATCH_SIZE == 0:
         print(f"\n Saving …")
-        save_to_csv(daten, OUTPUT_FILE)
+        upsert_transcripts(daten)
         daten.clear()
         batch_break = random.uniform(20, 40) if SPEED_DOWNLOAD else random.uniform(45, 85) # 45, 85
         remaining_requests = num_remaining_vids - api_request_count
@@ -262,16 +248,10 @@ for video_id in videos_to_process:
         print(f"Long break: {long_break:.2f} seconds")
         time.sleep(long_break)
 
-    if api_request_count % 500 == 0:
-        transcripts = pd.read_csv(OUTPUT_FILE)
-        num_transcripts = len(transcripts)
-        print(f"Back up after {num_transcripts} transcripts")
-        transcripts.to_csv(FILE_PATH_BACKUP, index = False)
-
 # Saving
 
 if daten:
     print("\n💾 Saving remaining data …")
-    save_to_csv(daten, OUTPUT_FILE)
+    upsert_transcripts(daten)
 
 print("\n✅ Done!")

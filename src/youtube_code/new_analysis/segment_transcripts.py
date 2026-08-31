@@ -40,18 +40,23 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.config import TRANSCRIPTS, EXTERNAL, OUTPUTS, SAMPLES
+from youtube_code.config import EXTERNAL, OUTPUTS, SAMPLES
+from youtube_code.utils.transcript_store import (
+    get_transcripts as store_get_transcripts,
+    attempted_video_ids,
+)
 
 # ==========================================================================
 # CONFIG
 # ==========================================================================
 
-# Woher die Transkripte kommen: "csv" (eine Tabelle) oder "dir" ({video_id}.json)
+# Woher die Transkripte kommen: "csv" (transcript_store) oder "dir" ({video_id}.json)
+# "csv" heisst historisch noch so, liest aber seit Phase 4c aus
+# transcript_store statt aus all_transcripts_segments.csv.
 QUELLE         = "csv"
-TRANSCRIPT_CSV = Path(TRANSCRIPTS / "all_transcripts_segments.csv")
 TRANSCRIPT_DIR = Path("transcripts")          # nur fuer QUELLE = "dir"
 
-# Spalten in TRANSCRIPT_CSV
+# Felder aus transcript_store (siehe youtube_code.utils.transcript_store)
 COL_VIDEO_ID   = "video_id"
 COL_TRANSCRIPT = "transcript_segments"
 COL_STATUS     = "status"                     # None, wenn es keine gibt
@@ -71,8 +76,8 @@ SAMPLE_N     = 200                            # nur fuer BEFEHL = "sample"
 RESULTS_FILE = Path("results.jsonl")          # nur fuer BEFEHL = "verify"
 NEU_SEGMENTIEREN = False                      # True erzwingt Neuaufbau des Caches
 
-# Grosse CSV: zeilenweise in Bloecken lesen, nie am Stueck.
-# Speicherbedarf ~ CSV_CHUNKSIZE x Groesse einer Transkriptzelle.
+# transcript_store in Bloecken von CSV_CHUNKSIZE video_ids abfragen, nie
+# alle auf einmal. Speicherbedarf ~ CSV_CHUNKSIZE x Groesse eines Transkripts.
 # 500 x ~200 KB = ~100 MB. Bei sehr langen Videos eher 200 setzen.
 CSV_CHUNKSIZE  = 500
 
@@ -235,42 +240,30 @@ def iter_transcripts(video_ids: set[str] | None = None):
             yield f.stem, transcript_to_text(f)
         return
 
-    if not TRANSCRIPT_CSV.exists():
-        sys.exit(f"{TRANSCRIPT_CSV} nicht gefunden. QUELLE/Pfad pruefen.")
+    ids_to_fetch = sorted(video_ids) if video_ids is not None else sorted(attempted_video_ids())
+    print(f"[quelle] transcript_store, Bloecke zu {CSV_CHUNKSIZE} video_ids, "
+          f"{len(ids_to_fetch):,} angeforderte video_ids")
 
-    cols = [COL_VIDEO_ID, COL_TRANSCRIPT]
-    if COL_STATUS:
-        cols.append(COL_STATUS)
-    kopf = pd.read_csv(TRANSCRIPT_CSV, nrows=0)
-    fehlend = [c for c in cols if c not in kopf.columns]
-    if fehlend:
-        sys.exit(f"Spalten fehlen in {TRANSCRIPT_CSV}: {fehlend}. "
-                 f"Vorhanden: {list(kopf.columns)}")
-
-    print(f"[quelle] {TRANSCRIPT_CSV}, Bloecke zu {CSV_CHUNKSIZE} Zeilen, "
-          f"Spalten {cols}")
     gesehen: set[str] = set()
     status_zaehler: dict = {}
     n_zeilen = 0
 
-    reader = pd.read_csv(TRANSCRIPT_CSV, usecols=cols,
-                         chunksize=CSV_CHUNKSIZE, low_memory=False)
-    for block in reader:
-        n_zeilen += len(block)
-        if COL_STATUS:
-            for k, v in block[COL_STATUS].value_counts(dropna=False).items():
-                status_zaehler[k] = status_zaehler.get(k, 0) + int(v)
-            block = block[block[COL_STATUS] == STATUS_OK]
-        if video_ids is not None:
-            block = block[block[COL_VIDEO_ID].isin(video_ids)]
-        for r in block.itertuples():
-            vid = getattr(r, COL_VIDEO_ID)
+    for i in range(0, len(ids_to_fetch), CSV_CHUNKSIZE):
+        chunk_ids = ids_to_fetch[i:i + CSV_CHUNKSIZE]
+        records = store_get_transcripts(chunk_ids)
+        n_zeilen += len(records)
+        for vid, rec in records.items():
+            status = rec.get(COL_STATUS) if COL_STATUS else None
+            if COL_STATUS:
+                status_zaehler[status] = status_zaehler.get(status, 0) + 1
+                if status != STATUS_OK:
+                    continue
             if vid in gesehen:
                 continue
             gesehen.add(vid)
-            yield vid, parse_transcript_cell(getattr(r, COL_TRANSCRIPT))
+            yield vid, parse_transcript_cell(rec.get(COL_TRANSCRIPT))
 
-    print(f"[quelle] {n_zeilen:,} Zeilen gelesen")
+    print(f"[quelle] {n_zeilen:,} Eintraege aus transcript_store gelesen")
     if status_zaehler:
         print("[quelle] Statusverteilung:")
         for k, v in sorted(status_zaehler.items(), key=lambda x: -x[1]):
