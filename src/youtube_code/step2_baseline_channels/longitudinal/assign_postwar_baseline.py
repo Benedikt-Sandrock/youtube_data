@@ -30,16 +30,13 @@ entfaellt ersatzlos - SQLite braucht kein manuelles Vollkopie-Backup-Muster.
 
 from __future__ import annotations
 
-import json
-
 import pandas as pd
 
-from youtube_code.config import RAW
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
 )
-from youtube_code.store import screening_state_store
+from youtube_code.store import screening_state_store, video_registry
 
 # ============================================================
 # CONFIG
@@ -52,9 +49,6 @@ WINDOW_STEPS_MONTHS = [3, 6, 9, 12]   # adaptiv erweitert, bis genug Kandidaten 
 
 POSTWAR_INTERVAL_INDEX = -1  # Sentinel, kollidiert nie mit echten Kalender-Intervallen
 
-CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
-CLASSIFIED_CHANNELS_PATH = RAW / "classified_channels_total.json"
-
 DRY_RUN = False
 
 
@@ -64,18 +58,18 @@ DRY_RUN = False
 
 def load_postwar_candidate_channels() -> pd.DataFrame:
     """Post-Kriegs-Kanaele mit is_german=True und >= MIN_SUBSCRIBERS Abos.
-    Gibt channel_id, channel_title, erstellt (Timestamp) zurueck."""
-    with open(CHANNEL_METADATA_PATH, "r", encoding="utf-8") as f:
-        meta = json.load(f)
-    meta_df = pd.DataFrame(meta)
+    Gibt channel_id, channel_title, erstellt (Timestamp) zurueck. Liest
+    Kanal-Metadaten und Sprach-Klassifikation aus video_registry.sqlite
+    (channels/language_classification) statt aus den frueheren, inzwischen
+    verschwundenen JSON-Dateien channel_metadata_total.json/
+    classified_channels_total.json."""
+    meta_df = video_registry.get_channels()
     meta_df["published_at"] = pd.to_datetime(
         meta_df["published_at"], format="ISO8601", utc=True
     ).dt.tz_localize(None)
     meta_df["subscribers"] = pd.to_numeric(meta_df["subscribers"], errors="coerce")
 
-    with open(CLASSIFIED_CHANNELS_PATH, "r", encoding="utf-8") as f:
-        classified = json.load(f)
-    class_df = pd.DataFrame(classified)[["channel_id", "is_german"]]
+    class_df = video_registry.get_language_classification()[["channel_id", "is_german"]]
 
     merged = pd.merge(meta_df, class_df, on="channel_id", how="left")
     post_war = merged[merged["published_at"] >= KRIEGSBEGINN].copy()
@@ -96,6 +90,15 @@ def assign_postwar_intervals(
     kandidaten: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Gibt (aktualisierter State, Zusammenfassung pro Kanal) zurueck."""
+    if kandidaten.empty:
+        # Kein KeyError beim spaeteren set_index("channel_id") auf einer
+        # spaltenlosen leeren summary_df - z.B. solange video_registry.channels
+        # noch keine Post-Kriegs-Kandidaten mit Metadaten enthaelt.
+        return state, pd.DataFrame(
+            columns=["channel_id", "channel_title", "erstellt", "fenster_monate",
+                     "n_kandidaten_im_fenster", "n_bereits_politisch"]
+        )
+
     state = state.copy()
     state["published_at_dt"] = pd.to_datetime(
         state["published_at"], errors="coerce", utc=True

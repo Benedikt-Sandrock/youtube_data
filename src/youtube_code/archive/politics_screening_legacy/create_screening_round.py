@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     INITIAL_CANDIDATES_PER_PERIOD,
     MAX_CANDIDATES_PER_PERIOD_PER_ROUND,
     MIN_CANDIDATES_PER_PERIOD_PER_ROUND,

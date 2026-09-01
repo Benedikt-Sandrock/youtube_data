@@ -37,7 +37,7 @@ from youtube_code.llm_analysis.prompts import (
 from youtube_code.llm_analysis.submit_batch_jobs import (
     run_all_prompts,
 )
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     BATCH_INPUT_DIR,
     DESCRIPTIONS_PER_REQUEST,
     GROUPING_SEED,

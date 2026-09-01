@@ -15,7 +15,7 @@ from youtube_code.store.transcript_store import upsert_transcripts, get_transcri
 
 STOP_WORD = "blocking"
 SPEED_DOWNLOAD = 1
-VIDEO_LIST = "baseline_fill_vids.json"
+VIDEO_LIST = "fill_vids_extended.json"
 # VIDEO_LIST = OUTPUTS / "sample_feasibility" / "war_vids.json"
 # VIDEO_LIST =  SRC / "new_analysis" / "out_screening" / "primary_pilot_ids.json"
 # VIDEO_LIST = SAMPLES / "russia" / "political_ids.json"  # "keyword_videos_50k_channels.json"

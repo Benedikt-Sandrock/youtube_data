@@ -39,7 +39,7 @@ Eine CSV mit einer Spalte `channel_id` (eine Zeile pro Zielkanal) anlegen, z.B.
 `outputs/segment_analysis/meine_neuen_kanaele.csv`. Die YouTube-Channel-ID (beginnt mit
 `UC...`), nicht der Handle/Anzeigename.
 
-## Schritt 2 — Video-IDs sammeln (`src/youtube_code/collection/channel_all_videos.py`)
+## Schritt 2 — Video-IDs sammeln (`src/youtube_code/step1_sample/channel_all_videos.py`)
 
 Am Kopf des Skripts konfigurieren:
 
@@ -68,7 +68,7 @@ Schreibt neue Video-IDs (`video_id`, `channel_id`, `published_at`, `title`) nach
 `TARGETED_SEARCH_YTDLP_CHANNEL_INPUT` zeigen oft noch auf Dateien von einem früheren
 Lauf. Inhalt vorher prüfen und bei Bedarf überschreiben, nicht blind anhängen.
 
-## Schritt 3 — Beschreibungen holen (`src/youtube_code/collection/metadata_collection.py`)
+## Schritt 3 — Beschreibungen holen (`src/youtube_code/step1_sample/metadata_collection.py`)
 
 Am Kopf konfigurieren:
 
@@ -106,7 +106,7 @@ with open("data/raw/video_metadata_detailed_total.jsonl", encoding="utf-8") as f
             fout.write(json.dumps(obj, ensure_ascii=False) + "\n")
 ```
 
-## Schritt 4 — State erweitern (`src/youtube_code/politics_screening/longitudinal/append_channels_to_state.py`)
+## Schritt 4 — State erweitern (`src/youtube_code/step2_baseline_channels/longitudinal/append_channels_to_state.py`)
 
 **Vorher immer ein Backup anlegen** — die State-DB hat keine Git-Historie:
 
@@ -119,7 +119,7 @@ Dann:
 
 ```bash
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
-  src/youtube_code/politics_screening/longitudinal/append_channels_to_state.py \
+  src/youtube_code/step2_baseline_channels/longitudinal/append_channels_to_state.py \
   --channels outputs/segment_analysis/meine_neuen_kanaele.csv \
   --videos data/raw/video_metadata_detailed_gefiltert.jsonl \
   --dry-run
@@ -136,13 +136,13 @@ aber additiv: Kanäle, die schon im State stehen, bekommen nur die fehlenden
 `period >= INTERVAL_START`. Bereits im State vorhandene `video_id`s werden automatisch
 übersprungen (keine Duplikate).
 
-## Schritt 5 — Screening-Runde erzeugen (`src/youtube_code/politics_screening/longitudinal/create_longitudinal_screening.py`)
+## Schritt 5 — Screening-Runde erzeugen (`src/youtube_code/step2_baseline_channels/longitudinal/create_longitudinal_screening.py`)
 
 Modul-Konstante `DRY_RUN` am Kopf der Datei zuerst auf `True` setzen und laufen lassen:
 
 ```bash
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
-  src/youtube_code/politics_screening/longitudinal/create_longitudinal_screening.py
+  src/youtube_code/step2_baseline_channels/longitudinal/create_longitudinal_screening.py
 ```
 
 Das Skript plant adaptiv **über den gesamten State** (nicht nur die neuen Kanäle) die
@@ -188,7 +188,7 @@ verhindert versehentliche Doppel-Einreichungen für dieselbe Runde/Stufe.
 Prüft den Job-Status in der Registry und lädt fertige Ergebnisse herunter (als CSV nach
 `outputs/llm_results/screening_active__<run_id>/`).
 
-## Schritt 8 — Ergebnisse in den State zurückführen (`src/youtube_code/politics_screening/update_screening_state.py`)
+## Schritt 8 — Ergebnisse in den State zurückführen (`src/youtube_code/step2_baseline_channels/update_screening_state.py`)
 
 Am Kopf konfigurieren: `MODE = "title"`, `ROUND_NUMBER` und `RUN_ID` (aus der Registry)
 setzen. Erst `DRY_RUN = True` laufen lassen und die Merge-Vorschau prüfen, dann
@@ -219,15 +219,15 @@ das Ziel erreicht ist oder ihr Kandidatenpool erschöpft ist (Status
 
 | Skript | Zweck | Ausführung |
 | --- | --- | --- |
-| `collection/channel_all_videos.py` | Video-IDs für Zeitfenster sammeln | pro neue Kanalgruppe |
-| `collection/metadata_collection.py` | Beschreibungen holen | pro neue Kanalgruppe |
-| `politics_screening/longitudinal/append_channels_to_state.py` | Neue Kandidatenzeilen in den State einspeisen | pro neue Kanalgruppe |
-| `politics_screening/longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (State-weit) | wiederholt |
+| `../step1_sample/channel_all_videos.py` | Video-IDs für Zeitfenster sammeln | pro neue Kanalgruppe |
+| `../step1_sample/metadata_collection.py` | Beschreibungen holen | pro neue Kanalgruppe |
+| `longitudinal/append_channels_to_state.py` | Neue Kandidatenzeilen in den State einspeisen | pro neue Kanalgruppe |
+| `longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (State-weit) | wiederholt |
 | `llm_analysis/run_longitudinal_screening_batch.py` | Batch-Job einreichen (Prompt 32 title / Prompt 33 description) | pro Runde × 2 Stufen |
 | `llm_analysis/download_results.py` | Ergebnisse abholen | pro Runde × 2 Stufen |
-| `politics_screening/update_screening_state.py` | Ergebnisse in State mergen | pro Runde × 2 Stufen |
+| `update_screening_state.py` | Ergebnisse in State mergen | pro Runde × 2 Stufen |
 
-## Wichtige Konstanten (`src/youtube_code/politics_screening/screening_config.py`)
+## Wichtige Konstanten (`src/youtube_code/step2_baseline_channels/screening_config.py`)
 
 - `INTERVAL_START = -12`, `INTERVAL_SIZE = 3`: Perioden werden ab 12 Monaten vor
   Kriegsbeginn in 3-Monats-Intervallen gruppiert.

@@ -1,6 +1,6 @@
 """
-Fuer Kanaele OHNE Baseline-Klassifikation, die laut channel_metadata_total.json bereits
-im oder vor dem Baseline-Fenster (Monate -12 bis -3 vor Kriegsbeginn) existierten:
+Fuer Kanaele OHNE Baseline-Klassifikation, die laut video_registry.sqlite (Tabelle channels)
+bereits im oder vor dem Baseline-Fenster (Monate -12 bis -3 vor Kriegsbeginn) existierten:
 
 - Wie viele Videos liegen in videos_compact_pol_labels.csv vor?
 - Wie viele davon sind klassifiziert (in run_0013 Base oder populism_runs_combined Main)?
@@ -10,11 +10,10 @@ im oder vor dem Baseline-Fenster (Monate -12 bis -3 vor Kriegsbeginn) existierte
 Baut auf derselben Grundgesamtheits-/Baseline-Logik wie check_baseline_coverage.py auf.
 """
 
-import json
-
 import pandas as pd
 
-from youtube_code.config import OUTPUTS, RAW
+from youtube_code.config import OUTPUTS
+from youtube_code.store import video_registry
 
 RESULTS_PATH = OUTPUTS / "segment_analysis"
 VIDEO_PATH = OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv"
@@ -22,7 +21,6 @@ VIDEO_PATH = OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv"
 RESULTS_PATH_POPULISM_BASE = RESULTS_PATH / "run_0013_POPULISMUS_P_corrected.csv"
 RESULTS_PATH_POPULISM_MAIN = RESULTS_PATH / "populism_runs_combined.csv"
 CHANNEL_CLASSIFICATION_PATH = RESULTS_PATH / "channel_classification_populism.csv"
-CHANNEL_METADATA_PATH = RAW / "channel_metadata_total.json"
 
 KRIEGSBEGINN = pd.Timestamp("2022-02-24")
 BASELINE_ENDE = KRIEGSBEGINN - pd.DateOffset(months=3)
@@ -59,24 +57,16 @@ def lade_kanaele_mit_baseline():
 
 
 def lade_kanal_erstellungsdaten():
-    """channel_id -> Kanal-Erstellungsdatum, mit ISO8601-Fix (gemischte Zeitstempel-Formate
-    in channel_metadata_total.json - siehe check_baseline_coverage.py)."""
-    with open(CHANNEL_METADATA_PATH, "r", encoding="utf-8") as f:
-        raw = json.load(f)
+    """channel_id -> Kanal-Erstellungsdatum, aus video_registry.sqlite (Tabelle channels)
+    statt aus der frueheren, inzwischen verschwundenen channel_metadata_total.json."""
+    meta_df = video_registry.get_channels()[["channel_id", "published_at"]].rename(
+        columns={"published_at": "kanal_erstellt"}
+    )
+    meta_df["kanal_erstellt"] = pd.to_datetime(
+        meta_df["kanal_erstellt"], format="ISO8601", utc=True
+    ).dt.tz_localize(None)
 
-    if isinstance(raw, dict):
-        eintraege = [{"channel_id": meta.get("channel_id", cid), "kanal_erstellt": meta.get("published_at")}
-                     for cid, meta in raw.items() if isinstance(meta, dict)]
-    elif isinstance(raw, list):
-        eintraege = [{"channel_id": meta.get("channel_id"), "kanal_erstellt": meta.get("published_at")}
-                     for meta in raw]
-    else:
-        raise ValueError(f"Unerwartetes Format in {CHANNEL_METADATA_PATH}: {type(raw)}")
-
-    df = pd.DataFrame(eintraege)
-    df["kanal_erstellt"] = pd.to_datetime(df["kanal_erstellt"], format="ISO8601", utc=True).dt.tz_localize(None)
-
-    return df.set_index("channel_id")["kanal_erstellt"]
+    return meta_df.set_index("channel_id")["kanal_erstellt"]
 
 
 def main():
@@ -96,7 +86,7 @@ def main():
           f"(<= {BASELINE_ENDE.date()}).")
     if len(ohne_erstellungsdatum):
         print(f"[Warnung] {len(ohne_erstellungsdatum)} Kanaele ohne Erstellungsdatum in "
-              f"channel_metadata_total.json - werden hier NICHT beruecksichtigt: "
+              f"video_registry.sqlite (Tabelle channels) - werden hier NICHT beruecksichtigt: "
               f"{ohne_erstellungsdatum['channel_id'].tolist()}")
 
     if im_fenster.empty:

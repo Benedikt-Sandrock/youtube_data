@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from pathlib import Path
 
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     MAIN_VIDEO_FILE,
     EXCLUDED_CHANNELS_FILE,
     EXCLUDE_CHANNELS_WITHOUT_KEYWORD_VIDEO,

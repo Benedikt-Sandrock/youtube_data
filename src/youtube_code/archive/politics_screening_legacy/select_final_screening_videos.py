@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     SCREENING_DIR,
     SELECTION_SEED,
     STATE_FILE,

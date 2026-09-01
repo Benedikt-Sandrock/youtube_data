@@ -8,7 +8,7 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, EXPLORATION, SAMPLES
-from youtube_code.politics_screening.screening_config import LLM_RUN_SOURCE
+from youtube_code.step2_baseline_channels.screening_config import LLM_RUN_SOURCE
 from youtube_code.store import llm_run_store
 # ===============================================
 # CONFIG
@@ -802,7 +802,7 @@ def run_all_prompts(
 
 if __name__ == "__main__":
     from youtube_code.llm_analysis.prompts import prompts_title_classification
-    from youtube_code.politics_screening.screening_config import (
+    from youtube_code.step2_baseline_channels.screening_config import (
         BATCH_INPUT_DIR,
         GROUPING_SEED,
         MANIFEST_DIR,

@@ -13,7 +13,7 @@ from sklearn.metrics import (
 )
 
 from youtube_code.config import LLM
-from youtube_code.politics_screening.screening_config import (
+from youtube_code.step2_baseline_channels.screening_config import (
     TRAINING_SAMPLE_FILE,
 )
 from youtube_code.store.llm_run_store import get_run

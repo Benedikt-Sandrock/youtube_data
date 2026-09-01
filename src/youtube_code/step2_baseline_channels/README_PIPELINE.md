@@ -12,9 +12,16 @@ Verzeichnis — die dortige "Kurzreferenz"-Tabelle ist die maßgebliche. Für di
 Definition des Baseline-Fensters pro Kanal und den Abruf der Baseline-Videos
 siehe `README_BASELINE_WINDOW.md`.
 
+`build_channel_provenance.py` (Zeile 1 der Tabelle) ist seit der
+Restrukturierung das zentrale Sample-Definitions-Skript aus
+COMPLETE_PROCESS.md Schritt 1 und liegt entsprechend unter
+`src/youtube_code/step1_sample/`, nicht in diesem Verzeichnis — hier gelistet,
+weil sein Output (`eligible_channels_current.json`) die Kanalliste liefert,
+mit der die eigentliche Schritt-2-Pipeline (ab Zeile 2) arbeitet.
+
 | Skript                                                                     | Eingabe                              | Ausgabe                            | Ausführung        |
 | --------------------------------------------------------------------------- | ------------------------------------ | ----------------------------------- | ------------------ |
-| `longitudinal/build_channel_provenance.py`                                  | Identifikationsdateien und Metadaten | Provenienzdatei                     | einmal              |
+| `../step1_sample/build_channel_provenance.py` (Schritt 1, gehört nicht mehr hierher, siehe unten) | video_registry.sqlite (Suchtreffer, Sprache, Kanal-Metadaten) | Provenienzdatei + `eligible_channels_current.json` | einmal              |
 | `longitudinal/append_channels_to_state.py`                                  | Videos und Provenienz                | neue Kandidatenzeilen im State      | pro neue Kanalgruppe |
 | `longitudinal/create_longitudinal_screening.py`                             | State (state-weit, adaptiv)          | Batch-Kandidaten (Screening-Runde)  | wiederholt          |
 | `../llm_analysis/run_longitudinal_screening_batch.py`                       | Batch-Kandidaten                     | eingereichter Batch-Job (Registry)  | pro Runde × 2 Stufen |

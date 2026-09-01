@@ -65,6 +65,7 @@ import yt_dlp
 from settings_variables import published_before_analysis, published_after_analysis
 from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS, OUTPUTS
 from youtube_code.utils import save_json
+from youtube_code.store import video_registry
 from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 
 # ─────────────────────────────────────────────
@@ -477,7 +478,12 @@ def classify_new_channels(new_channel_ids: list[str]) -> None:
             is_german = False
             details   = {"channel_id": cid, "error": str(e)}
 
-        all_classified.append({"channel_id": cid, "is_german": is_german, **details})
+        classified_entry = {"channel_id": cid, "is_german": is_german, **details}
+        all_classified.append(classified_entry)
+        # Zentrale Registry mitfuehren (data/store/video_registry.sqlite,
+        # Tabelle language_classification) - einzeln pro Kanal, kleine
+        # Batches je Lauf machen das unproblematisch.
+        video_registry.upsert_language_classification([classified_entry])
         print(f"  [{idx}/{len(to_classify)}] {cid} → {'DE' if is_german else 'NON-DE'}")
 
         if idx % 10 == 0:

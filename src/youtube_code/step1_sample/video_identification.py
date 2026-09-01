@@ -60,6 +60,7 @@ from settings_variables import (
     month_interval,
 )
 from youtube_code.utils import load_set
+from youtube_code.store import video_registry
 from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 from youtube_code.config import API_KEY, API_KEY_C
 
@@ -230,7 +231,8 @@ def parse_video_items(items: list) -> list:
 # Video history tracking (run_id / query per discovery)
 # ---------------------------------------------------------------------------
 
-def update_video_history(ident_vids: list, existing_video_ids: set, videos: list, run_id: str, query: str) -> list:
+def update_video_history(ident_vids: list, existing_video_ids: set, videos: list, run_id: str, query: str,
+    new_hits: list | None = None,) -> list:
     """
     Merge newly found videos into ident_vids.
 
@@ -238,6 +240,12 @@ def update_video_history(ident_vids: list, existing_video_ids: set, videos: list
     video's full discovery history is preserved across runs. New videos get
     a fresh 'found_by' list; videos seen before get this run's entry added
     (skipped if an identical entry is already present).
+
+    If new_hits is given, every (video_id, run_id, query) combination that
+    is actually newly added to a video's found_by list (whether the video
+    itself is new or already known) is appended to it - this is exactly the
+    set this run should write to video_registry.upsert_search_hits(), since
+    already-registered combinations don't need to be resent.
     """
     ident_vids_by_id = {v["video_id"]: v for v in ident_vids}
 
@@ -249,10 +257,14 @@ def update_video_history(ident_vids: list, existing_video_ids: set, videos: list
             ident_vids.append(video)
             ident_vids_by_id[video["video_id"]] = video
             existing_video_ids.add(video["video_id"])
+            if new_hits is not None:
+                new_hits.append({"video_id": video["video_id"], "run_id": run_id, "query": query})
         else:
             existing_video = ident_vids_by_id[video["video_id"]]
             if entry not in existing_video["found_by"]:
                 existing_video["found_by"].append(entry)
+                if new_hits is not None:
+                    new_hits.append({"video_id": video["video_id"], "run_id": run_id, "query": query})
 
     return ident_vids
 
@@ -399,6 +411,7 @@ def main():
     print_project_status(all_channel_ids, ident_vids, registry)
 
     existing_video_ids = {v["video_id"] for v in ident_vids}
+    new_hits: list = []
 
     # Everything below only touches in-memory data. Nothing is written to
     # disk - and therefore this run is not recorded anywhere - unless every
@@ -412,7 +425,7 @@ def main():
             videos = parse_video_items(items)
             print(f"Videos found: {len(videos)}")
 
-            update_video_history(ident_vids, existing_video_ids, videos, run_id, query)
+            update_video_history(ident_vids, existing_video_ids, videos, run_id, query, new_hits)
             print("Video list updated.")
 
             # Zentrale Video-Registry mitfuehren (nur video_id/channel_id an
@@ -434,6 +447,14 @@ def main():
 
     register_run(registry, run_id, query_list, start_date, final_end_date, month_interval, datetime.now())
     save_run_registry(paths["runs_registry"], registry)
+
+    # Zentrale Registry mitfuehren (data/store/video_registry.sqlite): den
+    # gerade abgeschlossenen Lauf sowie die dabei neu entstandenen
+    # (video_id, run_id, query)-Funde, damit die Registry seit dieser
+    # Anbindung live und ohne erneute Migration aktuell bleibt.
+    video_registry.upsert_search_runs([registry[run_id] | {"run_id": run_id}])
+    n_hits = video_registry.upsert_search_hits(new_hits)
+    print(f"In zentrale Registry geschrieben: 1 Lauf, {n_hits} Suchtreffer.")
 
     print(f"\nDone. Run ID for this execution: {run_id}")
 

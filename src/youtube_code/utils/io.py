@@ -5,6 +5,7 @@ import os
 import time
 import json
 
+from youtube_code.store import video_registry
 from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 
 
@@ -71,6 +72,7 @@ def get_channel_metadata(channel_ids, output_path, youtube):
         )
         response = request.execute()
 
+        batch_records = []
         for item in response.get('items', []):
             # Sicherstellen, dass Unter-Dictionaries existieren (Verhindert KeyErrors)
             snippet = item.get('snippet', {})
@@ -112,6 +114,12 @@ def get_channel_metadata(channel_ids, output_path, youtube):
                 'banner_url': branding.get('image', {}).get('bannerExternalUrl', 'Kein Banner')
             }
             all_data.append(data)
+            batch_records.append(data)
+
+        # Zentrale Channel-Registry mitfuehren (data/store/video_registry.sqlite,
+        # Tabelle channels), zusaetzlich zur bisherigen JSON-Datei - gleiches
+        # Muster wie get_video_metadata()/channel_all_videos.py.
+        video_registry.upsert_channels(batch_records)
 
     with open(output_path, "w", encoding = "utf-8") as f:
         json.dump(all_data, f, indent = 2, ensure_ascii= False)
@@ -208,6 +216,12 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
                     f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
                 f_out.flush()
                 _registry_upsert(batch_records)
+                if detailed:
+                    # batch_records enthaelt im detailed-Zweig bereits alle
+                    # dafuer noetigen Felder (description/tags/category_id/...);
+                    # bisher wurden sie nur in die JSONL geschrieben, nie in
+                    # video_details.
+                    video_registry.upsert_video_details(batch_records)
 
                 if chunk % 10 ==0:
                     print(f"Processed {chunk*50} videos.")

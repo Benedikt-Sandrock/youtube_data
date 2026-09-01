@@ -1,19 +1,29 @@
 """
-Build the channel-level provenance table for the longitudinal Russia–Ukraine
-YouTube analysis.
+Build the channel-level provenance table for a keyword-search-based YouTube
+sample - the central "Sample-Zugehoerigkeits"-Skript aus COMPLETE_PROCESS.md
+Schritt 1.
 
-The script combines:
+The script combines, entirely from the live `video_registry.sqlite` store
+(no JSON intermediate files, no one-off migration - see the module docstring
+of `youtube_code.store.video_registry`):
 
-1. channels discovered through party-name searches,
-2. the videos through which each channel was discovered,
-3. the registry describing the party-name search runs,
-4. channel-language classifications,
-5. channel metadata, and
-6. all videos in MAIN_VIDEO_FILE.
+1. channels discovered through keyword searches (video_registry.get_search_provenance),
+2. the videos through which each channel was discovered (same call),
+3. channel-language classifications (video_registry.get_language_classification),
+4. channel metadata (video_registry.get_channels), and
+5. the first-observed video date per channel and the publish date of every
+   identification video (video_registry.first_observed_dates / get_video_rows).
 
 The resulting table keeps every discovered channel. Eligibility flags determine
 which channels enter the current analysis. This makes it possible to lower the
 subscriber threshold later without reconstructing the sample provenance.
+
+QUERY_FILTER / SEARCH_PERIOD_FILTER select which part of the store's search
+history counts as "the sample" for this run - e.g. all channels found via
+"CDU" or "SPD" within 2021-02-24..2022-02-23. ANALYSIS_ID names the run and
+therefore its output subfolder (SAMPLES / ANALYSIS_ID), so a run with a
+different filter/ANALYSIS_ID (e.g. a CDU/SPD sample) never overwrites an
+existing one (e.g. the Russia/Ukraine longitudinal sample).
 
 Important date definitions
 --------------------------
@@ -21,14 +31,16 @@ channel_created_at:
     The creation timestamp reported by the YouTube Channels API.
 
 first_observed_video_date:
-    The earliest video for the channel contained in MAIN_VIDEO_FILE. If
-    MAIN_VIDEO_FILE excludes Shorts or unavailable videos, this is the first
-    observed eligible video, not necessarily the channel's first-ever upload.
+    The earliest video for the channel in video_registry.sqlite. Since the
+    registry is fed live by the collection scripts, this reflects whatever
+    has been fetched for the channel so far, not necessarily its first-ever
+    upload.
 
 first_identification_video_date:
-    The earliest publication date among the videos returned by the party-name
-    searches. This is based on the video's publication date, not the date on
-    which the API search was executed.
+    The earliest publication date among the videos returned by the keyword
+    searches selected via QUERY_FILTER/SEARCH_PERIOD_FILTER. This is based
+    on the video's publication date, not the date on which the API search
+    was executed.
 
 Channel types
 -------------
@@ -51,12 +63,11 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
 
 import pandas as pd
 
-from youtube_code.config import CHANNEL_LISTS, RAW, SAMPLES
-from youtube_code.politics_screening.screening_config import MAIN_VIDEO_FILE
+from youtube_code.config import SAMPLES
+from youtube_code.store import video_registry
 
 
 # =============================================================================
@@ -76,39 +87,16 @@ MIN_SUBSCRIBERS = 50_000
 # eligible_50k. MIN_SUBSCRIBERS does not have to be listed here.
 REUSABLE_SUBSCRIBER_THRESHOLDS = (10_000, 50_000)
 
-DISCOVERED_CHANNELS_FILE = (
-    CHANNEL_LISTS
-    / "all_identification"
-    / "all_channel_ids_discovered.json"
-)
+# Which slice of the store's search history defines "the sample" for this
+# run. None = no restriction on that dimension.
+#   QUERY_FILTER = ["CDU", "SPD"]                          -> only these queries
+#   SEARCH_PERIOD_FILTER = ("2021-02-24", "2022-02-23")    -> only runs whose
+#       full search window (search_runs.search_start/search_end) lies within
+#       this period (same semantics as video_identification.select_run_ids)
+QUERY_FILTER: list[str] | None = None
+SEARCH_PERIOD_FILTER: tuple[str, str] | None = None
 
-IDENTIFICATION_VIDEOS_FILE = (
-    CHANNEL_LISTS
-    / "all_identification"
-    / "identification_vids.json"
-)
-
-IDENTIFICATION_RUNS_FILE = (
-    CHANNEL_LISTS
-    / "all_identification"
-    / "runs_registry.json"
-)
-
-LANGUAGE_CLASSIFICATION_FILE = (
-    RAW
-    / "classified_channels_total.json"
-)
-
-CHANNEL_METADATA_FILE = (
-    RAW
-    / "channel_metadata_total.json"
-)
-
-OUTPUT_DIR = (
-    SAMPLES
-    / "russia"
-    / "longitudinal"
-)
+OUTPUT_DIR = SAMPLES / ANALYSIS_ID
 
 PROVENANCE_FILE = (
     OUTPUT_DIR
@@ -130,16 +118,15 @@ ELIGIBLE_CHANNELS_FILE = (
     / "eligible_channels_current.json"
 )
 
-# Identification videos referenced by identification_vids.json but not found
-# with a valid published_at in MAIN_VIDEO_FILE are written here (video_id,
-# channel_id) so their metadata can be collected separately. Written whenever
-# such videos exist, regardless of DRY_RUN or FAIL_ON_MISSING_...METADATA.
+# Identification videos selected by QUERY_FILTER/SEARCH_PERIOD_FILTER but not
+# found with a valid published_at in video_registry.sqlite (videos table) are
+# written here (video_id, channel_id) so their metadata can be collected
+# separately. Written whenever such videos exist, regardless of DRY_RUN or
+# FAIL_ON_MISSING_IDENTIFICATION_VIDEO_METADATA.
 MISSING_IDENTIFICATION_METADATA_FILE = (
     OUTPUT_DIR
     / "identification_videos_missing_metadata.json"
 )
-
-READ_CHUNK_SIZE = 50_000
 
 # First run with True. Set to False after checking the printed overview.
 DRY_RUN = False
@@ -198,94 +185,6 @@ def as_utc(
     )
 
 
-def read_json_records(
-    path: Path,
-) -> list[dict]:
-    """Read a regular JSON file expected to contain a list of dictionaries."""
-    with path.open("r", encoding="utf-8") as file:
-        data = json.load(file)
-
-    if not isinstance(data, list):
-        raise ValueError(
-            f"{path} must contain a JSON list, found {type(data).__name__}."
-        )
-
-    if data and not isinstance(data[0], dict):
-        raise ValueError(
-            f"{path} must contain a list of JSON objects."
-        )
-
-    return data
-
-
-def read_json_object(
-    path: Path,
-) -> dict:
-    """Read a regular JSON file expected to contain a dictionary."""
-    with path.open("r", encoding="utf-8") as file:
-        data = json.load(file)
-
-    if not isinstance(data, dict):
-        raise ValueError(
-            f"{path} must contain a JSON object, "
-            f"found {type(data).__name__}."
-        )
-
-    return data
-
-
-def read_discovered_channels(
-    path: Path,
-) -> pd.DataFrame:
-    """Read the JSON list of discovered channel IDs."""
-    with path.open("r", encoding="utf-8") as file:
-        data = json.load(file)
-
-    if not isinstance(data, list):
-        raise ValueError(
-            f"{path} must contain a JSON list of channel IDs."
-        )
-
-    channels = pd.DataFrame(
-        {"channel_id": pd.Series(data, dtype="string")}
-    )
-
-    if channels["channel_id"].isna().any():
-        raise ValueError(
-            f"{path} contains missing channel IDs."
-        )
-
-    ensure_unique(
-        channels,
-        "channel_id",
-        "discovered-channel file",
-    )
-
-    return channels
-
-
-def iter_main_video_chunks(
-    path: Path,
-    chunk_size: int,
-) -> Iterator[pd.DataFrame]:
-    """
-    Yield chunks from JSONL or a regular JSON list.
-
-    JSONL is strongly recommended for the large MAIN_VIDEO_FILE.
-    """
-    if path.suffix.lower() == ".jsonl":
-        yield from pd.read_json(
-            path,
-            lines=True,
-            chunksize=chunk_size,
-        )
-        return
-
-    complete = pd.read_json(path)
-    for start in range(0, len(complete), chunk_size):
-        yield complete.iloc[start : start + chunk_size].copy()
-
-
 def join_sorted_unique(
     values: pd.Series,
 ) -> str:
@@ -315,58 +214,83 @@ def write_json(
 
 
 # =============================================================================
-# INPUT PREPARATION
+# INPUT PREPARATION (all from video_registry.sqlite)
 # =============================================================================
 
-def load_language_classification(
-    path: Path,
+def load_search_provenance(
+    queries: list[str] | None,
+    search_period: tuple[str, str] | None,
 ) -> pd.DataFrame:
-    """Load one language-classification row per channel."""
-    df = pd.read_json(path)
+    """
+    Load one row per (video_id, channel_id, run_id, query) search hit from
+    the store, restricted to QUERY_FILTER/SEARCH_PERIOD_FILTER. This single
+    call replaces the former DISCOVERED_CHANNELS_FILE, IDENTIFICATION_VIDEOS_FILE
+    and IDENTIFICATION_RUNS_FILE (their found_by/run-registry validation is
+    already enforced when video_identification.py writes to the store).
+    """
+    provenance = video_registry.get_search_provenance(
+        queries=queries,
+        search_period=search_period,
+    )
+
+    require_columns(
+        provenance,
+        {"video_id", "channel_id", "run_id", "query"},
+        "video_registry.get_search_provenance()",
+    )
+
+    if provenance.empty:
+        raise ValueError(
+            "video_registry.get_search_provenance() returned no rows for "
+            f"QUERY_FILTER={queries!r}, SEARCH_PERIOD_FILTER={search_period!r}."
+        )
+
+    for column in ("video_id", "channel_id", "run_id", "query"):
+        provenance[column] = provenance[column].astype("string")
+
+    missing_channel = provenance["channel_id"].isna()
+    if missing_channel.any():
+        examples = provenance.loc[missing_channel, "video_id"].head(10).tolist()
+        raise ValueError(
+            "Some search hits have no channel_id in the videos table yet "
+            f"(collection incomplete). Example video IDs: {examples}"
+        )
+
+    return provenance
+
+
+def load_language_classification() -> pd.DataFrame:
+    """Load one language-classification row per channel from the store."""
+    df = video_registry.get_language_classification()
 
     require_columns(
         df,
         {"channel_id", "is_german"},
-        "language-classification file",
+        "video_registry.get_language_classification()",
     )
 
     df["channel_id"] = df["channel_id"].astype("string")
     ensure_unique(
         df,
         "channel_id",
-        "language-classification file",
+        "video_registry.get_language_classification()",
     )
 
-    optional_columns = [
-        "german_ratio",
-        "defaultLanguage",
-        "country",
-    ]
-    for column in optional_columns:
-        if column not in df.columns:
-            df[column] = pd.NA
-
-    return df[
+    return df.rename(
+        columns={"country": "classification_country"}
+    )[
         [
             "channel_id",
             "is_german",
             "german_ratio",
-            "defaultLanguage",
-            "country",
+            "classification_country",
         ]
-    ].rename(
-        columns={
-            "defaultLanguage": "default_language",
-            "country": "classification_country",
-        }
-    )
+    ]
 
 
-def load_channel_metadata(
-    path: Path,
-) -> pd.DataFrame:
+def load_channel_metadata() -> pd.DataFrame:
     """Load channel metadata needed for eligibility and creation dates."""
-    df = pd.read_json(path)
+    df = video_registry.get_channels()
 
     require_columns(
         df,
@@ -375,25 +299,15 @@ def load_channel_metadata(
             "subscribers",
             "published_at",
         },
-        "channel-metadata file",
+        "video_registry.get_channels()",
     )
 
     df["channel_id"] = df["channel_id"].astype("string")
     ensure_unique(
         df,
         "channel_id",
-        "channel-metadata file",
+        "video_registry.get_channels()",
     )
-
-    optional_columns = [
-        "title",
-        "hidden_subscriber_count",
-        "country",
-        "video_count",
-    ]
-    for column in optional_columns:
-        if column not in df.columns:
-            df[column] = pd.NA
 
     df["subscribers"] = pd.to_numeric(
         df["subscribers"],
@@ -427,256 +341,51 @@ def load_channel_metadata(
     )
 
 
-def load_and_validate_identification_videos(
-    path: Path,
-    run_registry: dict,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Load identification videos and normalize their found_by entries.
-
-    Returns
-    -------
-    videos:
-        One row per identification video.
-    discoveries:
-        One row per video × run × query combination.
-    """
-    records = read_json_records(path)
-    videos = pd.DataFrame(records)
-
-    require_columns(
-        videos,
-        {"video_id", "channel_id", "found_by"},
-        "identification-video file",
-    )
-
-    videos["video_id"] = videos["video_id"].astype("string")
-    videos["channel_id"] = videos["channel_id"].astype("string")
-    ensure_unique(
-        videos,
-        "video_id",
-        "identification-video file",
-    )
-
-    discovery_rows: list[dict] = []
-    malformed_found_by: list[str] = []
-
-    for row in videos.itertuples(index=False):
-        found_by = row.found_by
-
-        if not isinstance(found_by, list) or not found_by:
-            malformed_found_by.append(str(row.video_id))
-            continue
-
-        for discovery in found_by:
-            if not isinstance(discovery, dict):
-                malformed_found_by.append(str(row.video_id))
-                continue
-
-            run_id = str(discovery.get("run_id", "")).strip()
-            query = str(discovery.get("query", "")).strip()
-
-            if not run_id or not query:
-                malformed_found_by.append(str(row.video_id))
-                continue
-
-            if run_id not in run_registry:
-                raise ValueError(
-                    f"Identification video {row.video_id} references "
-                    f"unknown run_id {run_id}."
-                )
-
-            registered_queries = {
-                str(value)
-                for value in run_registry[run_id].get("queries", [])
-            }
-            if query not in registered_queries:
-                raise ValueError(
-                    f"Query {query!r} for video {row.video_id} is not "
-                    f"registered for run {run_id}."
-                )
-
-            discovery_rows.append(
-                {
-                    "video_id": str(row.video_id),
-                    "channel_id": str(row.channel_id),
-                    "run_id": run_id,
-                    "query": query,
-                }
-            )
-
-    if malformed_found_by:
-        examples = malformed_found_by[:10]
-        raise ValueError(
-            "Malformed or empty found_by entries detected. "
-            f"Example video IDs: {examples}"
-        )
-
-    discoveries = pd.DataFrame(discovery_rows)
-    if discoveries.empty:
-        raise ValueError(
-            "No valid identification discoveries were found."
-        )
-
-    discoveries = discoveries.drop_duplicates(
-        ["video_id", "channel_id", "run_id", "query"]
-    )
-
-    return (
-        videos[["video_id", "channel_id"]].copy(),
-        discoveries,
-    )
-
-
 # =============================================================================
-# MAIN-VIDEO SCAN
+# VIDEO-REGISTRY LOOKUP (replaces the former MAIN_VIDEO_FILE scan)
 # =============================================================================
 
-def scan_main_video_file(
-    main_video_file: Path,
+def lookup_first_observed_and_identification_dates(
     discovered_channel_ids: set[str],
     identification_video_ids: set[str],
-    chunk_size: int,
 ) -> tuple[pd.Series, pd.DataFrame, dict]:
     """
-    Scan MAIN_VIDEO_FILE once.
+    Direct SQL lookups against video_registry.sqlite instead of streaming a
+    MAIN_VIDEO_FILE JSONL:
 
-    The function obtains:
-    - the earliest observed publication date per discovered channel, and
-    - metadata for all identification videos.
+    - the earliest observed publication date per discovered channel
+      (video_registry.first_observed_dates), and
+    - metadata (channel_id, published_at) for all identification videos
+      (video_registry.get_video_rows).
     """
-    chunk_minima: list[pd.Series] = []
-    identification_matches: list[pd.DataFrame] = []
+    first_observed = video_registry.first_observed_dates(discovered_channel_ids)
+    first_observed = as_utc(first_observed).rename("first_observed_video_date")
 
-    total_rows = 0
-    invalid_dates = 0
-    relevant_rows = 0
+    identification_metadata = video_registry.get_video_rows(identification_video_ids)
+    identification_metadata["video_id"] = identification_metadata["video_id"].astype("string")
+    identification_metadata["channel_id"] = identification_metadata["channel_id"].astype("string")
+    identification_metadata["published_at"] = as_utc(identification_metadata["published_at"])
+    identification_metadata = identification_metadata.dropna(
+        subset=["video_id", "channel_id", "published_at"]
+    )
 
-    for chunk_number, chunk in enumerate(
-        iter_main_video_chunks(
-            main_video_file,
-            chunk_size,
-        ),
-        start=1,
-    ):
-        require_columns(
-            chunk,
-            {"video_id", "channel_id", "published_at"},
-            f"MAIN_VIDEO_FILE chunk {chunk_number}",
-        )
+    ensure_unique(
+        identification_metadata,
+        "video_id",
+        "video_registry.get_video_rows() for identification videos",
+    )
 
-        chunk = chunk[
-            ["video_id", "channel_id", "published_at"]
-        ].copy()
-
-        chunk["video_id"] = chunk["video_id"].astype("string")
-        chunk["channel_id"] = chunk["channel_id"].astype("string")
-        chunk["published_at"] = as_utc(chunk["published_at"])
-
-        total_rows += len(chunk)
-        invalid_dates += int(chunk["published_at"].isna().sum())
-
-        relevant = chunk.loc[
-            chunk["channel_id"].isin(discovered_channel_ids)
-        ].dropna(
-            subset=["channel_id", "published_at"]
-        )
-
-        relevant_rows += len(relevant)
-
-        if not relevant.empty:
-            chunk_minima.append(
-                relevant.groupby(
-                    "channel_id",
-                    sort=False,
-                )["published_at"].min()
-            )
-
-        identification_match = chunk.loc[
-            chunk["video_id"].isin(identification_video_ids)
-        ].dropna(
-            subset=["video_id", "channel_id", "published_at"]
-        )
-
-        if not identification_match.empty:
-            identification_matches.append(
-                identification_match
-            )
-
-        print(
-            f"MAIN_VIDEO_FILE chunk {chunk_number}: "
-            f"{len(chunk):,} rows, "
-            f"{len(relevant):,} discovered-channel videos, "
-            f"{len(identification_match):,} identification videos"
-        )
-
-    if not chunk_minima:
-        first_observed = pd.Series(
-            dtype="datetime64[ns, UTC]",
-            name="first_observed_video_date",
-        )
-    else:
-        first_observed = (
-            pd.concat(chunk_minima)
-            .groupby(level=0)
-            .min()
-            .rename("first_observed_video_date")
-        )
-
-    if not identification_matches:
-        identification_metadata = pd.DataFrame(
-            columns=[
-                "video_id",
-                "channel_id",
-                "published_at",
-            ]
-        )
-    else:
-        identification_metadata = pd.concat(
-            identification_matches,
-            ignore_index=True,
-        )
-
-        duplicate_counts = (
-            identification_metadata
-            .groupby("video_id", sort=False)
-            .agg(
-                channel_count=("channel_id", "nunique"),
-                date_count=("published_at", "nunique"),
-            )
-        )
-
-        conflicting = duplicate_counts.loc[
-            duplicate_counts["channel_count"].gt(1)
-            | duplicate_counts["date_count"].gt(1)
-        ]
-
-        if not conflicting.empty:
-            raise ValueError(
-                "Conflicting duplicate identification-video metadata "
-                f"found for {len(conflicting):,} video IDs. Examples: "
-                f"{conflicting.index.astype(str).tolist()[:10]}"
-            )
-
-        identification_metadata = (
-            identification_metadata
-            .drop_duplicates("video_id", keep="first")
-        )
-
-    scan_summary = {
-        "main_video_rows": int(total_rows),
-        "main_video_rows_with_invalid_date": int(invalid_dates),
-        "discovered_channel_video_rows": int(relevant_rows),
+    lookup_summary = {
+        "discovered_channels_queried": int(len(discovered_channel_ids)),
         "channels_with_observed_video": int(len(first_observed)),
-        "identification_videos_matched": int(
-            identification_metadata["video_id"].nunique()
-        ),
+        "identification_videos_queried": int(len(identification_video_ids)),
+        "identification_videos_matched": int(len(identification_metadata)),
     }
 
     return (
         first_observed,
         identification_metadata,
-        scan_summary,
+        lookup_summary,
     )
 
 
@@ -717,7 +426,7 @@ def write_missing_identification_metadata(
     missing_metadata: pd.DataFrame,
 ) -> None:
     """
-    Persist relevant identification videos without MAIN_VIDEO_FILE metadata.
+    Persist relevant identification videos without video_registry metadata.
 
     Only videos belonging to channels relevant to the current analysis
     (German, subscribers > MIN_SUBSCRIBERS) are written, since those are the
@@ -749,7 +458,7 @@ def write_missing_identification_metadata(
 
     print(
         f"Saved {len(records):,} identification videos (relevant "
-        f"channels only) without MAIN_VIDEO_FILE metadata to "
+        f"channels only) without video_registry metadata to "
         f"{MISSING_IDENTIFICATION_METADATA_FILE}"
     )
 
@@ -794,8 +503,8 @@ def build_identification_provenance(
             .to_dict("records")
         )
         raise ValueError(
-            "Channel IDs disagree between identification_vids and "
-            f"MAIN_VIDEO_FILE. Examples: {examples}"
+            "Channel IDs disagree between video_search_hits/videos and "
+            f"video_registry.get_video_rows(). Examples: {examples}"
         )
 
     missing_metadata = merged.loc[
@@ -824,7 +533,7 @@ def build_identification_provenance(
             f"{len(missing_relevant):,} identification videos from "
             "channels relevant to the current analysis (German, "
             f"subscribers > {MIN_SUBSCRIBERS:,}) were not found with "
-            "valid metadata in MAIN_VIDEO_FILE. Examples: "
+            "valid metadata in video_registry.sqlite. Examples: "
             f"{missing_relevant['video_id'].astype(str).head(10).tolist()}"
         )
 
@@ -1230,23 +939,12 @@ def create_summary(
     issues: pd.DataFrame,
     missing_identification_metadata: pd.DataFrame,
     identification_videos_total: int,
-    scan_summary: dict,
-    run_registry: dict,
+    lookup_summary: dict,
+    discoveries: pd.DataFrame,
 ) -> dict:
     """Create a machine-readable audit summary."""
     german = channels["eligible_german"]
     eligible = channels["eligible_current_analysis"]
-
-    run_starts = [
-        value.get("search_start")
-        for value in run_registry.values()
-        if value.get("search_start")
-    ]
-    run_ends = [
-        value.get("search_end")
-        for value in run_registry.values()
-        if value.get("search_end")
-    ]
 
     reusable_counts = {}
     for threshold in sorted(
@@ -1271,16 +969,16 @@ def create_summary(
             "reusable_subscriber_thresholds": list(
                 sorted(REUSABLE_SUBSCRIBER_THRESHOLDS)
             ),
-            "main_video_file": str(MAIN_VIDEO_FILE),
+            "query_filter": QUERY_FILTER,
+            "search_period_filter": (
+                list(SEARCH_PERIOD_FILTER)
+                if SEARCH_PERIOD_FILTER
+                else None
+            ),
         },
         "search_registry": {
-            "runs": int(len(run_registry)),
-            "earliest_search_start": (
-                min(run_starts) if run_starts else None
-            ),
-            "latest_search_end_exclusive": (
-                max(run_ends) if run_ends else None
-            ),
+            "runs_referenced": int(discoveries["run_id"].nunique()),
+            "queries_referenced": int(discoveries["query"].nunique()),
         },
         "counts": {
             "discovered_channels": int(len(channels)),
@@ -1331,7 +1029,7 @@ def create_summary(
             channels,
             eligible,
         ),
-        "main_video_scan": scan_summary,
+        "video_registry_lookup": lookup_summary,
     }
 
 
@@ -1346,6 +1044,8 @@ def print_overview(
     print("=" * 72)
     print(f"Analysis ID: {ANALYSIS_ID}")
     print(f"Reference date: {REFERENCE_DATE}")
+    print(f"Query filter: {QUERY_FILTER or 'alle Suchbegriffe'}")
+    print(f"Search period filter: {SEARCH_PERIOD_FILTER or 'alle Laeufe'}")
     print(
         "Subscriber rule: subscribers > "
         f"{MIN_SUBSCRIBERS:,}"
@@ -1497,98 +1197,46 @@ def main() -> None:
     else:
         reference = reference.tz_convert("UTC")
 
-    required_files = [
-        DISCOVERED_CHANNELS_FILE,
-        IDENTIFICATION_VIDEOS_FILE,
-        IDENTIFICATION_RUNS_FILE,
-        LANGUAGE_CLASSIFICATION_FILE,
-        CHANNEL_METADATA_FILE,
-        MAIN_VIDEO_FILE,
-    ]
+    print("Loading search provenance from video_registry.sqlite "
+          f"(QUERY_FILTER={QUERY_FILTER!r}, SEARCH_PERIOD_FILTER={SEARCH_PERIOD_FILTER!r}).")
+    provenance = load_search_provenance(QUERY_FILTER, SEARCH_PERIOD_FILTER)
 
-    missing_files = [
-        path
-        for path in required_files
-        if not path.exists()
-    ]
-
-    if missing_files:
-        formatted = "\n".join(
-            f"  - {path}"
-            for path in missing_files
-        )
-        raise FileNotFoundError(
-            "Required input files are missing:\n"
-            f"{formatted}"
-        )
-
-    print("Loading discovered channels.")
-    discovered = read_discovered_channels(
-        DISCOVERED_CHANNELS_FILE
+    discovered_ids = set(provenance["channel_id"].astype(str))
+    discovered = pd.DataFrame(
+        {"channel_id": pd.Series(sorted(discovered_ids), dtype="string")}
     )
+
+    identification_videos = (
+        provenance[["video_id", "channel_id"]]
+        .drop_duplicates(subset="video_id")
+        .reset_index(drop=True)
+    )
+    ensure_unique(
+        identification_videos,
+        "video_id",
+        "video_registry.get_search_provenance() (video_id -> channel_id)",
+    )
+
+    discoveries = provenance[
+        ["video_id", "channel_id", "run_id", "query"]
+    ].drop_duplicates()
 
     print("Loading language classifications.")
-    language = load_language_classification(
-        LANGUAGE_CLASSIFICATION_FILE
-    )
+    language = load_language_classification()
 
     print("Loading channel metadata.")
-    metadata = load_channel_metadata(
-        CHANNEL_METADATA_FILE
-    )
+    metadata = load_channel_metadata()
 
-    print("Loading and validating identification registry.")
-    run_registry = read_json_object(
-        IDENTIFICATION_RUNS_FILE
-    )
-
-    print("Loading and validating identification videos.")
-    (
-        identification_videos,
-        discoveries,
-    ) = load_and_validate_identification_videos(
-        IDENTIFICATION_VIDEOS_FILE,
-        run_registry,
-    )
-
-    discovered_ids = set(
-        discovered["channel_id"].astype(str)
-    )
-
-    identification_channel_ids = set(
-        identification_videos["channel_id"].astype(str)
-    )
-
-    if identification_channel_ids != discovered_ids:
-        missing_identification = (
-            discovered_ids - identification_channel_ids
-        )
-        unexpected_identification = (
-            identification_channel_ids - discovered_ids
-        )
-
-        raise ValueError(
-            "Discovered-channel IDs and identification-video channel IDs "
-            "do not match. "
-            f"Without identification video: "
-            f"{len(missing_identification):,}; "
-            f"unexpected: {len(unexpected_identification):,}."
-        )
-
-    print("Scanning MAIN_VIDEO_FILE.")
+    print("Looking up first-observed and identification-video dates in video_registry.sqlite.")
     (
         first_observed,
         identification_metadata,
-        scan_summary,
-    ) = scan_main_video_file(
-        MAIN_VIDEO_FILE,
+        lookup_summary,
+    ) = lookup_first_observed_and_identification_dates(
         discovered_channel_ids=discovered_ids,
         identification_video_ids=set(
-            identification_videos[
-                "video_id"
-            ].astype(str)
+            identification_videos["video_id"].astype(str)
         ),
-        chunk_size=READ_CHUNK_SIZE,
     )
 
     print("Determining channels relevant to the current analysis.")
@@ -1625,8 +1273,8 @@ def main() -> None:
         issues,
         missing_identification_metadata,
         len(identification_videos),
-        scan_summary,
-        run_registry,
+        lookup_summary,
+        discoveries,
     )
 
     print_overview(summary)
