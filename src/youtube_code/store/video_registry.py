@@ -8,6 +8,9 @@ video_details), die Such-Provenienz aus der Kanal-Identifikations-Recherche
 Recherche-Lauf ein Video gefunden wurde), die Sprach-Klassifikation je Kanal
 (language_classification) sowie die Kanal-Metadaten (channels: Abonnenten,
 Gruendungsdatum etc., siehe get_channel_metadata() in youtube_code.utils.io).
+Zusaetzlich die Keyword-basierte Themen-Relevanz je Video (video_topic_relevance,
+z.B. Ukraine-Krieg-Bezug, siehe youtube_code.step3_war_videos) - nicht zu
+verwechseln mit der YouTube-API-eigenen Spalte video_details.topic_relevant_topic_ids.
 Alle vier laufen seit der Anbindung der Collection-Skripte (video_identification.py,
 channel_all_videos.py, get_channel_metadata()/get_video_metadata() in
 youtube_code.utils.io) live mit, statt nur per Einmal-Migration befuellt zu
@@ -127,6 +130,19 @@ CREATE TABLE IF NOT EXISTS channels (
 )
 """
 
+_TOPIC_RELEVANCE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS video_topic_relevance (
+    video_id            TEXT NOT NULL,
+    topic               TEXT NOT NULL,
+    is_relevant         INTEGER,
+    matched_keywords    TEXT,
+    title_only          INTEGER,
+    keyword_set_version TEXT,
+    classified_at       TEXT,
+    PRIMARY KEY (video_id, topic)
+)
+"""
+
 _UPSERT_SQL = """
 INSERT INTO videos (
     video_id, channel_id, published_at, title,
@@ -204,6 +220,24 @@ ON CONFLICT(channel_id) DO UPDATE SET
     banner_url = COALESCE(channels.banner_url, excluded.banner_url)
 """
 
+# Bewusst die umgekehrte COALESCE-Richtung wie bei _CHANNELS_UPSERT_SQL/_UPSERT_SQL
+# (dort gewinnt der alte Wert fuer immer): ein Re-Klassifizierungslauf mit neuer
+# keyword_set_version soll bestehende Zeilen ueberschreiben koennen, aehnlich
+# _UPSERT_CLASSIFICATION_SQL.
+_TOPIC_RELEVANCE_UPSERT_SQL = """
+INSERT INTO video_topic_relevance (
+    video_id, topic, is_relevant, matched_keywords, title_only,
+    keyword_set_version, classified_at
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(video_id, topic) DO UPDATE SET
+    is_relevant = COALESCE(excluded.is_relevant, video_topic_relevance.is_relevant),
+    matched_keywords = COALESCE(excluded.matched_keywords, video_topic_relevance.matched_keywords),
+    title_only = COALESCE(excluded.title_only, video_topic_relevance.title_only),
+    keyword_set_version = COALESCE(excluded.keyword_set_version, video_topic_relevance.keyword_set_version),
+    classified_at = COALESCE(excluded.classified_at, video_topic_relevance.classified_at)
+"""
+
 
 def _ensure_video_columns(con) -> None:
     """
@@ -244,6 +278,7 @@ def _connect() -> sqlite3.Connection:
     con.execute(_SEARCH_HITS_SCHEMA)
     con.execute(_LANGUAGE_SCHEMA)
     con.execute(_CHANNELS_SCHEMA)
+    con.execute(_TOPIC_RELEVANCE_SCHEMA)
     _ensure_video_columns(con)
     return con
 
@@ -466,6 +501,47 @@ def upsert_channels(records) -> int:
     return len(rows)
 
 
+def upsert_topic_relevance(records) -> int:
+    """
+    Schreibt die Keyword-basierte Themen-Klassifikation (z.B. Ukraine-Krieg-
+    Bezug, siehe youtube_code.step3_war_videos) in video_topic_relevance.
+    Nicht zu verwechseln mit video_details.topic_relevant_topic_ids (das ist
+    die YouTube-API-eigene Freebase-Topic-Kategorisierung - inhaltlich
+    voellig unabhaengig, nur Namensaehnlichkeit).
+
+    Anders als upsert_channels/upsert_videos gewinnt hier der NEUE Wert
+    (COALESCE(excluded.col, table.col), siehe _TOPIC_RELEVANCE_UPSERT_SQL):
+    ein Re-Klassifizierungslauf mit neuer keyword_set_version soll
+    bestehende Zeilen ueberschreiben koennen, statt sie fuer immer
+    einzufrieren.
+    """
+    rows = []
+    for r in records:
+        vid = r.get("video_id")
+        topic = r.get("topic")
+        if not vid or not topic:
+            continue
+        rows.append((
+            str(vid).strip(),
+            str(topic).strip(),
+            r.get("is_relevant"),
+            _to_json(r.get("matched_keywords")),
+            r.get("title_only"),
+            r.get("keyword_set_version"),
+            r.get("classified_at"),
+        ))
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_TOPIC_RELEVANCE_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
 def export_jsonl(output_path, include_title: bool = False) -> int:
     """
     Schreibt einen vollstaendigen Snapshot der Registry als JSONL nach
@@ -538,6 +614,19 @@ def channels_count() -> int:
     con = _connect()
     try:
         return con.execute("SELECT COUNT(*) FROM channels").fetchone()[0]
+    finally:
+        con.close()
+
+
+def topic_relevance_count(topic=None) -> int:
+    """Anzahl Zeilen in video_topic_relevance, optional auf ein topic gefiltert."""
+    con = _connect()
+    try:
+        if topic is None:
+            return con.execute("SELECT COUNT(*) FROM video_topic_relevance").fetchone()[0]
+        return con.execute(
+            "SELECT COUNT(*) FROM video_topic_relevance WHERE topic = ?", (str(topic),)
+        ).fetchone()[0]
     finally:
         con.close()
 
@@ -770,5 +859,100 @@ def get_search_provenance(queries=None, search_period=None):
     con = _connect()
     try:
         return pd.read_sql_query(sql, con, params=params)
+    finally:
+        con.close()
+
+
+def get_topic_relevance(topic, video_ids=None):
+    """
+    Gibt die video_topic_relevance-Zeilen fuer ein topic zurueck - vollstaendig,
+    oder auf video_ids gefiltert, wenn uebergeben. Siehe upsert_topic_relevance()
+    fuer die Abgrenzung zu video_details.topic_relevant_topic_ids.
+    """
+    import pandas as pd
+
+    con = _connect()
+    try:
+        if video_ids is None:
+            return pd.read_sql_query(
+                "SELECT * FROM video_topic_relevance WHERE topic = ?",
+                con, params=[str(topic)],
+            )
+
+        video_ids = [str(v) for v in video_ids if v]
+        if not video_ids:
+            return pd.read_sql_query("SELECT * FROM video_topic_relevance WHERE 0", con)
+
+        frames = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT * FROM video_topic_relevance "
+                f"WHERE topic = ? AND video_id IN ({placeholders})",
+                con,
+                params=[str(topic), *chunk],
+            ))
+        return pd.concat(frames, ignore_index=True) if frames else pd.read_sql_query(
+            "SELECT * FROM video_topic_relevance WHERE 0", con
+        )
+    finally:
+        con.close()
+
+
+def topic_relevant_video_ids(topic) -> set:
+    """
+    Gibt alle video_ids zurueck, die fuer topic als is_relevant=1 klassifiziert
+    wurden (Muster: transcript_store.attempted_video_ids()).
+    """
+    con = _connect()
+    try:
+        return {
+            row[0] for row in con.execute(
+                "SELECT video_id FROM video_topic_relevance WHERE topic = ? AND is_relevant = 1",
+                (str(topic),),
+            )
+        }
+    finally:
+        con.close()
+
+
+def get_videos_with_text(channel_ids=None, video_ids=None):
+    """
+    Gibt video_id/channel_id/published_at/title/description zurueck (videos
+    LEFT JOIN video_details), optional auf channel_ids oder video_ids gefiltert.
+    Grundlage fuer die Keyword-Klassifikation in youtube_code.step3_war_videos.
+    """
+    import pandas as pd
+
+    cols = "v.video_id, v.channel_id, v.published_at, v.title, d.description"
+    base_sql = (
+        f"SELECT {cols} FROM videos v "
+        f"LEFT JOIN video_details d ON v.video_id = d.video_id"
+    )
+    out_cols = ["video_id", "channel_id", "published_at", "title", "description"]
+
+    if channel_ids is None and video_ids is None:
+        con = _connect()
+        try:
+            return pd.read_sql_query(base_sql, con)
+        finally:
+            con.close()
+
+    filter_col, filter_ids = ("v.channel_id", channel_ids) if channel_ids is not None else ("v.video_id", video_ids)
+    filter_ids = [str(x) for x in filter_ids if x]
+    if not filter_ids:
+        return pd.DataFrame(columns=out_cols)
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(filter_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"{base_sql} WHERE {filter_col} IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols)
     finally:
         con.close()

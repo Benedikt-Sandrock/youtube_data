@@ -66,7 +66,7 @@ except ImportError:
 # KONFIGURATION
 # ---------------------------------------------------------------------------
 
-JSONL_PATH = r"C:\Users\bened\PycharmProjects\youtube_data\data\samples\russia\sample_50k_channels_russia_ukraine_wo_shorts.jsonl"
+JSONL_PATH = r"/data/samples/russia/sample_50k_channels_russia_ukraine_wo_shorts.jsonl"
 OUTDIR     = r"C:\Users\bened\PycharmProjects\youtube_data\outputs\sample_feasibility"
 COMMAND    = "compare"          # clean | extract | diagnose | all
 LIMIT      = None

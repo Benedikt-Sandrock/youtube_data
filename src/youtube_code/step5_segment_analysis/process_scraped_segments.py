@@ -35,11 +35,12 @@ video_id + segment_index.
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
 import re
 import sys
+from pathlib import Path
+from typing import Iterable
 
 import pandas as pd
 
@@ -304,50 +305,58 @@ def load_video_id_filter() -> set[str]:
     return ids
 
 
-def build_segments_file() -> None:
+def build_segments(video_ids: Iterable[str], *, out_file: Path = OUT_FILE) -> pd.DataFrame:
+    """
+    Baut aus `video_ids` Segmente/Ausschnitte (siehe MODUS) und schreibt sie
+    nach `out_file`. Gibt das geschriebene DataFrame (Spalten video_id,
+    segment_index, text, n_woerter) zurueck, damit Aufrufer - z. B. die
+    select_baseline_targets()/select_cell_fill_targets()/
+    select_war_period_targets()-Funktionen aus
+    step4_transcript_download/select_targets.py - direkt weiterarbeiten
+    koennen, ohne die CSV erneut einzulesen.
+    """
     if MODUS not in ("segmente", "ganze_transkripte"):
         sys.exit(f"MODUS muss 'segmente' oder 'ganze_transkripte' sein, ist {MODUS!r}.")
 
-    wanted = load_video_id_filter()
+    wanted = {str(v).strip() for v in video_ids if str(v).strip()}
+    if not wanted:
+        sys.exit("build_segments() wurde ohne video_ids aufgerufen.")
+
     records = get_transcripts(wanted)
     found: set[str] = set(records.keys())
     excluded_by_status: set[str] = set()
     n_skipped_short = 0
-    n_rows = 0
     n_excerpted = 0
     n_capped = 0
-    word_counts: list[int] = []
+    rows: list[tuple[str, int, str, int]] = []
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    with OUT_FILE.open("w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(["video_id", "segment_index", "text", "n_woerter"])
+    for video_id, rec in records.items():
+        if NUR_STATUS_OK and str(rec.get("status")).lower() != "ok":
+            excluded_by_status.add(video_id)
+            continue
 
-        for video_id, rec in records.items():
-            if NUR_STATUS_OK and str(rec.get("status")).lower() != "ok":
-                excluded_by_status.add(video_id)
-                continue
+        text = transcript_to_text(rec.get("transcript_segments"))
+        if text is None:
+            n_skipped_short += 1
+            continue
 
-            text = transcript_to_text(rec.get("transcript_segments"))
-            if text is None:
-                n_skipped_short += 1
-                continue
+        if MODUS == "ganze_transkripte":
+            if len(text.split()) > EXCERPT_WORD_BUDGET:
+                n_excerpted += 1
+            segment_rows = [(0, build_excerpt(text))]
+        else:  # "segmente"
+            all_segments = split_segments(text)
+            if MAX_SEGMENTS_PER_VIDEO is not None and len(all_segments) > MAX_SEGMENTS_PER_VIDEO:
+                n_capped += 1
+            keep = select_capped_indices(len(all_segments), MAX_SEGMENTS_PER_VIDEO)
+            segment_rows = [(i, all_segments[i]) for i in keep]
 
-            if MODUS == "ganze_transkripte":
-                if len(text.split()) > EXCERPT_WORD_BUDGET:
-                    n_excerpted += 1
-                rows = [(0, build_excerpt(text))]
-            else:  # "segmente"
-                all_segments = split_segments(text)
-                if MAX_SEGMENTS_PER_VIDEO is not None and len(all_segments) > MAX_SEGMENTS_PER_VIDEO:
-                    n_capped += 1
-                keep = select_capped_indices(len(all_segments), MAX_SEGMENTS_PER_VIDEO)
-                rows = [(i, all_segments[i]) for i in keep]
+        for segment_index, segment_text in segment_rows:
+            rows.append((video_id, segment_index, segment_text, len(segment_text.split())))
 
-            for segment_index, segment_text in rows:
-                writer.writerow([video_id, segment_index, segment_text, len(segment_text.split())])
-                word_counts.append(len(segment_text.split()))
-                n_rows += 1
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame(rows, columns=["video_id", "segment_index", "text", "n_woerter"])
+    df.to_csv(out_file, index=False, encoding="utf-8-sig")
 
     not_in_file = sorted(wanted - found)
 
@@ -372,17 +381,23 @@ def build_segments_file() -> None:
             f"(> {MAX_SEGMENTS_PER_VIDEO} Segmente, auf "
             f"{MAX_SEGMENTS_PER_VIDEO} verteilte Segmente reduziert)"
         )
-    print(f"Zeilen geschrieben  : {n_rows:,}")
-    if word_counts:
-        series = pd.Series(word_counts)
+    print(f"Zeilen geschrieben  : {len(df):,}")
+    if not df.empty:
+        series = df["n_woerter"]
         print(f"Woerter/Zeile       : median={series.median():.0f} max={series.max():,}")
-    print(f"Datei               : {OUT_FILE}")
+    print(f"Datei               : {out_file}")
     print("=" * 64)
     print(
         "\nDirekt als SEGMENT_FILE in submit_segments.py nutzbar - "
         "die Spalten video_id/segment_index/text entsprechen den "
         "Standard-Konfigurationsnamen dort."
     )
+
+    return df
+
+
+def build_segments_file() -> None:
+    build_segments(load_video_id_filter())
 
 
 # ============================================================

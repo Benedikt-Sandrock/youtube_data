@@ -26,14 +26,14 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, SAMPLES
-from youtube_code.segment_analysis.segment_analysis_config import (
+from youtube_code.step5_segment_analysis.segment_analysis_config import (
     BATCH_INPUT_DIR,
     LLM_RUN_SOURCE,
     MANIFEST_DIR,
 )
 from youtube_code.store import llm_run_store
 
-from youtube_code.segment_analysis.segment_prompts_simple import get_bundle
+from youtube_code.step5_segment_analysis.segment_prompts_simple import get_bundle
 
 
 # ============================================================

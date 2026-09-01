@@ -1,0 +1,394 @@
+# Schritt 2 — Vor- und Nachkriegs-Baselinekanäle
+
+Longitudinales Politik-Screening zur Bestimmung eines Baseline-Fensters je
+Kanal: ein Zeitraum, für den genügend politisch klassifizierte Videos
+vorliegen, um später als Vergleichsbasis (vor/kurz nach Kriegsbeginn) neben
+den Kriegsvideos (Schritt 3) in die Analyse einzugehen. Siehe
+`COMPLETE_PROCESS.md` Schritt 2 für die Einordnung in den Gesamtprozess.
+
+- **Zentrale Speicherung:** `data/store/screening_state.sqlite`
+  (`src/youtube_code/store/screening_state_store.py`) — seit Phase 4d der
+  Restrukturierung die alleinige Quelle der Wahrheit, nicht mehr die frühere
+  `data/samples/russia/longitudinal_screening_state.csv`. Die Datei ist
+  **nicht** git-getrackt — vor jedem schreibenden Schritt sichern (siehe
+  unten).
+- **Scripts:** dieses Verzeichnis (inkl. `longitudinal/`) sowie die geteilte
+  Batch-Infrastruktur in `src/youtube_code/llm_analysis/`.
+
+## 1. Wie das Baseline-Fenster pro Kanal festgelegt wird
+
+Jede Zeile im State hat `period` (Monatsabstand zu einem Referenzdatum) sowie
+daraus abgeleitet `interval_index`/`interval_label` (3-Monats-Buckets). Es
+gibt zwei Mechanismen, je nachdem, ob ein Kanal den Kriegsbeginn schon
+"erlebt" hat:
+
+### a) Normalfall — Kanal existierte schon vor Kriegsbeginn
+
+- Referenzdatum ist global: **2022-02-24** (Kriegsbeginn), Konstante
+  `REFERENCE_DATE` in `longitudinal/append_channels_to_state.py`.
+- `period` = Monatsdifferenz `published_at` zu diesem Referenzdatum
+  (`calculate_period()`), negative Werte liegen vor Kriegsbeginn.
+- `interval_index`/`interval_label` entstehen aus
+  `assign_intervals(period, interval_start=INTERVAL_START,
+  interval_size=INTERVAL_SIZE)` (`longitudinal/interval_assignment.py`), mit
+  `INTERVAL_START=-12`, `INTERVAL_SIZE=3` aus `screening_config.py` —
+  3-Monats-Buckets ab Monat -12.
+- **Das Baseline-Fenster ist `interval_index` 0–3**, d. h. die vier Intervalle
+  `-12_to_-10`, `-9_to_-7`, `-6_to_-4`, `-3_to_-1` — zusammen die 12 Monate
+  unmittelbar vor Kriegsbeginn (2021-02-24 bis 2022-02-23).
+- Kanäle, deren historische Videos/Metadaten für dieses Fenster fehlten,
+  werden über `longitudinal/append_channels_to_state.py` nachträglich um
+  genau diese Zeilen ergänzt (siehe Ablauf in Abschnitt 3) — das Skript
+  erkennt automatisch, ob ein Kanal schon Zeilen im State hat (dann wird nur
+  `period<0` ergänzt) oder komplett neu ist (dann der volle Zeitraum ab
+  `INTERVAL_START`).
+
+### b) Sonderfall — Kanal wurde erst nach Kriegsbeginn erstellt
+
+Für Kanäle ohne "Vorher" gibt es kein globales Vorkriegsfenster. Stattdessen
+weist `longitudinal/assign_postwar_baseline.py` kanal-individuell ein
+Ersatzfenster zu:
+
+- Kandidatenkanäle: `published_at` (Kanal-Erstelldatum) ≥ Kriegsbeginn,
+  `is_german == True`, Abonnenten ≥ `MIN_SUBSCRIBERS` (50.000).
+- Fenster beginnt am Kanal-Erstelldatum und wird adaptiv erweitert:
+  `WINDOW_STEPS_MONTHS = [3, 6, 9, 12]` — es wird das kleinste Fenster
+  genommen, in dem bereits `TARGET_WITH_BUFFER_PER_INTERVAL` (12)
+  Kandidatenzeilen liegen; reicht auch 12 Monate nicht, bleibt es bei 12
+  Monaten (Kanal ggf. dauerhaft unter Ziel).
+- Betroffene Zeilen bekommen **`interval_index = -1`** (Sentinel, kollidiert
+  nie mit echten Kalenderintervallen 0–3 bzw. ≥4) und `interval_label =
+  "postwar_0_to_<N>"` (`N` = gewähltes Fenster in Monaten). Es werden dabei
+  **keine neuen Zeilen erzeugt** — nur bereits vorhandene Kandidatenzeilen
+  dieses Kanals im gewählten Fenster werden umgelabelt; vorhandene
+  Klassifikationen wandern mit.
+
+**Merke:** `interval_index == -1` ist *ausschließlich* der Postwar-Sentinel.
+Die "normalen" Vorkriegs-Baseline-Intervalle sind `0`–`3` (positiv!), nicht
+negativ.
+
+## 2. Ab wann ein Kanal(-Fenster) "genug" hat
+
+Ziel pro Kanal × Intervall-Zelle (bzw. Kanal × Postwar-Fenster):
+
+| Konstante | Wert | Bedeutung |
+|---|---:|---|
+| `TARGET_POLITICAL_PER_INTERVAL` | 10 | Minimalziel: so viele `politics_final==1`-Videos werden je Zelle angestrebt. |
+| `TARGET_WITH_BUFFER_PER_INTERVAL` | 12 | Rundenplanung (`longitudinal/create_longitudinal_screening.py`) zieht Kandidaten nach, bis dieser höhere Puffer erreicht ist. |
+
+Beide Konstanten stehen in `screening_config.py`. Eine Zelle gilt in der
+Rundenplanung als `target_reached`, sobald der `politics_final==1`-Count ≥
+`target_with_buffer_per_interval` (Spalte im State, i. d. R. 12) — für die
+Frage "hat der Kanal *genug für die Baseline*" reicht in der Praxis bereits
+≥ `TARGET_POLITICAL_PER_INTERVAL` (10).
+
+## 3. Neue Kanäle hinzufügen — Schritt-für-Schritt-Ablauf
+
+Egal ob komplett neue Kanäle oder Kanäle, die schon Zeilen im State haben
+(z. B. nur für Kriegsperioden), denen aber noch das Vorkriegs-Baseline-Fenster
+fehlt: der Ablauf ist identisch, das Skript in Schritt 4 unten erkennt
+automatisch, welcher Fall vorliegt.
+
+**Grundprinzip:** Der State wird durch Anhängen (append) erweitert, nie durch
+Neuaufbau. Das frühere Bootstrap-Skript `prepare_longitudinal_screening.py`
+baute den State ursprünglich komplett neu auf einer festen Rohdatendatei auf
+und ist für nachträgliche Ergänzungen **nicht** gedacht — dafür würden
+bestehende Labels/`screening_round`-Zuweisungen riskiert; seit der
+SQLite-Migration ist es ohnehin nicht mehr sinnvoll ausführbar (schreibt
+gegen die alte CSV, nicht gegen die DB) und liegt archiviert unter
+`src/youtube_code/archive/politics_screening_legacy/`. Für neue Kanäle immer
+den Append-Weg unten nehmen.
+
+### Voraussetzungen
+
+- `.venv/Scripts/python.exe` (nicht `python3` — ist auf diesem
+  Windows-Rechner nicht im PATH).
+- Vor jedem Aufruf eines Skripts, das `youtube_code`-Module importiert:
+  `PYTHONPATH=src` voranstellen (sonst `ModuleNotFoundError`).
+- Vor jedem Aufruf: `PYTHONIOENCODING=utf-8` setzen (sonst crasht das Skript
+  beim `print()` von Emoji-/Sonderzeichen-Kanalnamen in der cp1252-Windows-
+  Konsole — der Crash passiert erst beim Drucken, bereits geschriebene
+  Dateien bleiben unberührt, aber sicherheitshalber trotzdem immer mitgeben).
+- Lange Skripte (API-Sammlung, State-Verarbeitung) laufen oft länger als
+  2 Minuten — im Hintergrund laufen lassen und auf Abschluss warten statt mit
+  `sleep` zu pollen.
+
+### Schritt 1 — Kanal-IDs sammeln
+
+Eine CSV mit einer Spalte `channel_id` (eine Zeile pro Zielkanal) anlegen,
+z. B. `outputs/segment_analysis/meine_neuen_kanaele.csv`. Die
+YouTube-Channel-ID (beginnt mit `UC...`), nicht der Handle/Anzeigename.
+
+### Schritt 2 — Video-IDs sammeln (`../step1_sample/channel_all_videos.py`)
+
+Am Kopf des Skripts konfigurieren:
+
+- `MODE = "TARGETED_SEARCH"` für normale Kanäle (grob bis ~7.000–15.000
+  Videos insgesamt). Kanalliste in `TARGETED_CHANNEL_INPUT` auf die CSV aus
+  Schritt 1 zeigen lassen. Nutzt `playlistItems.list` über die komplette
+  Uploads-Playlist.
+- `MODE = "TARGETED_SEARCH_YTDLP"` für sehr große Kanäle
+  (>~15.000–20.000 Videos insgesamt) — `playlistItems.list` bricht bei ca.
+  20.000 Items ab (YouTube-API-Limitation), `search().list` deckt bei
+  solchen Kanälen oft nur einen winzigen, nicht-repräsentativen Ausschnitt
+  ab. Kanalliste in `TARGETED_SEARCH_YTDLP_CHANNEL_INPUT` eintragen. Nutzt
+  yt-dlp zur ID-Enumeration, danach `videos().list` in 50er-Batches für die
+  echten `publishedAt`-Werte. Kann pro Kanal mehrere Minuten dauern.
+- `TARGETED_PUBLISHED_AFTER` / `TARGETED_PUBLISHED_BEFORE`: das gewünschte
+  Zeitfenster. **Wichtig:** Videos mit `period < INTERVAL_START` (aktuell
+  `-12`, siehe `screening_config.py`) werden in Schritt 5 ohnehin verworfen
+  — `period` ist der Monatsabstand zum Referenzdatum `2022-02-24`
+  (Kriegsbeginn). Es lohnt sich also i. d. R. nicht, deutlich vor
+  `2021-02-24` zu sammeln. Nach oben hin gibt es keine Kappung — bis zum
+  aktuellen Datum sammeln, wenn der volle Zeitraum gewünscht ist.
+
+Schreibt neue Video-IDs (`video_id`, `channel_id`, `published_at`, `title`)
+nach `data/raw/sample_50k_channels_russia_ukraine.json` und in die zentrale
+Registry (`data/store/video_registry.sqlite`).
+
+**Vorsicht bei den Eingabedateien:** `TARGETED_CHANNEL_INPUT` /
+`TARGETED_SEARCH_YTDLP_CHANNEL_INPUT` zeigen oft noch auf Dateien von einem
+früheren Lauf. Inhalt vorher prüfen und bei Bedarf überschreiben, nicht
+blind anhängen.
+
+### Schritt 3 — Beschreibungen holen (`../step1_sample/metadata_collection.py`)
+
+Am Kopf konfigurieren:
+
+- `channel_metadata = False` (für diesen Zweck nicht nötig).
+- `video_metadata = True`, `DETAILED = True`.
+- `VIDEOS_INPUT_PATH` auf die in Schritt 2 gesammelten Video-IDs zeigen
+  lassen (akzeptiert eine JSON-Liste von Dicts mit `video_id` oder eine CSV
+  mit `video_id`-Spalte).
+
+Schreibt (hängt an) `data/raw/video_metadata_detailed_total.jsonl` —
+inzwischen >2GB, wächst mit jedem Lauf weiter. Diese Datei ist historisch
+**nicht** für alle Kanäle vollständig; nach dem Lauf verifizieren, dass für
+jeden Zielkanal tatsächlich Zeilen mit plausiblen Beschreibungen und
+`published_at` im gewünschten Fenster vorhanden sind, bevor man zu Schritt 4
+übergeht.
+
+**Bekannter Stolperstein:** `append_channels_to_state.py` (Schritt 4) lädt
+diese JSONL komplett per `pandas.read_json(..., lines=True)` — bei der vollen
+~2GB-Datei führt das zu einem `MemoryError`, selbst wenn nur wenige tausend
+Zeilen tatsächlich gebraucht werden. Abhilfe: die Datei vorher zeilenweise
+(streaming, `json.loads` pro Zeile, kein Pandas) auf die Ziel-`channel_id`s
+aus Schritt 1 filtern und nur diese kleinere JSONL an `--videos` übergeben.
+Beispiel:
+
+```python
+import json, csv
+
+target_ids = set()
+with open("outputs/segment_analysis/meine_neuen_kanaele.csv", encoding="utf-8") as f:
+    for row in csv.DictReader(f):
+        target_ids.add(row["channel_id"])
+
+with open("data/raw/video_metadata_detailed_total.jsonl", encoding="utf-8") as fin, \
+     open("data/raw/video_metadata_detailed_gefiltert.jsonl", "w", encoding="utf-8") as fout:
+    for line in fin:
+        obj = json.loads(line)
+        if obj.get("channel_id") in target_ids:
+            fout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+```
+
+### Schritt 4 — State erweitern (`longitudinal/append_channels_to_state.py`)
+
+**Vorher immer ein Backup anlegen** — die State-DB hat keine Git-Historie:
+
+```bash
+cp data/store/screening_state.sqlite \
+   data/store/screening_state.sqlite.bak_<kurze_beschreibung>
+```
+
+Dann:
+
+```bash
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
+  src/youtube_code/step2_baseline_channels/longitudinal/append_channels_to_state.py \
+  --channels outputs/segment_analysis/meine_neuen_kanaele.csv \
+  --videos data/raw/video_metadata_detailed_gefiltert.jsonl \
+  --dry-run
+```
+
+Erst die Ausgabe prüfen (Anzahl neuer Kandidatenzeilen, Verteilung über
+`interval_index`, wie viele Kanäle als "komplett neu" vs. "nur Baseline
+ergänzt" erkannt wurden). Passt das Bild, denselben Befehl **ohne**
+`--dry-run` erneut ausführen, um wirklich zu schreiben.
+
+Das Skript repliziert exakt die frühere Interval-/Rank-Logik von
+`prepare_longitudinal_screening.py`, aber additiv: Kanäle, die schon im
+State stehen, bekommen nur die fehlenden `period < 0`-Zeilen (Baseline),
+komplett neue Kanäle den vollen Zeitraum ab `period >= INTERVAL_START`.
+Bereits im State vorhandene `video_id`s werden automatisch übersprungen
+(keine Duplikate).
+
+### Schritt 5 — Screening-Runde erzeugen (`longitudinal/create_longitudinal_screening.py`)
+
+Modul-Konstante `DRY_RUN` am Kopf der Datei zuerst auf `True` setzen und
+laufen lassen:
+
+```bash
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
+  src/youtube_code/step2_baseline_channels/longitudinal/create_longitudinal_screening.py
+```
+
+Das Skript plant adaptiv **über den gesamten State** (nicht nur die neuen
+Kanäle) die nächste Runde: pro Kanal/Interval wird geprüft, ob
+`TARGET_WITH_BUFFER_PER_INTERVAL` (aktuell 12) schon erreicht ist, ob
+Ergebnisse noch ausstehen, oder ob der Kandidatenpool erschöpft ist — nur
+unzureichende Zellen bekommen neue Kandidaten. Die gedruckte Planübersicht
+(Anzahl Kandidaten, Requests, Verteilung, Beispielzeilen) prüfen. Passt sie,
+`DRY_RUN = False` setzen und erneut laufen lassen — schreibt dann:
+
+- `data/samples/russia/batches_longitudinal/screening_rounds/screening_round_NNN_title_candidates.csv`
+- `data/samples/russia/batches_longitudinal/screening_round_summaries/screening_round_NNN_selection_summary.csv`
+- aktualisiert `screening_round` in der State-Datei für die ausgewählten
+  Zeilen.
+
+### Schritt 6 — Titel-Klassifikation abschicken (`../llm_analysis/run_longitudinal_screening_batch.py`)
+
+Am Kopf konfigurieren:
+
+- `ROUND_NUMBER` = die in Schritt 5 erzeugte Rundennummer.
+- `MODE = "title"`.
+- `DRY_RUN = True` zuerst.
+
+```bash
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
+  src/youtube_code/llm_analysis/run_longitudinal_screening_batch.py
+```
+
+Das Skript validiert vorab streng (Kandidaten-IDs müssen exakt mit den noch
+unbearbeiteten State-Zeilen dieser Runde übereinstimmen, keine leeren Titel,
+keine Dubletten) und zeigt eine Preflight-Übersicht (Video-/Request-Anzahl,
+Verteilung, Beispielzeilen). Am Ende fragt es interaktiv `Create dry-run
+files? [Y/n]` — das schreibt nur lokale Vorschau-Dateien (JSONL, Manifest),
+noch **keine** echte Einreichung. Erst wenn diese Vorschau plausibel
+aussieht, `DRY_RUN = False` setzen und das Skript erneut laufen lassen — das
+reicht den Batch-Job wirklich bei Vertex AI ein (Gemini 2.5 Flash, Prompt 32)
+und trägt ihn in die Registry (`data/store/llm_runs.sqlite`, Quelle
+`screening_active`, siehe `src/youtube_code/store/llm_run_store.py`) ein.
+
+`ALLOW_EXISTING_RUN = True` nur für einen bewussten Retry setzen — Standard
+`False` verhindert versehentliche Doppel-Einreichungen für dieselbe
+Runde/Stufe.
+
+### Schritt 7 — Ergebnisse abholen (`../llm_analysis/download_results.py`)
+
+Prüft den Job-Status in der Registry und lädt fertige Ergebnisse herunter
+(als CSV nach `outputs/llm_results/screening_active__<run_id>/`).
+
+### Schritt 8 — Ergebnisse in den State zurückführen (`update_screening_state.py`)
+
+Am Kopf konfigurieren: `MODE = "title"`, `ROUND_NUMBER` und `RUN_ID` (aus der
+Registry) setzen. Erst `DRY_RUN = True` laufen lassen und die Merge-Vorschau
+prüfen, dann `DRY_RUN = False` für den echten Merge. Direkte Labels (0/1)
+werden zu `politics_final` kopiert; `-1`-Fälle (titelseitig unklar) werden
+automatisch in eine Description-Kandidaten-CSV geschrieben
+(`data/samples/russia/batches_longitudinal/description_rounds/screening_round_NNN_description_candidates.csv`)
+für die nächste Stufe.
+
+### Schritt 9 — Beschreibungs-Validierung für die `-1`-Fälle
+
+Für Videos, die anhand des Titels allein nicht eindeutig waren, denselben
+Runden-Zyklus wie Schritt 6–8 noch einmal durchlaufen, diesmal mit
+`MODE = "description"` (sowohl in `run_longitudinal_screening_batch.py` als
+auch in `update_screening_state.py`, gleiche `ROUND_NUMBER`). Nutzt Prompt 33
+und liest Titel+Beschreibung. Nach diesem Merge bleibt ein zweites `-1`
+bewusst als `politics_final = -1` stehen (spätere manuelle/Transkript-
+Prüfung).
+
+### Schritt 10 — Wiederholen
+
+`create_longitudinal_screening.py` (Schritt 5) erneut laufen lassen — prüft
+automatisch pro Kanal/Interval, ob das Ziel erreicht ist, und plant nur für
+noch unzureichende Zellen die nächste Runde. Wiederholen, bis für die neuen
+Kanäle entweder das Ziel erreicht ist oder ihr Kandidatenpool erschöpft ist
+(Status `candidate_pool_exhausted` in der Runden-Zusammenfassung).
+
+## 4. Video-IDs qualifizierender Kanäle abrufen
+
+Sobald ein Kanal genug politisch klassifizierte Videos in seinem
+Baseline-Fenster hat (Abschnitt 2), werden die zugehörigen Video-IDs für den
+Transkript-Download gebraucht. Dafür **nicht** mehr manuell aus dem State
+filtern, sondern die generalisierte Funktion in Schritt 4 der
+Gesamtpipeline (`COMPLETE_PROCESS.md`) verwenden:
+
+```python
+from youtube_code.step4_transcript_download.select_targets import select_baseline_targets
+
+targets = select_baseline_targets(channel_ids=None)  # oder Liste bestimmter Kanal-IDs
+```
+
+`select_baseline_targets()` (`src/youtube_code/step4_transcript_download/select_targets.py`)
+implementiert genau das oben in Abschnitt 1–2 beschriebene Rezept —
+Vorkriegs-Fenster (`interval_index` in `[0,1,2,3]`) und Postwar-Fenster
+(`interval_index == -1`), Qualifikationsschwelle
+`TARGET_POLITICAL_PER_INTERVAL` — über **alle** Kanäle im State (oder eine
+per `channel_ids` übergebene Teilmenge), und filtert das Ergebnis bereits
+gegen `transcript_store.attempted_video_ids()` (verbindliche Regel, siehe
+`.claude/CLAUDE.md` — nur `transcript_store` zählt, keine CSV-Dateien mehr).
+Es ist die Verallgemeinerung des früheren, auf eine feste 27-Kanal-Liste
+kodierten `scraping/get_baseline_ids.py` (jetzt archiviert unter
+`src/youtube_code/archive/scraping/`). Übergabe an den eigentlichen Download
+läuft über `run_transcript_selection.py` (`MODE = "baseline"`) — siehe
+`step4_transcript_download/README.md` für Details zu
+`download_transcripts()`.
+
+## Kurzreferenz (Skript → Zweck)
+
+| Skript | Zweck | Ausführung |
+| --- | --- | --- |
+| `../step1_sample/build_channel_provenance.py` | Sample-Zugehörigkeit definieren (Schritt 1, liegt nicht mehr hier); Output `eligible_channels_current.json` liefert die Kanalliste, mit der die eigentliche Schritt-2-Pipeline arbeitet | einmal |
+| `../step1_sample/channel_all_videos.py` | Video-IDs für Zeitfenster sammeln | pro neue Kanalgruppe |
+| `../step1_sample/metadata_collection.py` | Beschreibungen holen | pro neue Kanalgruppe |
+| `longitudinal/append_channels_to_state.py` | Neue Kandidatenzeilen in den State einspeisen | pro neue Kanalgruppe |
+| `longitudinal/assign_postwar_baseline.py` | Postwar-Kanälen den Sentinel-Fenster-Wert `interval_index=-1` zuweisen | pro neue Postwar-Kanalgruppe |
+| `longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (State-weit, adaptiv) | wiederholt |
+| `../llm_analysis/run_longitudinal_screening_batch.py` | Batch-Job einreichen (Prompt 32 title / Prompt 33 description) | pro Runde × 2 Stufen |
+| `../llm_analysis/download_results.py` | Ergebnisse abholen | pro Runde × 2 Stufen |
+| `update_screening_state.py` | Ergebnisse in State mergen | pro Runde × 2 Stufen |
+| `../step4_transcript_download/select_targets.py` (`select_baseline_targets`) | Video-IDs qualifizierender Kanäle für den Transkript-Download abrufen | bei Bedarf |
+
+Die vier in einer früheren Fassung dieser Kurzreferenz gelisteten
+Skriptnamen (`create_longitudinal_screening_round.py`,
+`update_longitudinal_state.py`, `select_longitudinal_transcripts.py`,
+`analyze_longitudinal_coverage.py`) existieren unter diesen Namen nirgends im
+Repo und tauchen auch in der gesamten Git-History nicht auf — vermutlich
+Altlast einer nie umgesetzten früheren Planung.
+
+## Wichtige Konstanten (`screening_config.py`)
+
+- `INTERVAL_START = -12`, `INTERVAL_SIZE = 3`: Perioden werden ab 12 Monaten
+  vor Kriegsbeginn in 3-Monats-Intervallen gruppiert.
+- `TARGET_POLITICAL_PER_INTERVAL = 10`, `TARGET_WITH_BUFFER_PER_INTERVAL = 12`:
+  Ziel pro Kanal/Interval — 10 politische Videos, 12 als Puffer für z. B.
+  fehlende Transkripte.
+- Zentrale State-Ablage seit Phase 4d: `data/store/screening_state.sqlite`
+  (`src/youtube_code/store/screening_state_store.py`), nicht git-getrackt.
+  Die frühere `STATE_FILE`-Konstante (`screening_config.py`,
+  `longitudinal_screening_state.csv`) ist nur noch historisch, wird von den
+  Schreiber-Skripten nicht mehr verwendet. **Vor jedem schreibenden Schritt
+  (Schritt 4 oben) sichern.**
+
+## Optional: Master-Kanalliste
+
+Für die kanalbezogene Klassifikation (Tier, Medientyp usw., unabhängig vom
+Screening-State) pflegt der Nutzer zusätzlich
+`data/external/media_type_russia_merged.xlsx` manuell (Spalte `notiz`
+markiert manuelle Ergänzungen). Das ist für den technischen Screening-Ablauf
+oben nicht erforderlich, aber für die spätere Auswertung/Konsistenz
+empfehlenswert, neue Kanäle dort ebenfalls einzutragen.
+
+## Referenzen
+
+| Datei | Rolle |
+|---|---|
+| `screening_config.py` | Konstanten (`INTERVAL_START`, `INTERVAL_SIZE`, `TARGET_POLITICAL_PER_INTERVAL`, `TARGET_WITH_BUFFER_PER_INTERVAL`, …) |
+| `longitudinal/append_channels_to_state.py` | Berechnet `period`/`interval_index`/`interval_label` für neue Kandidatenzeilen (Normalfall), schreibt in `screening_state_store` |
+| `longitudinal/assign_postwar_baseline.py` | Weist Postwar-Kanälen den Sentinel-Fenster-Wert `interval_index=-1` zu |
+| `longitudinal/create_longitudinal_screening.py` | Prüft je Zelle den Fortschritt gegen `target_with_buffer_per_interval`, plant nächste Screening-Runde |
+| `src/youtube_code/store/screening_state_store.py` | Zugriffsschicht auf den State (`get_state()`, `upsert_state_rows()`) |
+| `src/youtube_code/store/transcript_store.py` | Zugriffsschicht auf bereits versuchte/vorhandene Transkripte (`attempted_video_ids()`, `has_transcript()`) |
+| `src/youtube_code/step4_transcript_download/select_targets.py` | `select_baseline_targets()` — Video-IDs qualifizierender Kanäle abrufen (siehe Abschnitt 4 oben) |
