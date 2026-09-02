@@ -3,7 +3,7 @@ Periodenberechnung fuer select_cell_fill_targets() (Konfiguration 2 aus
 COMPLETE_PROCESS.md Schritt 4).
 
 relativ_periode() ist bewusst aus
-youtube_code/step5_segment_analysis/finde_download_kandidaten.py gespiegelt statt
+scripts/adhoc/finde_download_kandidaten.py gespiegelt statt
 von dort importiert, um Schritt 4 nicht an den dortigen, legacy CSV-basierten
 Pfad zu koppeln - siehe README.md in diesem Ordner fuer die Begruendung, warum
 diese Rechnung statt screening_state_store.interval_index/period verwendet
@@ -11,7 +11,7 @@ wird (deckt auch die Zeit nach Kriegsbeginn ab, feinere Granularitaet).
 """
 import pandas as pd
 
-# Invasionsdatum - identisch zu KRIEGSBEGINN in finde_download_kandidaten.py.
+# Invasionsdatum - identisch zu KRIEGSBEGINN in scripts/adhoc/finde_download_kandidaten.py.
 KRIEGSBEGINN = pd.Timestamp("2022-02-24")
 
 GRANULARITAET_MONATE = {"monat": 1, "quartal": 3}
@@ -21,7 +21,8 @@ def relativ_periode(datum: pd.Series, start: pd.Timestamp, monate_pro_periode: i
     """
     Ganzzahlige Periode relativ zu start, in Schritten von monate_pro_periode
     Monaten (1=Monat, 3=Quartal). Identisch zur Logik in
-    finde_download_kandidaten.py/prepare_channel_scores.py: Monatsdifferenz
+    scripts/adhoc/finde_download_kandidaten.py und
+    step6_auswertung/prepare_channel_scores.py: Monatsdifferenz
     inkl. Tages-Korrektur (ein Datum vor dem Tag-des-Monats von start zaehlt
     noch zur vorherigen Periode), dann durch monate_pro_periode geteilt.
     """

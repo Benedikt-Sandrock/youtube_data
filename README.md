@@ -95,6 +95,11 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   `process_scraped_segments.py`, `submit_segments.py`,
   `download_segments_simple.py`; siehe `README.md` dort für Prompts,
   Prüfspalten und offene Punkte).
+- `src/youtube_code/step6_auswertung/` — COMPLETE_PROCESS.md Schritt 6:
+  Aggregation und Auswertung der LLM-Klassifikationsergebnisse
+  (`prepare_channel_scores.py`, `deskriptiv_aggregation.py`,
+  `deskriptiv_plots.py`, `fe_signifikanz_test.py`, `geglaettete_kurve.py`;
+  siehe `README.md` dort für Ablauf und offene Punkte).
 - `src/youtube_code/llm_analysis/` — gemeinsame Infrastruktur für
   LLM-Batch-Jobs (Einreichung, Download, Registry-Anbindung).
 - `src/youtube_code/archive/` — abgelöster/toter Code, nicht mehr gepflegt,
@@ -133,3 +138,5 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
 - `src/youtube_code/step4_transcript_download/README.md` — die drei
   Zielauswahl-Konfigurationen und `download_transcripts()`.
 - `src/youtube_code/step5_segment_analysis/README.md` — Segment-Klassifikations-Pipeline.
+- `src/youtube_code/step6_auswertung/README.md` — Aggregations- und
+  Auswertungs-Pipeline der LLM-Klassifikationsergebnisse.

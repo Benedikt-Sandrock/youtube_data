@@ -35,6 +35,12 @@ Modes:
 
 Switch between modes by setting MODE below.
 
+Output: writes to the central registry (data/store/video_registry.sqlite)
+by default. The separate JSON snapshot (VIDEOS_TOTAL_FILE) is only written
+when SAVE_JSON_SNAPSHOT is set to True below. Likewise, "already known"
+channels/videos (NEW_CHANNELS/UPDATE modes) are looked up directly in the
+registry, not read back from that JSON file.
+
 Run pattern: this script is meant to be executed directly (`python channel_all_videos.py`),
 never imported. That is why `from settings_variables import ...` below works as a bare
 sibling import (Python puts the script's own directory on sys.path[0]), while
@@ -73,6 +79,16 @@ from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 #   "NEW_CHANNELS"  |  "UPDATE"  |  "TARGETED_SEARCH"  |  "TARGETED_SEARCH_YTDLP"
 # ─────────────────────────────────────────────
 MODE = "TARGETED_SEARCH_YTDLP"
+
+# Ob zusaetzlich zur zentralen Registry (data/store/video_registry.sqlite,
+# immer geschrieben) noch eine JSON-Datei (VIDEOS_TOTAL_FILE) gepflegt wird.
+# Standardmaessig aus: die Registry ist seit der Restrukturierung die
+# massgebliche, laufend aktuelle Quelle - auch NEW_CHANNELS/UPDATE erkennen
+# bereits bekannte Kanaele/Videos direkt aus der Registry (siehe
+# video_registry.known_channel_ids_with_videos()/newest_video_per_channel()),
+# nicht mehr aus dieser Datei. Die JSON-Datei ist nur noch ein optionales
+# Nebenprodukt, z.B. wenn ein anderes Skript sie gezielt als Input braucht.
+SAVE_JSON_SNAPSHOT = False
 
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
@@ -114,29 +130,28 @@ GERMAN_THRESHOLD = 0.7
 # ─────────────────────────────────────────────
 # Load existing data
 # ─────────────────────────────────────────────
-if os.path.exists(VIDEOS_TOTAL_FILE):
+# Bereits bekannte Kanaele bzw. deren juengstes bekanntes Video kommen aus
+# der zentralen Registry, nicht mehr aus VIDEOS_TOTAL_FILE - siehe
+# video_registry.known_channel_ids_with_videos()/newest_video_per_channel()
+# fuer die jeweilige Einschraenkung (u.a. Kanaele mit 0 Treffern gelten
+# nicht als "bekannt").
+processed_channel_ids: set[str] = video_registry.known_channel_ids_with_videos()
+newest_video_per_channel: dict[str, str] = video_registry.newest_video_per_channel()
+
+# videos_total wird nur noch fuer den optionalen JSON-Snapshot gebraucht
+# (SAVE_JSON_SNAPSHOT=True) - eine vorhandene Datei wird dafuer geladen,
+# damit beim Schreiben nichts verloren geht; sonst bleibt sie leer.
+if SAVE_JSON_SNAPSHOT and os.path.exists(VIDEOS_TOTAL_FILE):
     with open(VIDEOS_TOTAL_FILE, "r", encoding="utf-8") as f:
         videos_total: list[dict] = json.load(f)
 else:
     videos_total = []
-
-# newest known publication date per channel (used by UPDATE mode)
-newest_video_per_channel: dict[str, str] = {}
-for v in videos_total:
-    cid    = v["channel_id"]
-    pub_at = v["published_at"]
-    if "no_video_found" in pub_at:
-        continue
-    if cid not in newest_video_per_channel or pub_at > newest_video_per_channel[cid]:
-        newest_video_per_channel[cid] = pub_at
 
 with open(CHANNEL_INPUT, "r", encoding="utf-8") as f:
     channel_ids= json.load(f)
 
 if isinstance(channel_ids[0], dict):
     channel_ids = [c["channel_id"] for c in channel_ids]
-
-processed_channel_ids: set[str] = {v["channel_id"] for v in videos_total}
 
 
 # ─────────────────────────────────────────────
@@ -652,17 +667,21 @@ if __name__ == "__main__":
     # ─────────────────────────────────────────────
     # Deduplizierung & Speichern
     # ─────────────────────────────────────────────
-    all_videos   = videos_total + new_videos
-    unique_dict  = {v["video_id"]: v for v in all_videos}  # last-write-wins
-    videos_total = list(unique_dict.values())
-
-    save_json(VIDEOS_TOTAL_FILE, videos_total)
-
     # Zentrale Video-Registry mitfuehren (data/store/video_registry.sqlite),
-    # unabhaengig vom Modus - siehe youtube_code.store.video_registry.
+    # unabhaengig vom Modus und von SAVE_JSON_SNAPSHOT - siehe
+    # youtube_code.store.video_registry.
     n_registry = _registry_upsert(new_videos)
     print(f"In zentrale Registry geschrieben: {n_registry}")
 
+    if SAVE_JSON_SNAPSHOT:
+        all_videos   = videos_total + new_videos
+        unique_dict  = {v["video_id"]: v for v in all_videos}  # last-write-wins
+        videos_total = list(unique_dict.values())
+
+        save_json(VIDEOS_TOTAL_FILE, videos_total)
+        print(f"JSON-Snapshot geschrieben: {VIDEOS_TOTAL_FILE} ({len(videos_total)} Videos total)")
+    else:
+        print("JSON-Snapshot uebersprungen (SAVE_JSON_SNAPSHOT=False) - nur Registry aktualisiert.")
+
     print("\n── Process complete ──")
-    print(f"Total videos        : {len(videos_total)}")
     print(f"Newly added         : {len(new_videos)}")

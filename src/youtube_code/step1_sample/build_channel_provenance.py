@@ -14,9 +14,11 @@ of `youtube_code.store.video_registry`):
 5. the first-observed video date per channel and the publish date of every
    identification video (video_registry.first_observed_dates / get_video_rows).
 
-The resulting table keeps every discovered channel. Eligibility flags determine
-which channels enter the current analysis. This makes it possible to lower the
-subscriber threshold later without reconstructing the sample provenance.
+PROVENANCE_FILE only ever contains channels that actually enter the current
+analysis (eligible_current_analysis == True). Every discovered channel -
+including ineligible ones - still flows into ISSUES_FILE/SUMMARY_FILE, so
+integrity checks and audit counts keep covering the full discovery set even
+though the eligibility threshold could still change later.
 
 QUERY_FILTER / SEARCH_PERIOD_FILTER select which part of the store's search
 history counts as "the sample" for this run - e.g. all channels found via
@@ -132,7 +134,7 @@ MISSING_IDENTIFICATION_METADATA_FILE = (
 DRY_RUN = False
 
 # If False, an existing provenance output cannot be replaced accidentally.
-OVERWRITE_EXISTING = False
+OVERWRITE_EXISTING = True
 
 # Missing identification-video metadata prevents reliable assignment of the
 # first identification date. Only videos belonging to channels relevant to
@@ -177,11 +179,24 @@ def ensure_unique(
 def as_utc(
     values: pd.Series,
 ) -> pd.Series:
-    """Parse timestamps and normalize them to UTC."""
+    """
+    Parse timestamps and normalize them to UTC.
+
+    format="ISO8601" is required here: video_registry.sqlite stores
+    published_at in two ISO-8601 variants depending on the fetch source
+    (with and without fractional seconds, e.g. "...T13:00:00Z" vs.
+    "...T12:00:00.000Z"). Without an explicit format, pandas infers a single
+    format from the first values of a large Series and silently coerces
+    every row that does not match that exact format to NaT (even though it
+    is a valid, just differently-formatted, timestamp) - this previously
+    caused a handful of videos with valid published_at values to be
+    misreported as "missing metadata".
+    """
     return pd.to_datetime(
         values,
         utc=True,
         errors="coerce",
+        format="ISO8601",
     )
 
 
@@ -1119,7 +1134,13 @@ def save_outputs(
     issues: pd.DataFrame,
     summary: dict,
 ) -> None:
-    """Persist all provenance outputs after overwrite protection."""
+    """
+    Persist all provenance outputs after overwrite protection.
+
+    PROVENANCE_FILE is restricted to eligible_current_analysis == True
+    (the channels that actually enter the sample); ISSUES_FILE/SUMMARY_FILE/
+    ELIGIBLE_CHANNELS_FILE keep covering every discovered channel.
+    """
     output_paths = [
         PROVENANCE_FILE,
         SUMMARY_FILE,
@@ -1149,7 +1170,9 @@ def save_outputs(
         exist_ok=True,
     )
 
-    channels.to_csv(
+    channels.loc[
+        channels["eligible_current_analysis"]
+    ].to_csv(
         PROVENANCE_FILE,
         index=False,
         date_format="%Y-%m-%dT%H:%M:%SZ",

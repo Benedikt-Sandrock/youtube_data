@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from youtube_code.step2_baseline_channels.screening_config import (
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
 )

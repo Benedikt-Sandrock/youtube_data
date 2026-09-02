@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.step2_baseline_channels.screening_config import (
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     LLM_RUN_SOURCE,
     SCREENING_ROUND_DIR,
 )

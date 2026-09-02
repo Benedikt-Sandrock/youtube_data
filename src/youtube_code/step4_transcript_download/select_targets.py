@@ -4,15 +4,45 @@ gespeicherten Videodaten eine Liste von Video-IDs fuer eine der drei
 dokumentierten Konfigurationen extrahieren. Jede select_*-Funktion gibt ein
 pd.DataFrame[video_id, channel_id] zurueck, bereits gefiltert gegen
 transcript_store.attempted_video_ids() (Videos mit bestehendem
-Transkript-Versuch werden nie erneut vorgeschlagen).
+Transkript-Versuch werden nie erneut vorgeschlagen) sowie gegen
+MIN_VIDEO_DURATION_SECONDS (siehe _filter_min_duration).
 """
 import pandas as pd
 
-from youtube_code.step2_baseline_channels.screening_config import TARGET_POLITICAL_PER_INTERVAL
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import TARGET_POLITICAL_PER_INTERVAL
 from youtube_code.step4_transcript_download.period import add_period_column
 from youtube_code.store import screening_state_store, transcript_store, video_registry
 
 _OUT_COLS = ["video_id", "channel_id"]
+
+
+def _filter_min_duration(df: pd.DataFrame, min_duration_seconds=MIN_VIDEO_DURATION_SECONDS) -> pd.DataFrame:
+    """
+    Letzte Absicherung gegen zu kurze Videos im tatsaechlichen Sample -
+    unabhaengig davon, ob screening_state_store/video_topic_relevance schon
+    vor Einfuehrung des Mindestlaengen-Filters in get_videos_with_text()
+    befuellt wurden (siehe scripts/adhoc/check_min_duration_violations.py).
+    Wie dort gilt: Videos mit unbekannter Dauer gelten als nicht bestaetigt
+    lang genug und werden ebenfalls verworfen. min_duration_seconds=None
+    deaktiviert die Pruefung.
+    """
+    if min_duration_seconds is None or df.empty:
+        return df
+    lookup = video_registry.duration_lookup(df["video_id"].tolist())
+
+    def _long_enough(video_id):
+        seconds = lookup.get(video_id)
+        return seconds is not None and seconds >= min_duration_seconds
+
+    keep = df["video_id"].map(_long_enough)
+    removed = int((~keep).sum())
+    if removed:
+        print(
+            f"⏱️ {removed} Video(s) unter Mindestlaenge ({min_duration_seconds}s) "
+            "oder mit unbekannter Dauer verworfen."
+        )
+    return df.loc[keep].reset_index(drop=True)
 
 
 def _filter_attempted(df: pd.DataFrame) -> pd.DataFrame:
@@ -53,7 +83,7 @@ def select_baseline_targets(channel_ids=None) -> pd.DataFrame:
         postwar[postwar["channel_id"].isin(postwar_qualified) & (postwar["politics_final"] == 1)],
     ])[_OUT_COLS].drop_duplicates()
 
-    return _filter_attempted(fill_candidates)
+    return _filter_attempted(_filter_min_duration(fill_candidates))
 
 
 def _fill_cell(war_ids: list, political_ids: list, videos_per_cell: int, fill_order: tuple) -> list:
@@ -109,7 +139,7 @@ def select_cell_fill_targets(
         chosen = _fill_cell(list(war_in_cell), list(political_in_cell), videos_per_cell, fill_order)
         selected_rows.extend({"video_id": vid, "channel_id": channel_id} for vid in chosen)
 
-    return _filter_attempted(pd.DataFrame(selected_rows, columns=_OUT_COLS))
+    return _filter_attempted(_filter_min_duration(pd.DataFrame(selected_rows, columns=_OUT_COLS)))
 
 
 def select_war_period_targets(start_date, end_date, channel_ids=None, topic: str = "russia_ukraine_war") -> pd.DataFrame:
@@ -138,4 +168,4 @@ def select_war_period_targets(start_date, end_date, channel_ids=None, topic: str
         channel_ids = {str(c) for c in channel_ids}
         rows = rows[rows["channel_id"].isin(channel_ids)]
 
-    return _filter_attempted(rows[_OUT_COLS].drop_duplicates())
+    return _filter_attempted(_filter_min_duration(rows[_OUT_COLS].drop_duplicates()))

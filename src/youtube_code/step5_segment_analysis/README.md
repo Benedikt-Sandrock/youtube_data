@@ -221,20 +221,18 @@ Kappa) — diese Dateien existieren im aktuellen Repo nicht. Bevor Ergebnisse
 dieser Pipeline berichtet werden, braucht es einen Abgleich gegen
 Handkodierung; wie das umgesetzt wird, ist noch offen.
 
-## Unangetastete Diagnose-/Brücken-/Auswertungsskripte
+## Auswertung und Diagnose-Skripte: umgezogen
 
-Im Ordner liegen daneben (Einordnung nicht Teil dieser Schritt-5-Aufräumung):
+Die früher hier mitgeführten Brücken-/Auswertungs-/Diagnose-Skripte sind
+inzwischen aufgeräumt:
 
-- `prepare_channel_scores.py` — Brücke Segment- zu Kanal-Aggregation,
-  Vorstufe zu Schritt 6. Erwartet aktuell manuell umbenannte Eingabedateien
-  (`run_0011_POSITION_V1.csv` etc.), nicht direkt den automatischen Output
-  von `download_segments_simple.py`.
+- `prepare_channel_scores.py`, `deskriptiv_aggregation.py`,
+  `deskriptiv_plots.py`, `geglaettete_kurve.py`, `fe_signifikanz_test.py` —
+  jetzt unter `src/youtube_code/step6_auswertung/`
+  (`COMPLETE_PROCESS.md` Schritt 6, siehe README dort).
 - `check_baseline_coverage.py`, `finde_download_kandidaten.py`,
-  `video_sample_uebersicht.py` — Diagnose-/Ad-hoc-Skripte, die laut
-  `CLAUDE.md` eigentlich nach `scripts/adhoc/` gehörten.
-- `deskriptiv_aggregation.py`, `deskriptiv_plots.py`, `geglaettete_kurve.py`,
-  `fe_signifikanz_test.py` — Schritt-6-Auswertungsskripte
-  (`COMPLETE_PROCESS.md`), landen mittelfristig in einem eigenen Ordner.
+  `video_sample_uebersicht.py` — jetzt unter `scripts/adhoc/`
+  (reine Diagnose-/Ad-hoc-Skripte, siehe `.claude/CLAUDE.md`).
 
 ## Bekannte Eigenheiten
 

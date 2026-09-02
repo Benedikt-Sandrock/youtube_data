@@ -25,7 +25,7 @@ import pandas as pd
 from google import genai
 from google.cloud import storage
 
-from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, SAMPLES
+from youtube_code.config import PROJECT_ID, LOCATION, BUCKET_NAME, SAMPLES, OUTPUTS
 from youtube_code.step5_segment_analysis.segment_analysis_config import (
     BATCH_INPUT_DIR,
     LLM_RUN_SOURCE,
@@ -41,8 +41,9 @@ from youtube_code.step5_segment_analysis.segment_prompts_simple import get_bundl
 # ============================================================
 
 SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "war_vids_segments.csv"
+# SEGMENT_FILE = OUTPUTS / "temp" / "baselinetodo.csv"
 
-PROMPT_KEY = "POPULISMUS_P"
+PROMPT_KEY = "IDEOLOGIE_I"
 
 DATASET_VERSION = "v1"
 PROMPT_VERSION = "v4"

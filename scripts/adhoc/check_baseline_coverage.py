@@ -18,7 +18,10 @@ from youtube_code.store import video_registry
 RESULTS_PATH = OUTPUTS / "segment_analysis"
 VIDEO_PATH = OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv"
 
-RESULTS_PATH_POPULISM_BASE = RESULTS_PATH / "run_0013_POPULISMUS_P_corrected.csv"
+# Rohergebnis liegt seit der LLM-Ergebnis-Konsolidierung (Phase 4e,
+# scripts/adhoc/consolidate_llm_results.py) unter outputs/llm_results/<source>__<run_id>/,
+# nicht mehr flach unter outputs/segment_analysis/ (siehe step6_auswertung/prepare_channel_scores.py).
+RESULTS_PATH_POPULISM_BASE = OUTPUTS / "llm_results" / "segment_analysis_active__run_0013" / "run_0013_POPULISMUS_P_corrected.csv"
 RESULTS_PATH_POPULISM_MAIN = RESULTS_PATH / "populism_runs_combined.csv"
 CHANNEL_CLASSIFICATION_PATH = RESULTS_PATH / "channel_classification_populism.csv"
 

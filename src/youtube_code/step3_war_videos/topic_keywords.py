@@ -81,3 +81,15 @@ def is_relevant(flags: dict) -> bool:
     """
     treat_title = flags["ukr_core_title"] or flags["ukr_wide_title"]
     return treat_title or flags["ukr_core_desc"] or flags["ukr_wide_desc"]
+
+
+def is_relevant_vectorized(flags: dict):
+    """
+    Spaltenweise (pandas.Series[bool]) Fassung von is_relevant() fuer den
+    performanten Massenbetrieb in classify_topic_relevance.classify() - exakt
+    dieselbe Kombinationslogik, nur auf ganzen DataFrame-Spalten statt pro
+    Zeile ausgewertet (bool-Operatoren |/&/or verhalten sich fuer
+    pandas.Series und Python-bool identisch).
+    """
+    treat_title = flags["ukr_core_title"] | flags["ukr_wide_title"]
+    return treat_title | flags["ukr_core_desc"] | flags["ukr_wide_desc"]

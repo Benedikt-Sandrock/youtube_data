@@ -46,6 +46,6 @@ Der Klassifizierungsprozess läuft in mehreren Schritten. Benötigter Input ist 
 Im Ordner sind weitere Diagnoseskripte enthalten, deren Funktion überprüft werden muss.
 
 ## 6. Auswertung von Transkripten
-### Scripts: `youtube_code/step5_segment_analysis`
+### Scripts: `youtube_code/step6_auswertung`
 ### Zentrale Speicherung: `outputs`
-Über `deskriptiv_aggregation`, `deskriptiv_plots`, `geglaettete_kurve` und `fe_signifikanz_test` werden Auswertungen vorgenommen. Die genaue Funktion muss überprüft werden. Die Auswertungen sollten auch in einen eigenen Ordner verschoben werden. 
+Über `prepare_channel_scores.py` (Segment- → Video- → Kanal×Periode-Aggregation), `deskriptiv_aggregation`, `deskriptiv_plots`, `geglaettete_kurve` und `fe_signifikanz_test` werden Auswertungen vorgenommen (siehe `youtube_code/step6_auswertung/README.md` für den Ablauf und die aktuell noch offene manuelle Kuratierungsstufe zwischen LLM-Rohergebnis und `prepare_channel_scores.py`-Input). 

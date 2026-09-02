@@ -1,8 +1,7 @@
 import pandas as pd
-from pathlib import Path
 
 from youtube_code.config import SAMPLES
-from youtube_code.step2_baseline_channels.screening_config import OUTPUT_DIR
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import OUTPUT_DIR
 
 
 MANUAL_FILE = (

@@ -27,7 +27,7 @@ Transkript-Versuch werden nie erneut vorgeschlagen.
 
 `select_cell_fill_targets()` berechnet die Zellen-Periode neu aus
 `published_at` (`period.py`, `relativ_periode()` — bewusst aus
-`step5_segment_analysis/finde_download_kandidaten.py` gespiegelt statt importiert,
+`scripts/adhoc/finde_download_kandidaten.py` gespiegelt statt importiert,
 um Schritt 4 nicht an den dortigen legacy CSV-Pfad zu koppeln), statt
 `interval_index` aus `screening_state_store` zu nutzen. `interval_index` ist
 nur fuer das Baseline-Fenster definiert (siehe

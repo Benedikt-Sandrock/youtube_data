@@ -42,21 +42,14 @@ def set_to_json(path, data):
         json.dump(sorted(data), f, indent=2, ensure_ascii=False)
 
 
-def get_channel_metadata(channel_ids, output_path, youtube):
+def get_channel_metadata(channel_ids, youtube):
     """
-    Takes YouTube-Client and channel IDs as input and returns a json file with channel-metadata.
+    Takes YouTube-Client and channel IDs as input, fragt nur noch die IDs ab,
+    die laut video_registry.known_channel_ids() noch nicht in der channels-
+    Tabelle stehen, und upsertet die frisch abgerufenen Kanal-Metadaten
+    direkt dorthin (keine separate JSON-Datei mehr).
     """
-    if os.path.exists(output_path):
-        with open(output_path, "r", encoding="utf-8") as f:
-            try:
-                all_data = json.load(f)
-            except json.JSONDecodeError:
-                all_data = []
-    else:
-        all_data = []
-
-
-    already_requested = {c["channel_id"] for c in all_data}
+    already_requested = video_registry.known_channel_ids()
     channel_ids_filtered = [c for c in channel_ids if c not in already_requested]
     y = len(channel_ids) - len(channel_ids_filtered)
 
@@ -65,12 +58,14 @@ def get_channel_metadata(channel_ids, output_path, youtube):
 
     print(f"Requesting metadata for {len(channel_ids_filtered)} channels...")
 
+    found_count = 0
     for batch in chunk_list(channel_ids_filtered, 50):
         request = youtube.channels().list(
             part="snippet,statistics,contentDetails,brandingSettings,status",
             id=",".join(batch)
         )
         response = request.execute()
+        found_count += len(response.get('items', []))
 
         batch_records = []
         for item in response.get('items', []):
@@ -113,22 +108,24 @@ def get_channel_metadata(channel_ids, output_path, youtube):
                 'thumbnail_url': snippet.get('thumbnails', {}).get('high', {}).get('url'),
                 'banner_url': branding.get('image', {}).get('bannerExternalUrl', 'Kein Banner')
             }
-            all_data.append(data)
             batch_records.append(data)
 
-        # Zentrale Channel-Registry mitfuehren (data/store/video_registry.sqlite,
-        # Tabelle channels), zusaetzlich zur bisherigen JSON-Datei - gleiches
-        # Muster wie get_video_metadata()/channel_all_videos.py.
+        # Zentrale Channel-Registry (data/store/video_registry.sqlite,
+        # Tabelle channels) ist die alleinige Senke - keine JSON-Datei mehr.
         video_registry.upsert_channels(batch_records)
 
-    with open(output_path, "w", encoding = "utf-8") as f:
-        json.dump(all_data, f, indent = 2, ensure_ascii= False)
+    print(f"Metadata found for {found_count}/{len(channel_ids_filtered)} requested channels.")
+    print("Channel metadata saved.")
 
 
-def get_video_metadata(video_ids, output_path, youtube_client, detailed = False):
+def get_video_metadata(video_ids, youtube_client, detailed = False):
     """
-    Takes YouTube client and list of video IDs as input and returns a dictionary with metadata for the respective
-    video_files.
+    Takes YouTube client and list of video IDs as input, fragt nur noch die
+    IDs ab, fuer die die entsprechenden Daten noch nicht in der Registry
+    stehen (video_registry.known_video_ids() bzw. - im detailed-Zweig -
+    known_video_detail_ids(), da Detail-Felder erst separat nachgezogen
+    werden koennen), und upsertet die frisch abgerufenen Metadaten direkt
+    dorthin (keine separate JSONL-Datei mehr).
     """
     print("Getting video metadata...")
 
@@ -136,18 +133,9 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
         print("Dict imported is transferred to list.")
         video_ids = [v["video_id"] for v in video_ids]
 
-    already_requested = set()
-    if os.path.exists(output_path):
-        with open(output_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    data = json.loads(line)
-                    already_requested.add(data["video_id"])
-                except json.JSONDecodeError:
-                    continue
-
+    already_requested = (
+        video_registry.known_video_detail_ids() if detailed else video_registry.known_video_ids()
+    )
     video_ids_filtered = [v for v in video_ids if v not in already_requested]
     y = len(video_ids) - len(video_ids_filtered)
 
@@ -160,75 +148,73 @@ def get_video_metadata(video_ids, output_path, youtube_client, detailed = False)
         api_parts += ",status,topicDetails,recordingDetails"
 
     chunk = 1
+    found_count = 0
     try:
-        with open(output_path, "a", encoding = "utf-8") as f_out:
-            for batch in chunk_list(video_ids_filtered, 50):
-                request = youtube_client.videos().list(
-                    part=api_parts,
-                    id=",".join(batch)
-                )
-                response = request.execute()
+        for batch in chunk_list(video_ids_filtered, 50):
+            request = youtube_client.videos().list(
+                part=api_parts,
+                id=",".join(batch)
+            )
+            response = request.execute()
+            found_count += len(response.get("items", []))
 
-                batch_records = []
-                for item in response.get("items", []):
-                    snippet = item.get("snippet", {})
-                    content_details = item.get("contentDetails", {})
-                    statistics = item.get("statistics", {})
+            batch_records = []
+            for item in response.get("items", []):
+                snippet = item.get("snippet", {})
+                content_details = item.get("contentDetails", {})
+                statistics = item.get("statistics", {})
 
-                    video_data = {
-                        "video_id": item["id"],
-                        "title": snippet.get("title"),
-                        "channel_title": snippet.get("channelTitle"),
-                        "channel_id": snippet.get("channelId"),
-                        "published_at": snippet.get("publishedAt"),
-                        "duration": content_details.get("duration"),
-                        "view_count": statistics.get("viewCount"),
-                        "like_count": statistics.get("likeCount"),
-                        "comment_count": statistics.get("commentCount"),
-                    }
-                    batch_records.append(video_data)
+                video_data = {
+                    "video_id": item["id"],
+                    "title": snippet.get("title"),
+                    "channel_title": snippet.get("channelTitle"),
+                    "channel_id": snippet.get("channelId"),
+                    "published_at": snippet.get("publishedAt"),
+                    "duration": content_details.get("duration"),
+                    "view_count": statistics.get("viewCount"),
+                    "like_count": statistics.get("likeCount"),
+                    "comment_count": statistics.get("commentCount"),
+                }
+                batch_records.append(video_data)
 
-                    if detailed:
-                        status = item.get("status", {})
-                        topic_details = item.get("topicDetails", {})
-                        recording_details = item.get("recordingDetails", {})
-
-                        video_data.update({
-                            "description": snippet.get("description"),
-                            "tags": snippet.get("tags", []),  # list of strings
-                            "category_id": snippet.get("categoryId"),
-                            "default_language": snippet.get("defaultLanguage"),
-                            "default_audio_language": snippet.get("defaultAudioLanguage"),
-                            "live_broadcast_content": snippet.get("liveBroadcastContent"),
-
-                            # Status information (text-labels)
-                            "privacy_status": status.get("privacyStatus"),  # public, private, unlisted
-                            "upload_status": status.get("uploadStatus"),
-                            "license": status.get("license"),  # YouTube, creativeCommon
-
-                            # Topic-metadata (Wikipedia-links / entities)
-                            "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
-                            "topic_categories": topic_details.get("topicCategories", []),  # Wikipedia-URLs
-
-                            "location_description": recording_details.get("locationDescription"),
-                        })
-
-                    f_out.write(json.dumps(video_data, ensure_ascii=False) + "\n")
-                f_out.flush()
-                _registry_upsert(batch_records)
                 if detailed:
-                    # batch_records enthaelt im detailed-Zweig bereits alle
-                    # dafuer noetigen Felder (description/tags/category_id/...);
-                    # bisher wurden sie nur in die JSONL geschrieben, nie in
-                    # video_details.
-                    video_registry.upsert_video_details(batch_records)
+                    status = item.get("status", {})
+                    topic_details = item.get("topicDetails", {})
+                    recording_details = item.get("recordingDetails", {})
 
-                if chunk % 10 ==0:
-                    print(f"Processed {chunk*50} videos.")
-                time.sleep(0.1)
-                chunk += 1
+                    video_data.update({
+                        "description": snippet.get("description"),
+                        "tags": snippet.get("tags", []),  # list of strings
+                        "category_id": snippet.get("categoryId"),
+                        "default_language": snippet.get("defaultLanguage"),
+                        "default_audio_language": snippet.get("defaultAudioLanguage"),
+                        "live_broadcast_content": snippet.get("liveBroadcastContent"),
+
+                        # Status information (text-labels)
+                        "privacy_status": status.get("privacyStatus"),  # public, private, unlisted
+                        "upload_status": status.get("uploadStatus"),
+                        "license": status.get("license"),  # YouTube, creativeCommon
+
+                        # Topic-metadata (Wikipedia-links / entities)
+                        "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
+                        "topic_categories": topic_details.get("topicCategories", []),  # Wikipedia-URLs
+
+                        "location_description": recording_details.get("locationDescription"),
+                    })
+
+            _registry_upsert(batch_records)
+            if detailed:
+                # batch_records enthaelt im detailed-Zweig bereits alle
+                # dafuer noetigen Felder (description/tags/category_id/...).
+                video_registry.upsert_video_details(batch_records)
+
+            if chunk % 10 ==0:
+                print(f"Processed {chunk*50} videos.")
+            time.sleep(0.1)
+            chunk += 1
     except Exception as e:
         print(f"Error: {e}")
+    print(f"Metadata found for {found_count}/{len(video_ids_filtered)} requested video_files.")
     print("Metadata saved.")
 
 

@@ -143,8 +143,12 @@ Am Kopf des Skripts konfigurieren:
   aktuellen Datum sammeln, wenn der volle Zeitraum gewünscht ist.
 
 Schreibt neue Video-IDs (`video_id`, `channel_id`, `published_at`, `title`)
-nach `data/raw/sample_50k_channels_russia_ukraine.json` und in die zentrale
-Registry (`data/store/video_registry.sqlite`).
+standardmäßig nur noch in die zentrale Registry
+(`data/store/video_registry.sqlite`). Die separate JSON-Datei
+(`data/raw/sample_50k_channels_russia_ukraine.json`) wird nur noch erzeugt,
+wenn `SAVE_JSON_SNAPSHOT = True` am Kopf des Skripts gesetzt ist — z. B.
+wenn Schritt 3 (`metadata_collection.py`, `VIDEOS_INPUT_PATH`) sie gezielt
+als Input braucht.
 
 **Vorsicht bei den Eingabedateien:** `TARGETED_CHANNEL_INPUT` /
 `TARGETED_SEARCH_YTDLP_CHANNEL_INPUT` zeigen oft noch auf Dateien von einem
@@ -157,42 +161,40 @@ Am Kopf konfigurieren:
 
 - `channel_metadata = False` (für diesen Zweck nicht nötig).
 - `video_metadata = True`, `DETAILED = True`.
-- `VIDEOS_INPUT_PATH` auf die in Schritt 2 gesammelten Video-IDs zeigen
-  lassen (akzeptiert eine JSON-Liste von Dicts mit `video_id` oder eine CSV
-  mit `video_id`-Spalte).
+- `VIDEOS_INPUT_PATH` auf eine Kandidaten-Liste von Video-IDs zeigen lassen
+  (akzeptiert eine JSON-Liste von Dicts mit `video_id` oder eine CSV mit
+  `video_id`-Spalte) — das Skript fragt darüber ohnehin nur die IDs ab, die
+  laut Registry noch keine Detail-Metadaten haben (`video_registry.
+  known_video_detail_ids()`), Dubletten in der Kandidaten-Liste sind also
+  unproblematisch. Wurde in Schritt 2 `SAVE_JSON_SNAPSHOT = True` gesetzt,
+  kann direkt diese Datei verwendet werden; sonst die Kandidaten-IDs für die
+  Zielkanäle aus der Registry ziehen:
 
-Schreibt (hängt an) `data/raw/video_metadata_detailed_total.jsonl` —
-inzwischen >2GB, wächst mit jedem Lauf weiter. Diese Datei ist historisch
-**nicht** für alle Kanäle vollständig; nach dem Lauf verifizieren, dass für
-jeden Zielkanal tatsächlich Zeilen mit plausiblen Beschreibungen und
-`published_at` im gewünschten Fenster vorhanden sind, bevor man zu Schritt 4
-übergeht.
+  ```python
+  from youtube_code.store import video_registry
 
-**Bekannter Stolperstein:** `append_channels_to_state.py` (Schritt 4) lädt
-diese JSONL komplett per `pandas.read_json(..., lines=True)` — bei der vollen
-~2GB-Datei führt das zu einem `MemoryError`, selbst wenn nur wenige tausend
-Zeilen tatsächlich gebraucht werden. Abhilfe: die Datei vorher zeilenweise
-(streaming, `json.loads` pro Zeile, kein Pandas) auf die Ziel-`channel_id`s
-aus Schritt 1 filtern und nur diese kleinere JSONL an `--videos` übergeben.
-Beispiel:
+  channel_ids = [...]  # aus Schritt 1
+  video_ids = sorted({
+      vid for vids in video_registry.get_videos_for_channels(channel_ids).values()
+      for vid in vids
+  })
+  ```
 
-```python
-import json, csv
-
-target_ids = set()
-with open("outputs/segment_analysis/meine_neuen_kanaele.csv", encoding="utf-8") as f:
-    for row in csv.DictReader(f):
-        target_ids.add(row["channel_id"])
-
-with open("data/raw/video_metadata_detailed_total.jsonl", encoding="utf-8") as fin, \
-     open("data/raw/video_metadata_detailed_gefiltert.jsonl", "w", encoding="utf-8") as fout:
-    for line in fin:
-        obj = json.loads(line)
-        if obj.get("channel_id") in target_ids:
-            fout.write(json.dumps(obj, ensure_ascii=False) + "\n")
-```
+Schreibt **nicht mehr** in eine separate JSON/JSONL-Datei (frühere
+`data/raw/video_metadata_detailed_total.jsonl`), sondern direkt in die
+zentrale Registry — Kernfelder in `videos`, die Detail-Felder
+(`description`, `tags`, ...) bei `DETAILED = True` zusätzlich in
+`video_details`. Nach dem Lauf verifizieren, dass für jeden Zielkanal
+tatsächlich Zeilen mit plausiblen Beschreibungen und `published_at` im
+gewünschten Fenster vorliegen (z. B. über `video_registry.
+get_videos_with_text(channel_ids=...)`), bevor man zu Schritt 4 übergeht.
 
 ### Schritt 4 — State erweitern (`longitudinal/append_channels_to_state.py`)
+
+Braucht nur noch die Kanal-IDs aus Schritt 1 — die Videos (Titel/Beschreibung)
+holt sich das Skript automatisch per
+`video_registry.get_videos_with_text(channel_ids=...)` aus der zentralen
+Registry, keine separate Export-Datei mehr nötig.
 
 **Vorher immer ein Backup anlegen** — die State-DB hat keine Git-Historie:
 
@@ -207,7 +209,6 @@ Dann:
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
   src/youtube_code/step2_baseline_channels/longitudinal/append_channels_to_state.py \
   --channels outputs/segment_analysis/meine_neuen_kanaele.csv \
-  --videos data/raw/video_metadata_detailed_gefiltert.jsonl \
   --dry-run
 ```
 
@@ -246,7 +247,7 @@ unzureichende Zellen bekommen neue Kandidaten. Die gedruckte Planübersicht
 - aktualisiert `screening_round` in der State-Datei für die ausgewählten
   Zeilen.
 
-### Schritt 6 — Titel-Klassifikation abschicken (`../llm_analysis/run_longitudinal_screening_batch.py`)
+### Schritt 6 — Titel-Klassifikation abschicken (`longitudinal/run_longitudinal_screening_batch.py`)
 
 Am Kopf konfigurieren:
 
@@ -256,7 +257,7 @@ Am Kopf konfigurieren:
 
 ```bash
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
-  src/youtube_code/llm_analysis/run_longitudinal_screening_batch.py
+  src/youtube_code/step2_baseline_channels/longitudinal/run_longitudinal_screening_batch.py
 ```
 
 Das Skript validiert vorab streng (Kandidaten-IDs müssen exakt mit den noch
@@ -274,7 +275,7 @@ und trägt ihn in die Registry (`data/store/llm_runs.sqlite`, Quelle
 `False` verhindert versehentliche Doppel-Einreichungen für dieselbe
 Runde/Stufe.
 
-### Schritt 7 — Ergebnisse abholen (`../llm_analysis/download_results.py`)
+### Schritt 7 — Ergebnisse abholen (`longitudinal/download_results.py`)
 
 Prüft den Job-Status in der Registry und lädt fertige Ergebnisse herunter
 (als CSV nach `outputs/llm_results/screening_active__<run_id>/`).
@@ -346,10 +347,11 @@ läuft über `run_transcript_selection.py` (`MODE = "baseline"`) — siehe
 | `longitudinal/append_channels_to_state.py` | Neue Kandidatenzeilen in den State einspeisen | pro neue Kanalgruppe |
 | `longitudinal/assign_postwar_baseline.py` | Postwar-Kanälen den Sentinel-Fenster-Wert `interval_index=-1` zuweisen | pro neue Postwar-Kanalgruppe |
 | `longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (State-weit, adaptiv) | wiederholt |
-| `../llm_analysis/run_longitudinal_screening_batch.py` | Batch-Job einreichen (Prompt 32 title / Prompt 33 description) | pro Runde × 2 Stufen |
-| `../llm_analysis/download_results.py` | Ergebnisse abholen | pro Runde × 2 Stufen |
+| `longitudinal/run_longitudinal_screening_batch.py` | Batch-Job einreichen (Prompt 32 title / Prompt 33 description) | pro Runde × 2 Stufen |
+| `longitudinal/download_results.py` | Ergebnisse abholen | pro Runde × 2 Stufen |
 | `update_screening_state.py` | Ergebnisse in State mergen | pro Runde × 2 Stufen |
 | `../step4_transcript_download/select_targets.py` (`select_baseline_targets`) | Video-IDs qualifizierender Kanäle für den Transkript-Download abrufen | bei Bedarf |
+| `check_baseline_availability.py` | Übersicht je Vor-/Nachkriegskanal: wie viele haben eine vollständige Baseline, und bei den übrigen politische/unsichere/ungescreente Video-Zahlen sowie bisherige Politik-Quote | bei Bedarf |
 
 Die vier in einer früheren Fassung dieser Kurzreferenz gelisteten
 Skriptnamen (`create_longitudinal_screening_round.py`,

@@ -6,7 +6,7 @@ from google import genai
 from google.cloud import storage
 
 from youtube_code.config import OUTPUTS, PROJECT_ID, LOCATION
-from youtube_code.step2_baseline_channels.screening_config import LLM_RUN_SOURCE, MANIFEST_DIR
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import LLM_RUN_SOURCE, MANIFEST_DIR
 from youtube_code.store import llm_run_store
 
 

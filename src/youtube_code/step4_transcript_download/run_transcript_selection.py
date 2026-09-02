@@ -6,12 +6,16 @@ uebergibt das Ergebnis an download_transcripts().
 Config-Konstanten am Kopf anpassen, dann ausfuehren:
     PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step4_transcript_download.run_transcript_selection
 """
+import pandas as pd
+
 from youtube_code.step4_transcript_download.download_transcripts import download_transcripts
 from youtube_code.step4_transcript_download.select_targets import (
     select_baseline_targets,
     select_cell_fill_targets,
     select_war_period_targets,
 )
+from youtube_code.config import SAMPLES
+
 
 # ============================================================
 # CONFIG
@@ -21,7 +25,9 @@ from youtube_code.step4_transcript_download.select_targets import (
 MODE = "baseline"
 
 # Gemeinsam: None = alle Kanaele (nur bei "cell_fill" ist eine konkrete Liste Pflicht).
-CHANNEL_IDS = None
+channel_path = SAMPLES / "russia_longitudinal_v1" / "channel_sample_provenance.csv"
+channels = pd.read_csv(channel_path, usecols=["channel_id"], dtype={"channel_id": "string"})["channel_id"].tolist()
+CHANNEL_IDS = channels
 
 # Nur fuer MODE == "cell_fill":
 VIDEOS_PER_CELL = 5

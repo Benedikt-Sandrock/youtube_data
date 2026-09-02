@@ -181,27 +181,39 @@ def upsert_state_rows(records) -> int:
     return after - before
 
 
-def get_state(video_ids=None, channel_ids=None, screening_round=None):
+def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_round=None):
     """
-    Gibt ein DataFrame mit den 19 screening_state-Spalten zurueck, gefiltert
-    ueber jeden uebergebenen Parameter (UND-Verknuepfung, gechunkte
-    IN(...)-Queries bei video_ids/channel_ids, Batch 500). Ohne jeden Filter
-    liefert sie die komplette Tabelle - Ersatz fuer
-    pd.read_csv(STATE_FILE).
+    Gibt ein DataFrame mit den screening_state-Spalten zurueck, gefiltert
+    ueber jeden uebergebenen Parameter (UND-Verknuepfung).
     """
     import pandas as pd
 
     con = _connect()
     try:
-        if video_ids is None and channel_ids is None and screening_round is None:
+        # 1. Ohne jeglichen Filter: Komplette Tabelle laden
+        if video_ids is None and channel_ids is None and politics_final is None and screening_round is None:
             return pd.read_sql_query(
                 f"SELECT {', '.join(COLUMNS)} FROM screening_state", con
             )
 
-        frames = []
         video_ids = [str(v).strip() for v in video_ids] if video_ids is not None else None
         channel_ids = [str(c).strip() for c in channel_ids] if channel_ids is not None else None
 
+        # Hilfsfunktion zum Erstellen der Standard-Bedingungen (politics_final & screening_round)
+        def build_extra_conditions():
+            extra_where = []
+            extra_params = []
+            if politics_final is not None:
+                extra_where.append("politics_final = ?")
+                extra_params.append(politics_final)
+            if screening_round is not None:
+                extra_where.append("screening_round = ?")
+                extra_params.append(screening_round)
+            return extra_where, extra_params
+
+        frames = []
+
+        # Fall A: Chunks über video_ids
         if video_ids is not None:
             id_chunks = list(_chunks(video_ids)) if video_ids else [[]]
             for chunk in id_chunks:
@@ -209,39 +221,52 @@ def get_state(video_ids=None, channel_ids=None, screening_round=None):
                     continue
                 where = [f"video_id IN ({','.join('?' * len(chunk))})"]
                 params = list(chunk)
+
                 if channel_ids is not None:
                     where.append(f"channel_id IN ({','.join('?' * len(channel_ids))})")
-                    params += channel_ids
-                if screening_round is not None:
-                    where.append("screening_round = ?")
-                    params.append(screening_round)
+                    params.extend(channel_ids)
+
+                extra_where, extra_params = build_extra_conditions()
+                where.extend(extra_where)
+                params.extend(extra_params)
+
                 frames.append(pd.read_sql_query(
                     f"SELECT {', '.join(COLUMNS)} FROM screening_state WHERE {' AND '.join(where)}",
                     con, params=params,
                 ))
+
+        # Fall B: Chunks über channel_ids (falls keine video_ids angegeben)
         elif channel_ids is not None:
             for chunk in _chunks(channel_ids):
+                if not chunk:
+                    continue
                 where = [f"channel_id IN ({','.join('?' * len(chunk))})"]
                 params = list(chunk)
-                if screening_round is not None:
-                    where.append("screening_round = ?")
-                    params.append(screening_round)
+
+                extra_where, extra_params = build_extra_conditions()
+                where.extend(extra_where)
+                params.extend(extra_params)
+
                 frames.append(pd.read_sql_query(
                     f"SELECT {', '.join(COLUMNS)} FROM screening_state WHERE {' AND '.join(where)}",
                     con, params=params,
                 ))
+
+        # Fall C: Nur skalar gefilterte Parameter (politics_final und/oder screening_round)
         else:
-            frames.append(pd.read_sql_query(
-                f"SELECT {', '.join(COLUMNS)} FROM screening_state WHERE screening_round = ?",
-                con, params=[screening_round],
-            ))
+            where, params = build_extra_conditions()
+            if where:
+                frames.append(pd.read_sql_query(
+                    f"SELECT {', '.join(COLUMNS)} FROM screening_state WHERE {' AND '.join(where)}",
+                    con, params=params,
+                ))
 
         if not frames:
             return pd.DataFrame(columns=COLUMNS)
         return pd.concat(frames, ignore_index=True)
+
     finally:
         con.close()
-
 
 def total_count() -> int:
     con = _connect()

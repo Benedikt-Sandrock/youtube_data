@@ -32,9 +32,10 @@ Nutzung in einem Fetch-Skript:
     upsert_videos(new_videos)   # Liste von dicts mit mind. "video_id"
 """
 import json
+import re
 import sqlite3
 
-from youtube_code.config import STORE
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS, STORE
 
 DB_PATH = STORE / "video_registry.sqlite"
 
@@ -142,6 +143,16 @@ CREATE TABLE IF NOT EXISTS video_topic_relevance (
     PRIMARY KEY (video_id, topic)
 )
 """
+
+# channel_id hat (anders als video_id) keinen PRIMARY KEY und damit ohne
+# diesen Index keinerlei Index - jede channel_id-gefilterte Abfrage
+# (v.a. get_videos_with_text(), Grundlage von classify_topic_relevance.py)
+# braucht sonst einen vollen Tabellenscan ueber alle videos-Zeilen. Bei
+# mehreren hunderttausend bis Millionen Zeilen ist das der dominante
+# Laufzeitfaktor - deutlich teurer als die Python-seitige Klassifikation.
+_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id)",
+]
 
 _UPSERT_SQL = """
 INSERT INTO videos (
@@ -280,6 +291,8 @@ def _connect() -> sqlite3.Connection:
     con.execute(_CHANNELS_SCHEMA)
     con.execute(_TOPIC_RELEVANCE_SCHEMA)
     _ensure_video_columns(con)
+    for stmt in _INDEXES:
+        con.execute(stmt)
     return con
 
 
@@ -637,6 +650,94 @@ def _chunks(items, size=500):
         yield items[i:i + size]
 
 
+def known_video_ids() -> set:
+    """
+    Gibt alle video_ids zurueck, die bereits in der Registry vorliegen
+    (Muster: transcript_store.attempted_video_ids()). Grundlage fuer den
+    Resume-Filter in get_video_metadata() - nur noch nicht abgefragte IDs
+    werden ueber die API nachgeladen.
+    """
+    con = _connect()
+    try:
+        return {row[0] for row in con.execute("SELECT video_id FROM videos")}
+    finally:
+        con.close()
+
+
+def known_video_detail_ids() -> set:
+    """
+    Gibt alle video_ids zurueck, fuer die bereits Detail-Metadaten
+    (description/tags/category_id/...) in video_details vorliegen. Anders
+    als known_video_ids() (Tabelle videos, immer per API-Fetch befuellt)
+    ist das die Grundlage fuer den Resume-Filter im detailed-Zweig von
+    get_video_metadata(): ein Video kann bereits Basis-Metadaten haben,
+    ohne dass je die detaillierten Felder abgefragt wurden.
+    """
+    con = _connect()
+    try:
+        return {row[0] for row in con.execute("SELECT video_id FROM video_details")}
+    finally:
+        con.close()
+
+
+def known_channel_ids_with_videos() -> set:
+    """
+    Gibt alle channel_ids zurueck, fuer die mindestens ein Video in der
+    videos-Tabelle vorliegt (anders als known_channel_ids(): das ist die
+    channels-Tabelle mit Kanal-Metadaten - ein Kanal kann Metadaten ohne
+    Videos haben oder umgekehrt). Grundlage fuer den "bereits bekannt"-Filter
+    in channel_all_videos.py (NEW_CHANNELS-Modus), seit dieser nicht mehr aus
+    einer JSON-Datei, sondern direkt aus der Registry liest.
+
+    Einschraenkung: Kanaele, fuer die in einem frueheren Lauf 0 Videos im
+    Zeitfenster gefunden wurden, tauchen hier nicht auf (es gibt keine Zeile
+    fuer "kein Video gefunden") und gelten daher bei jedem erneuten Lauf
+    wieder als neu.
+    """
+    con = _connect()
+    try:
+        return {
+            row[0] for row in con.execute(
+                "SELECT DISTINCT channel_id FROM videos WHERE channel_id IS NOT NULL"
+            )
+        }
+    finally:
+        con.close()
+
+
+def newest_video_per_channel() -> dict:
+    """
+    Gibt ein Mapping channel_id -> juengstes bekanntes published_at zurueck,
+    ueber die gesamte Registry (nicht auf eine Eingabe-Kanalliste
+    beschraenkt). Grundlage fuer den Delta-Filter im UPDATE-Modus von
+    channel_all_videos.py (frueher aus einer JSON-Datei berechnet).
+    """
+    con = _connect()
+    try:
+        rows = con.execute(
+            "SELECT channel_id, MAX(published_at) FROM videos "
+            "WHERE channel_id IS NOT NULL AND published_at IS NOT NULL "
+            "GROUP BY channel_id"
+        ).fetchall()
+        return dict(rows)
+    finally:
+        con.close()
+
+
+def known_channel_ids() -> set:
+    """
+    Gibt alle channel_ids zurueck, fuer die bereits Kanal-Metadaten in
+    channels vorliegen (Muster: known_video_ids()/transcript_store.
+    attempted_video_ids()). Grundlage fuer den Resume-Filter in
+    get_channel_metadata().
+    """
+    con = _connect()
+    try:
+        return {row[0] for row in con.execute("SELECT channel_id FROM channels")}
+    finally:
+        con.close()
+
+
 def get_channel_map(video_ids) -> dict:
     """
     Gibt ein Mapping video_id -> channel_id fuer die uebergebenen video_ids
@@ -916,25 +1017,94 @@ def topic_relevant_video_ids(topic) -> set:
         con.close()
 
 
-def get_videos_with_text(channel_ids=None, video_ids=None):
+_DURATION_RE = re.compile(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", re.IGNORECASE)
+
+
+def duration_to_seconds(duration):
     """
-    Gibt video_id/channel_id/published_at/title/description zurueck (videos
-    LEFT JOIN video_details), optional auf channel_ids oder video_ids gefiltert.
-    Grundlage fuer die Keyword-Klassifikation in youtube_code.step3_war_videos.
+    Parst eine ISO-8601-Dauer, wie sie die YouTube-API in videos.duration
+    liefert (z.B. "PT3M21S"), zu Sekunden. Gibt None fuer leere/unparsebare
+    Werte zurueck (z.B. Videos, fuer die contentDetails noch nie abgefragt
+    wurde). Gleiches Regex-Muster wie der archivierte duration_seconds() in
+    archive/new_analysis/attention_diagnostics.py.
+    """
+    if not duration:
+        return None
+    match = _DURATION_RE.fullmatch(str(duration).strip())
+    if not match:
+        return None
+    days, hours, minutes, seconds = (int(x) if x else 0 for x in match.groups())
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def duration_lookup(video_ids) -> dict:
+    """
+    Gibt video_id -> duration_seconds (None bei unbekannter/unparsebarer
+    Dauer) fuer die uebergebenen video_ids zurueck. Grundlage fuer
+    Mindestlaengen-Pruefungen an Stellen, die ihre Kandidaten nicht ueber
+    get_videos_with_text() beziehen, sondern direkt aus screening_state_store
+    oder video_topic_relevance (siehe step4_transcript_download/select_targets.py,
+    download_transcripts()) - dort koennen historisch gewachsene Zeilen liegen,
+    die vor Einfuehrung des Mindestlaengen-Filters entstanden sind.
     """
     import pandas as pd
 
-    cols = "v.video_id, v.channel_id, v.published_at, v.title, d.description"
+    video_ids = sorted({str(v) for v in video_ids if v})
+    if not video_ids:
+        return {}
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT video_id, duration FROM videos WHERE video_id IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["video_id", "duration"])
+    finally:
+        con.close()
+
+    return {row.video_id: duration_to_seconds(row.duration) for row in df.itertuples()}
+
+
+def get_videos_with_text(channel_ids=None, video_ids=None, min_duration_seconds=MIN_VIDEO_DURATION_SECONDS):
+    """
+    Gibt video_id/channel_id/channel_title/published_at/title/description
+    zurueck (videos LEFT JOIN video_details), optional auf channel_ids oder
+    video_ids gefiltert. Grundlage fuer die Keyword-Klassifikation in
+    youtube_code.step3_war_videos sowie fuer append_channels_to_state.py
+    (Schritt 2), das damit die frueher separat exportierte JSONL ersetzt.
+
+    Filtert dabei zentral alle Videos heraus, deren Dauer unter
+    min_duration_seconds liegt (Default: MIN_VIDEO_DURATION_SECONDS aus
+    youtube_code.config, aktuell 181s) - inklusive Videos mit noch
+    unbekannter Dauer (kein contentDetails-Fetch bisher), da fuer sie die
+    Mindestlaenge nicht verifiziert werden kann. min_duration_seconds=None
+    deaktiviert den Filter komplett (z.B. fuer Diagnose-Zwecke).
+    """
+    import pandas as pd
+
+    cols = "v.video_id, v.channel_id, v.channel_title, v.published_at, v.title, v.duration, d.description"
     base_sql = (
         f"SELECT {cols} FROM videos v "
         f"LEFT JOIN video_details d ON v.video_id = d.video_id"
     )
-    out_cols = ["video_id", "channel_id", "published_at", "title", "description"]
+    out_cols = ["video_id", "channel_id", "channel_title", "published_at", "title", "description"]
+
+    def _finalize(df):
+        if min_duration_seconds is not None and not df.empty:
+            seconds = df["duration"].map(duration_to_seconds)
+            keep = [s is not None and s >= min_duration_seconds for s in seconds]
+            df = df.loc[keep]
+        return df.drop(columns="duration").reset_index(drop=True)
 
     if channel_ids is None and video_ids is None:
         con = _connect()
         try:
-            return pd.read_sql_query(base_sql, con)
+            return _finalize(pd.read_sql_query(base_sql, con))
         finally:
             con.close()
 
@@ -953,6 +1123,7 @@ def get_videos_with_text(channel_ids=None, video_ids=None):
                 con,
                 params=chunk,
             ))
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols)
+        combined = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols + ["duration"])
+        return _finalize(combined)
     finally:
         con.close()

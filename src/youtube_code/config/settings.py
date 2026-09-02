@@ -32,5 +32,12 @@ IDEOLOGY_LABELS = ["left", "center", "right"]
 POPULISM_BINS = [-0.1, 3, 7, 10.1]
 POPULISM_LABELS = ["low", "moderate", "high"]
 
+# Mindestlaenge (Sekunden), ab der ein Video ueberhaupt als Kandidat fuer
+# Titel-Screening (Schritt 2) und Themen-Relevanz-Klassifikation (Schritt 3)
+# beruecksichtigt wird - zentral durchgesetzt in
+# video_registry.get_videos_with_text(). Kuerzere Videos (z.B. Shorts) werden
+# dort automatisch verworfen.
+MIN_VIDEO_DURATION_SECONDS = 181
+
 
 

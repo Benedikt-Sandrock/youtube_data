@@ -13,16 +13,23 @@ Bezieht sich NUR auf bereits klassifizierte Videos - keine Aussage darueber, ob 
 Rohsample (YouTube-Metadaten) ueberhaupt noch unklassifizierte Videos fuer eine duenne
 Zelle gibt.
 
-Run pattern: this script is meant to be executed directly (`python video_sample_uebersicht.py`),
-never imported. That is why `from deskriptiv_aggregation import ...` below works as a bare
-sibling import (Python puts the script's own directory on sys.path[0]) - deskriptiv_aggregation.py
-must be in the same folder or otherwise on PYTHONPATH.
+Run pattern: this script is meant to be executed directly
+(`python scripts/adhoc/video_sample_uebersicht.py`). `lade_medientyp()` lives in
+`step6_auswertung/deskriptiv_aggregation.py` - a different folder than this script (unlike the
+step6 scripts, which stay bare-sibling-importable because they moved together), so it is
+imported as a real package import instead, with the same manual sys.path setup used by
+scripts/adhoc/consolidate_llm_results.py.
 """
+
+import sys
+from pathlib import Path
 
 import pandas as pd
 
-from youtube_code.config import OUTPUTS
-from deskriptiv_aggregation import lade_medientyp
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+
+from youtube_code.config import OUTPUTS  # noqa: E402
+from youtube_code.step6_auswertung.deskriptiv_aggregation import lade_medientyp  # noqa: E402
 
 # =========================================================
 # CONFIG

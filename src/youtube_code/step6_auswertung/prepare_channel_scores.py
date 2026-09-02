@@ -4,12 +4,18 @@ import numpy as np
 from youtube_code.config import OUTPUTS, SAMPLES
 
 VIDEO_PATH = OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv"
-RESULTS_PATH = OUTPUTS / "segment_analysis"
+LLM_RESULTS = OUTPUTS / "llm_results"
+RESULTS_PATH = OUTPUTS / "segment_analysis"   # Ziel-/Lese-Ordner fuer abgeleitete Outputs
 
-RESULTS_PATH_IDEOLOGY = RESULTS_PATH / "run_0012_IDEOLOGIE_I_corrected.csv"
-RESULTS_PATH_POPULISM_BASE = RESULTS_PATH / "run_0013_POPULISMUS_P_corrected.csv"
+# Rohergebnisse liegen seit der LLM-Ergebnis-Konsolidierung (Phase 4e,
+# scripts/adhoc/consolidate_llm_results.py) unter outputs/llm_results/<source>__<run_id>/,
+# nicht mehr flach unter outputs/segment_analysis/.
+RESULTS_PATH_IDEOLOGY = LLM_RESULTS / "segment_analysis_active__run_0012" / "run_0012_IDEOLOGIE_I_corrected.csv"
+RESULTS_PATH_POPULISM_BASE = LLM_RESULTS / "segment_analysis_active__run_0013" / "run_0013_POPULISMUS_P_corrected.csv"
+RESULTS_PATH_STANCE = LLM_RESULTS / "segment_analysis_active__run_0011" / "run_0011_POSITION_V1.csv"
+# populism_runs_combined.csv ist KEIN run_NNNN-praefigierter Pipeline-Output, sondern manuell
+# zusammengefuehrt (kein Erzeuger-Skript im Repo) - liegt daher weiterhin flach hier.
 RESULTS_PATH_POPULISM_MAIN = RESULTS_PATH / "populism_runs_combined.csv"
-RESULTS_PATH_STANCE = RESULTS_PATH / "run_0011_POSITION_V1.csv"
 
 
 KRIEGSBEGINN = "2022-02-24"
@@ -258,20 +264,25 @@ def prepare_position_results(results_path_position, video_path):
     return zeitreihen, video_ebene
 
 
-id_results_grouped = prepare_ideology_results(RESULTS_PATH_IDEOLOGY, VIDEO_PATH)
-id_results_grouped.to_csv(RESULTS_PATH / "channel_classification_ideology.csv", index=False)
+def main():
+    id_results_grouped = prepare_ideology_results(RESULTS_PATH_IDEOLOGY, VIDEO_PATH)
+    id_results_grouped.to_csv(RESULTS_PATH / "channel_classification_ideology.csv", index=False)
 
-zeitreihen_populismus, kanal_klassifikation, video_ebene_populismus = prepare_populism_results(
-    RESULTS_PATH_POPULISM_BASE, RESULTS_PATH_POPULISM_MAIN, VIDEO_PATH
-)
-for granularitaet, cfg in GRANULARITAETEN.items():
-    dateiname = f"channel_{cfg['datei_suffix']}_populism_timeseries.csv"
-    zeitreihen_populismus[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)
-kanal_klassifikation.to_csv(RESULTS_PATH / "channel_classification_populism.csv", index=False)
-video_ebene_populismus.to_csv(RESULTS_PATH / "channel_video_populism.csv", index=False)
+    zeitreihen_populismus, kanal_klassifikation, video_ebene_populismus = prepare_populism_results(
+        RESULTS_PATH_POPULISM_BASE, RESULTS_PATH_POPULISM_MAIN, VIDEO_PATH
+    )
+    for granularitaet, cfg in GRANULARITAETEN.items():
+        dateiname = f"channel_{cfg['datei_suffix']}_populism_timeseries.csv"
+        zeitreihen_populismus[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)
+    kanal_klassifikation.to_csv(RESULTS_PATH / "channel_classification_populism.csv", index=False)
+    video_ebene_populismus.to_csv(RESULTS_PATH / "channel_video_populism.csv", index=False)
 
-zeitreihen_position, video_ebene_position = prepare_position_results(RESULTS_PATH_STANCE, VIDEO_PATH)
-for granularitaet, cfg in GRANULARITAETEN.items():
-    dateiname = f"channel_{cfg['datei_suffix']}_position_timeseries.csv"
-    zeitreihen_position[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)
-video_ebene_position.to_csv(RESULTS_PATH / "channel_video_position.csv", index=False)
+    zeitreihen_position, video_ebene_position = prepare_position_results(RESULTS_PATH_STANCE, VIDEO_PATH)
+    for granularitaet, cfg in GRANULARITAETEN.items():
+        dateiname = f"channel_{cfg['datei_suffix']}_position_timeseries.csv"
+        zeitreihen_position[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)
+    video_ebene_position.to_csv(RESULTS_PATH / "channel_video_position.csv", index=False)
+
+
+if __name__ == "__main__":
+    main()

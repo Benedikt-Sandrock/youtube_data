@@ -22,15 +22,16 @@ import pandas as pd
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound
 
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS
 from youtube_code.store.transcript_store import attempted_video_ids, get_transcripts, upsert_transcripts
-from youtube_code.store.video_registry import get_channel_map, get_videos_for_channels
+from youtube_code.store.video_registry import duration_lookup, get_channel_map, get_videos_for_channels
 
 # =====================================================
 # CONFIGURATION (Defaults - als Funktionsparameter ueberschreibbar)
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 1
+SPEED_DOWNLOAD = 0
 VIDEO_LIST = "fill_vids_extended.json"  # nur fuer den __main__-Block
 
 BATCH_SIZE = 5  # API-Batches
@@ -90,6 +91,7 @@ def download_transcripts(
     batch_size: int = BATCH_SIZE,
     speed_download: bool = SPEED_DOWNLOAD,
     confirm_speed: bool = True,
+    min_duration_seconds: int | None = MIN_VIDEO_DURATION_SECONDS,
 ) -> pd.DataFrame:
     """
     Laedt Transkripte fuer video_ids herunter (bereits per transcript_store
@@ -108,6 +110,12 @@ def download_transcripts(
     programmatischen Aufruf (z.B. aus run_transcript_selection.py) auf False
     setzen, um den Prompt zu ueberspringen.
 
+    min_duration_seconds: letzte Absicherung (Default: MIN_VIDEO_DURATION_SECONDS
+    aus youtube_code.config) - video_ids unter dieser Laenge oder mit
+    unbekannter Dauer werden VOR jedem API-Call verworfen, unabhaengig davon,
+    ob der Aufrufer (select_targets.py oder eine eigene Liste) schon gefiltert
+    hat. min_duration_seconds=None deaktiviert die Pruefung.
+
     Rueckgabewert: DataFrame (Spalten REQUIRED_COLUMNS) aller in diesem Aufruf
     verarbeiteten Zeilen (unabhaengig vom bereits erfolgten upsert_transcripts).
     """
@@ -120,6 +128,20 @@ def download_transcripts(
 
     video_ids_sorted = [str(v) for v in video_ids]
     video_channel_map = dict(channel_map or {})
+
+    if min_duration_seconds is not None:
+        duration_by_id = duration_lookup(video_ids_sorted)
+        too_short_or_unknown = {
+            v for v in video_ids_sorted
+            if duration_by_id.get(v) is None or duration_by_id.get(v) < min_duration_seconds
+        }
+        if too_short_or_unknown:
+            video_ids_sorted = [v for v in video_ids_sorted if v not in too_short_or_unknown]
+            print(
+                f"\n⏱️ {len(too_short_or_unknown)} Video-IDs unter Mindestlaenge "
+                f"({min_duration_seconds}s) oder mit unbekannter Dauer verworfen - "
+                "kein Transkript-Download fuer diese IDs."
+            )
 
     print("Loading already processed video IDs from transcript_store…")
     processed_video_ids = attempted_video_ids()

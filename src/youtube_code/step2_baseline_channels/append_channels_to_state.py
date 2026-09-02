@@ -14,10 +14,11 @@ Nutzung:
   1. Video-IDs fuer die Zielkanaele sammeln (channel_all_videos.py, TARGETED_SEARCH
      oder TARGETED_SEARCH_YTDLP je nach Kanalgroesse).
   2. Beschreibungen dafuer holen (metadata_collection.py, video_metadata=True,
-     DETAILED=True) -> JSONL mit video_id, channel_id, channel_title, published_at,
-     title, description.
-  3. Dieses Skript mit NEW_CHANNELS_LIST (CSV mit channel_id-Spalte) und
-     NEW_VIDEOS_FILE (das JSONL aus Schritt 2) aufrufen.
+     DETAILED=True) -> landet direkt in der zentralen video_registry.
+  3. Dieses Skript nur noch mit NEW_CHANNELS_LIST (CSV mit channel_id-Spalte, aus
+     Schritt 1) aufrufen - die Videos (Titel/Beschreibung) werden hier automatisch
+     per video_registry.get_videos_with_text(channel_ids=...) geladen, keine separate
+     Export-Datei mehr noetig.
 
 Seit Phase 4d schreibt dieses Skript nur noch die tatsaechlich neuen Kandidatenzeilen
 per screening_state_store.upsert_state_rows() (kein Vollkopie-CSV-Rewrite mehr, kein
@@ -27,18 +28,18 @@ import argparse
 
 import pandas as pd
 
-from youtube_code.step2_baseline_channels.screening_config import (
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     INTERVAL_START,
     INTERVAL_SIZE,
     TARGET_POLITICAL_PER_INTERVAL,
     TARGET_WITH_BUFFER_PER_INTERVAL,
     SELECTION_SEED,
 )
-from youtube_code.step2_baseline_channels.longitudinal.interval_assignment import (
+from youtube_code.step2_baseline_channels.interval_assignment import (
     assign_intervals,
     stable_random_key,
 )
-from youtube_code.store import screening_state_store
+from youtube_code.store import screening_state_store, video_registry
 
 REQUIRED_COLUMNS = ["video_id", "channel_id", "channel_title", "published_at", "title", "description"]
 REFERENCE_DATE = pd.Timestamp("2022-02-24", tz="UTC")
@@ -50,7 +51,7 @@ def calculate_period(published_at: pd.Series, anchor: pd.Timestamp) -> pd.Series
     return month_diff.astype("int64")
 
 
-def main(new_channels_list: str, new_videos_file: str, dry_run: bool = False) -> None:
+def main(new_channels_list: str, dry_run: bool = False) -> None:
     neue_kanaele = pd.read_csv(new_channels_list, dtype={"channel_id": "string"})
     ziel_ids = set(neue_kanaele["channel_id"])
     print(f"{len(ziel_ids)} Zielkanaele aus {new_channels_list}.")
@@ -63,15 +64,19 @@ def main(new_channels_list: str, new_videos_file: str, dry_run: bool = False) ->
     print(f"{len(bereits_im_state)} Kanaele bereits im State -> nur fehlende period<0 (Baseline) wird ergaenzt.")
     print(f"{len(komplett_neu)} Kanaele komplett neu -> voller Zeitraum (period >= {INTERVAL_START}) wird ergaenzt.")
 
-    df = pd.read_json(new_videos_file, lines=True)
+    df = video_registry.get_videos_with_text(channel_ids=sorted(ziel_ids))
     missing = set(REQUIRED_COLUMNS) - set(df.columns)
     if missing:
-        raise ValueError(f"Fehlende Spalten in {new_videos_file}: {sorted(missing)}")
+        raise ValueError(f"video_registry.get_videos_with_text() liefert nicht alle benoetigten Spalten: {sorted(missing)}")
+    if df.empty:
+        raise ValueError(
+            "Keine Videos in der video_registry fuer diese Zielkanaele - erst Schritt 2 "
+            "(channel_all_videos.py) und Schritt 3 (metadata_collection.py) fuer diese "
+            "Kanaele ausfuehren."
+        )
 
-    df = df[df["channel_id"].isin(ziel_ids)].copy()
-    print(f"{len(df):,} Videos vor Dublettenbereinigung.")
+    print(f"{len(df):,} Videos aus der video_registry fuer die Zielkanaele.")
     df = df.drop_duplicates(subset="video_id", keep="last")
-    print(f"{len(df):,} Videos nach Dublettenbereinigung.")
 
     bereits_bekannte_ids = set(state["video_id"])
     vorher = len(df)
@@ -137,9 +142,8 @@ def main(new_channels_list: str, new_videos_file: str, dry_run: bool = False) ->
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--channels", required=True, help="CSV mit channel_id-Spalte (Zielkanaele).")
-    parser.add_argument("--videos", required=True, help="JSONL mit video_id/channel_id/channel_title/published_at/title/description.")
+    parser.add_argument("--channels", required=True, help="CSV mit channel_id-Spalte (Zielkanaele, aus Schritt 1).")
     parser.add_argument("--dry-run", action="store_true", help="Nur Plan ausgeben, Store nicht schreiben.")
     args = parser.parse_args()
 
-    main(args.channels, args.videos, dry_run=args.dry_run)
+    main(args.channels, dry_run=args.dry_run)

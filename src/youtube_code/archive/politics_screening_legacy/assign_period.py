@@ -2,8 +2,8 @@ import json
 import random
 from datetime import date, datetime
 
-from youtube_code.config import RAW, SAMPLES
-from youtube_code.step2_baseline_channels.screening_config import (
+from youtube_code.config import SAMPLES
+from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     MAIN_VIDEO_FILE,
     REFERENCE_DATE,
 )

@@ -59,22 +59,35 @@ def learn_boilerplate(df) -> dict:
     Rueckgabe: {channel_id: {hash, ...}} - nur fuer Kanaele mit mindestens
     BOILERPLATE_MIN_SAMPLE geprueften Videos und mindestens einer Zeile, die
     den Schwellenwert erreicht.
+
+    Performance: die pro-Kanal-Stichprobe (BOILERPLATE_SAMPLE_PER_CHANNEL)
+    wird per groupby().head() vektorisiert bestimmt, statt sie ueber einen
+    Python-Loop mit Counter-Check ueber ALLE Zeilen von df auszuwaehlen
+    (bei mehreren hunderttausend Zeilen mit nur wenigen hundert Kanaelen
+    sonst ein voller Durchlauf durch df fuer eine winzige Teilmenge).
+    Zeilenweise gehasht wird nur noch diese (kleine, deterministische)
+    Stichprobe.
     """
-    seen = Counter()
-    counts = defaultdict(Counter)
+    valid = df[df["channel_id"].notna() & (df["channel_id"] != "")]
+    if valid.empty:
+        return {}
 
     # Deterministische Reihenfolge (nach video_id sortiert) statt der
     # arbitraeren Zeilenreihenfolge einer JSONL-Datei in feasibility.py -
     # bewusste Abweichung, damit Wiederholungslaeufe reproduzierbar sind.
-    for row in df.sort_values("video_id").itertuples(index=False):
-        ch = row.channel_id
-        if not ch or seen[ch] >= BOILERPLATE_SAMPLE_PER_CHANNEL:
-            continue
-        seen[ch] += 1
+    sample = (
+        valid.sort_values("video_id")
+        .groupby("channel_id", sort=False, group_keys=False)
+        .head(BOILERPLATE_SAMPLE_PER_CHANNEL)
+    )
+    seen = sample.groupby("channel_id")["video_id"].size()
+
+    counts = defaultdict(Counter)
+    for row in sample.itertuples(index=False):
         for ln in split_paragraphs(row.description or ""):
             if len(ln) < BOILERPLATE_MIN_LEN:
                 continue
-            counts[ch][line_hash(ln)] += 1
+            counts[row.channel_id][line_hash(ln)] += 1
 
     boiler = {}
     for ch, c in counts.items():
@@ -91,7 +104,15 @@ def clean_description(description: str, channel_id, boiler: dict) -> str:
     """
     Entfernt die fuer channel_id gelernten Boilerplate-Zeilen aus einer
     einzelnen Beschreibung (1:1 aus feasibility.cmd_extract, Zeilen 394-397).
+
+    Schneller Sonderfall: hat der Kanal ueberhaupt keine gelernte Boilerplate
+    (der Regelfall - BOILERPLATE_THRESHOLD von 60% wird nur von wenigen
+    Kanaelen ueberhaupt erreicht), entfaellt das Hashen jeder einzelnen Zeile
+    komplett - das war zuvor die teuerste Operation in classify(), weil sie
+    unabhaengig vom Ergebnis fuer JEDE Zeile JEDES Videos ausgefuehrt wurde.
     """
+    drop = boiler.get(channel_id)
+    if not drop:
+        return description or ""
     lines = split_paragraphs(description or "")
-    drop = boiler.get(channel_id, set())
     return "\n".join(ln for ln in lines if line_hash(ln) not in drop)
