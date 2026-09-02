@@ -31,7 +31,7 @@ from youtube_code.store.video_registry import duration_lookup, get_channel_map, 
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 0
+SPEED_DOWNLOAD = 1
 VIDEO_LIST = "fill_vids_extended.json"  # nur fuer den __main__-Block
 
 BATCH_SIZE = 5  # API-Batches

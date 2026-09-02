@@ -49,12 +49,14 @@ Skriptlauf derselben Quelle ("ganze Zeile gewinnt" bei Konflikt auf
 Nutzung:
     from youtube_code.store.llm_run_store import (
         upsert_runs, get_runs, get_run, add_run, update_run,
+        get_video_ids_for_prompt,
     )
     upsert_runs("screening_active", records)  # Liste von dicts, REGISTRY_COLUMNS-Felder
     get_runs(dataset_id="main_transcripts", target_variable="ideology_score")
     get_run("screening_active", "run_0017")
     add_run("screening_active", prompt_id="PROMPT_32", ...)      # -> neue run_id
     update_run("screening_active", "run_0017", status="downloaded")
+    get_video_ids_for_prompt("POSITION_V1")  # source default segment_analysis_active
 
 add_run()/update_run() sind duenne Komfortfunktionen ueber upsert_runs(),
 die die bisherige RunRegistry.add_run()/update_run()-Aufrufform an den
@@ -311,6 +313,51 @@ def get_run(source: str, run_id: str):
     if df.empty:
         raise ValueError(f"(source={source!r}, run_id={run_id!r}) nicht in llm_runs gefunden.")
     return df.iloc[0]
+
+
+def get_video_ids_for_prompt(prompt_id: str, source: str = "segment_analysis_active") -> list:
+    """
+    Liefert die Liste aller eindeutigen Video-IDs, fuer die ein gegebener
+    Prompt (prompt_id) unter `source` bereits Ergebnisse hat. llm_runs
+    selbst enthaelt keine Video-IDs (nur Run-Metadaten) - die stehen in
+    der Ergebnisdatei je Run, auf die `results_path` zeigt. Fuer
+    `segment_analysis_active` ist das eine CSV mit einer "video_id"-
+    Spalte (siehe step5_segment_analysis/download_segments_simple.py,
+    Zeile "results.insert(0, "run_id", run_id)" ff. - die Spalte kommt
+    aus dem beim Submit geschriebenen Manifest und bleibt beim Merge auf
+    custom_id erhalten).
+
+    Runs ohne (oder mit nicht mehr vorhandener) results_path - z.B. noch
+    nicht heruntergeladene Runs - werden stillschweigend uebersprungen.
+    Reihenfolge der Rueckgabe: erstes Auftreten ueber alle passenden Runs
+    hinweg (sortiert nach run_id), Duplikate entfernt.
+    """
+    from pathlib import Path
+
+    import pandas as pd
+
+    runs = get_runs(source=source)
+    runs = runs[runs["prompt_id"] == prompt_id].sort_values("run_id")
+
+    seen = set()
+    video_ids = []
+    for results_path in runs["results_path"].dropna():
+        results_path = str(results_path).strip()
+        if not results_path:
+            continue
+        path = Path(results_path)
+        if not path.exists():
+            continue
+        try:
+            df = pd.read_csv(path, usecols=["video_id"], dtype="string")
+        except (ValueError, KeyError):
+            continue  # keine video_id-Spalte in dieser Ergebnisdatei
+        for vid in df["video_id"].dropna():
+            vid = vid.strip()
+            if vid and vid not in seen:
+                seen.add(vid)
+                video_ids.append(vid)
+    return video_ids
 
 
 def total_count() -> int:

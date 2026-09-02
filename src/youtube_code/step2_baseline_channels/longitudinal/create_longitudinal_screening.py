@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS
 from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     INITIAL_CANDIDATES_PER_PERIOD,
     MAX_CANDIDATES_PER_PERIOD_PER_ROUND,
@@ -32,7 +33,7 @@ from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     TARGET_WITH_BUFFER_PER_INTERVAL,
     TITLES_PER_REQUEST,
 )
-from youtube_code.store import screening_state_store
+from youtube_code.store import screening_state_store, video_registry
 
 # First inspect the printed plan with DRY_RUN=True. Change it to False only
 # after the counts and the sample rows look plausible.
@@ -241,6 +242,22 @@ def plan_screening_round(
     if safety_factor < 1:
         raise ValueError("safety_factor must be at least 1.")
 
+    # Mindestlaengen-Filter VOR jeglicher Zaehlung/Auswahl (analog zu Fix in
+    # step4_transcript_download/select_targets.select_baseline_targets):
+    # ohne diese Zeile wuerden zu kurze/unbekannt lange Altzeilen (siehe
+    # scripts/adhoc/check_min_duration_violations.py) sowohl faelschlich zum
+    # "target_reached"-Status beitragen (political_found) als auch als
+    # unused-Kandidaten fuer kuenftige Screening-Runden ausgewaehlt werden -
+    # letzteres verschwendet LLM-Klassifikationsbudget fuer Videos, die
+    # ohnehin nie ins finale Sample kommen (siehe select_targets._filter_min_duration).
+    duration_lookup = video_registry.duration_lookup(state["video_id"].tolist())
+    state = state.assign(
+        _duration_ok=state["video_id"].map(
+            lambda v: duration_lookup.get(v) is not None
+            and duration_lookup.get(v) >= MIN_VIDEO_DURATION_SECONDS
+        )
+    )
+
     selected_parts = []
     summary_rows = []
 
@@ -262,8 +279,12 @@ def plan_screening_round(
         else:
             interval_target = target_with_buffer
 
-        political_found = int(interval_df["politics_final"].eq(1).sum())
-        final_classified = int(interval_df["politics_final"].notna().sum())
+        political_found = int(
+            (interval_df["politics_final"].eq(1) & interval_df["_duration_ok"]).sum()
+        )
+        final_classified = int(
+            (interval_df["politics_final"].notna() & interval_df["_duration_ok"]).sum()
+        )
         pending_title = int(
             (
                     interval_df["screening_round"].notna()
@@ -280,6 +301,7 @@ def plan_screening_round(
         unused = interval_df.loc[
             interval_df["screening_round"].isna()
             & interval_df["politics_title"].isna()
+            & interval_df["_duration_ok"]
             ].copy()
         unused = unused.loc[unused["title"].fillna("").str.strip().ne("")]
 

@@ -65,6 +65,8 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.s
 `CHANNEL_FILTER`, `DRY_RUN`). Erst mit `DRY_RUN=True` die gedruckte
 Zusammenfassung/Stichprobe prüfen, dann auf `False` setzen.
 
+Ausführungsdauer 9/2/26 für 518k Videos: 1298 Sek. (634 Sek. Boilerplate, 552 Sek. Klassifikation, 112 Sek. Speicherung)
+
 ## Weiteres Thema ergänzen
 
 Ein zweites Topic (z. B. Nahost, `KEYWORDS_MIDDLE_EAST` existiert bereits in

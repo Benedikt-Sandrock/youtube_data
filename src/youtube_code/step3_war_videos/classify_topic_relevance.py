@@ -24,6 +24,7 @@ from collections import Counter
 from datetime import datetime, timezone
 
 import pandas as pd
+import numpy as np
 
 from youtube_code.step3_war_videos.boilerplate import clean_description, learn_boilerplate
 from youtube_code.step3_war_videos.topic_keywords import (
@@ -96,11 +97,12 @@ def classify(df: pd.DataFrame, boiler: dict) -> pd.DataFrame:
         flags[f"{k}_desc"] = desc_clean.str.contains(rx, na=False)
 
     flag_names = list(flags.keys())
-    flag_columns = [flags[name].to_numpy() for name in flag_names]
-    matched_keywords = [
-        [name for name, hit in zip(flag_names, row) if hit]
-        for row in zip(*flag_columns)
-    ]
+    n = len(df)
+    matched_keywords = [[] for _ in range(n)]
+    for name in flag_names:
+        idx = np.flatnonzero(flags[name].to_numpy())
+        for i in idx:
+            matched_keywords[i].append(name)
 
     return pd.DataFrame({
         "video_id": df["video_id"].values,

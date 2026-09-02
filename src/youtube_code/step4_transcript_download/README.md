@@ -13,8 +13,14 @@ den Transkript-Download (`COMPLETE_PROCESS.md` Schritt 4).
    `step2_baseline_channels/README.md` §4 dokumentierten Rezept — hier ueber
    alle Kanaele im `screening_state`, nicht nur eine feste Liste.
 2. **`select_cell_fill_targets(channel_ids, videos_per_cell, topic=..., granularity=...)`**
-   — Kanal-Perioden-Zellen identifizieren und Kriegs-/politisch klassifizierte
-   Nicht-Kriegsvideos einfuellen, bis jede Zelle `videos_per_cell` Videos hat.
+   — Kanal-Perioden-Zellen identifizieren und je Zelle GETRENNT bis zu
+   `videos_per_cell` Kriegsvideos UND bis zu `videos_per_cell` politisch
+   klassifizierte Nicht-Kriegsvideos einfuellen (zwei unabhaengige Quoten,
+   bis zu `2 * videos_per_cell` Videos je Zelle). Je Pool zaehlen zuerst
+   Videos mit bereits vorhandenem Transkript (`transcript_store.has_transcript()`)
+   gegen die Quote; nur der fehlende Rest wird mit neuen, noch nicht
+   heruntergeladenen IDs aufgefuellt — Zellen, die ihre Quote schon aus
+   vorhandenen Transkripten erreichen, bekommen keine neuen Download-Kandidaten.
 3. **`select_war_period_targets(start_date, end_date, channel_ids=None, topic=...)`**
    — alle Kriegsvideos in einem bestimmten Zeitraum identifizieren (z. B. kurz
    vor/nach einem wichtigen Event).

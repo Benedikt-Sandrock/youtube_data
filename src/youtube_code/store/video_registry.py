@@ -580,28 +580,62 @@ def export_jsonl(output_path, include_title: bool = False) -> int:
     return n
 
 
-def coverage_report():
+def coverage_report(channel_ids=None):
     """
     Gibt ein DataFrame mit einer Zeile je channel_id zurueck:
-    aeltestes_video, neuestes_video, n_videos. Das ist die
-    "Registry mit aeltestem/neuestem Video pro Kanal" - immer live aus
-    den tatsaechlichen Daten berechnet, keine separate Buchfuehrung.
+    title, aeltestes_video, neuestes_video, n_videos.
+
+    Kann optional auf eine Liste/Menge von channel_ids gefiltert werden.
     """
     import pandas as pd
 
     con = _connect()
     try:
-        return pd.read_sql_query(
+        # 1. Basis-Abfrage ohne Filter (alle Kanäle)
+        if channel_ids is None:
+            return pd.read_sql_query(
+                """
+                SELECT 
+                    v.channel_id,
+                    c.title,
+                    MIN(v.published_at) AS aeltestes_video,
+                    MAX(v.published_at) AS neuestes_video,
+                    COUNT(*) AS n_videos
+                FROM videos v
+                LEFT JOIN channels c ON v.channel_id = c.channel_id
+                WHERE v.channel_id IS NOT NULL
+                GROUP BY v.channel_id, c.title
+                """,
+                con,
+            )
+
+        # 2. Vorverarbeitung der übergebenen channel_ids
+        channel_ids = [str(c) for c in channel_ids if c]
+        if not channel_ids:
+            return pd.DataFrame(
+                columns=["channel_id", "channel_title", "aeltestes_video", "neuestes_video", "n_videos"]
+            )
+
+        # 3. Chunked Abfrage für gefilterte channel_ids
+        frames = []
+        for chunk in _chunks(channel_ids):
+            placeholders = ",".join("?" * len(chunk))
+            query = f"""
+                SELECT 
+                    v.channel_id,
+                    c.title,
+                    MIN(v.published_at) AS aeltestes_video,
+                    MAX(v.published_at) AS neuestes_video,
+                    COUNT(*) AS n_videos
+                FROM videos v
+                LEFT JOIN channels c ON v.channel_id = c.channel_id
+                WHERE v.channel_id IN ({placeholders})
+                GROUP BY v.channel_id, c.title
             """
-            SELECT channel_id,
-                   MIN(published_at) AS aeltestes_video,
-                   MAX(published_at) AS neuestes_video,
-                   COUNT(*) AS n_videos
-            FROM videos
-            WHERE channel_id IS NOT NULL
-            GROUP BY channel_id
-            """,
-            con,
+            frames.append(pd.read_sql_query(query, con, params=chunk))
+
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
+            columns=["channel_id", "channel_title", "aeltestes_video", "neuestes_video", "n_videos"]
         )
     finally:
         con.close()
@@ -1100,6 +1134,81 @@ def get_videos_with_text(channel_ids=None, video_ids=None, min_duration_seconds=
             keep = [s is not None and s >= min_duration_seconds for s in seconds]
             df = df.loc[keep]
         return df.drop(columns="duration").reset_index(drop=True)
+
+    if channel_ids is None and video_ids is None:
+        con = _connect()
+        try:
+            return _finalize(pd.read_sql_query(base_sql, con))
+        finally:
+            con.close()
+
+    filter_col, filter_ids = ("v.channel_id", channel_ids) if channel_ids is not None else ("v.video_id", video_ids)
+    filter_ids = [str(x) for x in filter_ids if x]
+    if not filter_ids:
+        return pd.DataFrame(columns=out_cols)
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(filter_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"{base_sql} WHERE {filter_col} IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        combined = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols + ["duration"])
+        return _finalize(combined)
+    finally:
+        con.close()
+
+
+def get_video_metadata(
+    channel_ids=None,
+    video_ids=None,
+    min_duration_seconds=MIN_VIDEO_DURATION_SECONDS,
+    duration_filter=True,
+):
+    """
+    Schlanke Variante von get_videos_with_text() OHNE den JOIN auf
+    video_details: liefert nur video_id/channel_id/channel_title/
+    published_at/title. Gedacht fuer Stellen, die description gar nicht
+    brauchen (z.B. Zielauswahl/Filterung wie select_baseline_targets() in
+    step4_transcript_download/select_targets.py) - video_details.description
+    kann pro Video mehrere KB gross sein und wird bei get_videos_with_text()
+    immer mituebertragen, auch wenn sie gar nicht verwendet wird. Ohne den
+    JOIN und ohne description-Spalte ist diese Funktion bei grossen
+    Ergebnismengen deutlich schneller und speichersparender.
+
+    Mindestlaengen-Handling analog zu get_videos_with_text():
+    - duration_filter=True (Default): Videos unter min_duration_seconds
+      (inkl. Videos mit noch unbekannter Dauer) werden aus dem Ergebnis
+      entfernt, wie bisher.
+    - duration_filter=False: es wird keine Zeile entfernt: die Ausgabe
+      erhaelt stattdessen eine zusaetzliche Spalte meets_min_duration
+      (bool), die pro Video das Ergebnis derselben Pruefung traegt.
+    min_duration_seconds=None deaktiviert die Pruefung komplett - dann
+    werden weder Zeilen gefiltert noch (bei duration_filter=False) eine
+    meets_min_duration-Spalte ergaenzt.
+    """
+    import pandas as pd
+
+    cols = "v.video_id, v.channel_id, v.channel_title, v.published_at, v.title, v.duration"
+    base_sql = f"SELECT {cols} FROM videos v"
+    out_cols = ["video_id", "channel_id", "channel_title", "published_at", "title"]
+    if min_duration_seconds is not None and not duration_filter:
+        out_cols = out_cols + ["meets_min_duration"]
+
+    def _finalize(df):
+        if min_duration_seconds is None:
+            return df.drop(columns="duration").reset_index(drop=True)
+        seconds = df["duration"].map(duration_to_seconds)
+        meets = seconds.map(lambda s: s is not None and s >= min_duration_seconds)
+        if duration_filter:
+            return df.loc[meets].drop(columns="duration").reset_index(drop=True)
+        df = df.drop(columns="duration").reset_index(drop=True)
+        df["meets_min_duration"] = meets.reset_index(drop=True)
+        return df
 
     if channel_ids is None and video_ids is None:
         con = _connect()
