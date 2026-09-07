@@ -56,3 +56,9 @@ __pycache__
 /data/store/*.sqlite-shm
 /data/archive/raw/neue_kanaele_video_metadata_detailed.jsonl
 /data/archive/raw/sample_50k_channels_russia_ukraine.json
+/outputs/segment_analysis/
+/outputs/archive/
+/scripts/adhoc/output/
+/src/youtube_code/archive/
+/data/exploration/
+/data/samples/russia/
