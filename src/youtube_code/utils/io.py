@@ -218,6 +218,99 @@ def get_video_metadata(video_ids, youtube_client, detailed = False):
     print("Metadata saved.")
 
 
+def refresh_video_stats(video_ids, youtube_client, detailed=False):
+    """
+    Wie get_video_metadata(), aber gedacht fuer bereits bekannte Videos, deren
+    view_count/like_count/comment_count bewusst aufgefrischt werden sollen
+    (z.B. Videos aus einem noch laufenden Zeitraum bei einem periodischen
+    Registry-Update). Zwei Unterschiede zu get_video_metadata():
+
+    1. KEIN "schon bekannt"-Filter: get_video_metadata() ueberspringt IDs, die
+       laut known_video_ids()/known_video_detail_ids() schon einen Eintrag
+       haben - fuer ein Auffrischen ist genau das der Zweck des Aufrufs, die
+       API wird also fuer ALLE uebergebenen video_ids aufgerufen.
+    2. Schreibt ueber video_registry.refresh_video_stats() statt upsert_videos()
+       - view_count/like_count/comment_count werden dadurch mit dem neuen Wert
+       ueberschrieben (statt fuer immer beim ersten abgerufenen Wert zu
+       bleiben, siehe Docstring dort). video_details (bei detailed=True)
+       bleibt weiterhin ueber upsert_video_details() COALESCE(alt, neu) -
+       Beschreibung/Tags/... werden nicht regelmaessig aktualisiert, nur
+       ergaenzt, falls noch nicht vorhanden.
+    """
+    print("Refreshing video stats (view/like/comment_count)...")
+
+    if video_ids and isinstance(video_ids[0], dict):
+        video_ids = [v["video_id"] for v in video_ids]
+
+    print(f"Total video IDs to refresh: {len(video_ids)}")
+
+    api_parts = "snippet,statistics,contentDetails"
+    if detailed:
+        api_parts += ",status,topicDetails,recordingDetails"
+
+    chunk = 1
+    found_count = 0
+    try:
+        for batch in chunk_list(video_ids, 50):
+            request = youtube_client.videos().list(
+                part=api_parts,
+                id=",".join(batch)
+            )
+            response = request.execute()
+            found_count += len(response.get("items", []))
+
+            batch_records = []
+            for item in response.get("items", []):
+                snippet = item.get("snippet", {})
+                content_details = item.get("contentDetails", {})
+                statistics = item.get("statistics", {})
+
+                video_data = {
+                    "video_id": item["id"],
+                    "title": snippet.get("title"),
+                    "channel_title": snippet.get("channelTitle"),
+                    "channel_id": snippet.get("channelId"),
+                    "published_at": snippet.get("publishedAt"),
+                    "duration": content_details.get("duration"),
+                    "view_count": statistics.get("viewCount"),
+                    "like_count": statistics.get("likeCount"),
+                    "comment_count": statistics.get("commentCount"),
+                }
+                batch_records.append(video_data)
+
+                if detailed:
+                    status = item.get("status", {})
+                    topic_details = item.get("topicDetails", {})
+                    recording_details = item.get("recordingDetails", {})
+
+                    video_data.update({
+                        "description": snippet.get("description"),
+                        "tags": snippet.get("tags", []),
+                        "category_id": snippet.get("categoryId"),
+                        "default_language": snippet.get("defaultLanguage"),
+                        "default_audio_language": snippet.get("defaultAudioLanguage"),
+                        "live_broadcast_content": snippet.get("liveBroadcastContent"),
+                        "privacy_status": status.get("privacyStatus"),
+                        "upload_status": status.get("uploadStatus"),
+                        "license": status.get("license"),
+                        "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
+                        "topic_categories": topic_details.get("topicCategories", []),
+                        "location_description": recording_details.get("locationDescription"),
+                    })
+
+            video_registry.refresh_video_stats(batch_records)
+            if detailed:
+                video_registry.upsert_video_details(batch_records)
+
+            if chunk % 10 == 0:
+                print(f"Processed {chunk*50} videos.")
+            time.sleep(0.1)
+            chunk += 1
+    except Exception as e:
+        print(f"Error: {e}")
+    print(f"Stats refreshed for {found_count}/{len(video_ids)} requested video_files.")
+
+
 def load_json(path):
     print(f"Reading file: '{path}'")
     with open(path, "r", encoding = "utf-8") as f:

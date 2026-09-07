@@ -26,13 +26,13 @@ import pandas as pd
 
 from youtube_code.store.screening_state_store import get_state
 from youtube_code.store.transcript_store import attempted_video_ids
-from youtube_code.config import OUTPUTS
+from youtube_code.config import OUTPUTS, SAMPLES
 
 # ============================================================
 # CONFIG
 # ============================================================
 
-df = pd.read_csv(OUTPUTS /"segment_analysis" / "channel_video_populism.csv")
+df = pd.read_csv(SAMPLES /"russia_longitudinal_v1" / "channel_sample_provenance.csv")
 
 channels = set(df["channel_id"].tolist())
 print(len(channels))

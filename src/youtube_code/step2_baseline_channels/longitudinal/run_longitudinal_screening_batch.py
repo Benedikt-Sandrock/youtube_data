@@ -25,7 +25,7 @@ from youtube_code.llm_analysis.screening_batch_submission import (
 # USER CONFIG
 # ============================================================
 
-ROUND_NUMBER = 10
+ROUND_NUMBER = 12
 
 # "title" or "description"
 MODE = "description"

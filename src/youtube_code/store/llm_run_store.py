@@ -49,7 +49,7 @@ Skriptlauf derselben Quelle ("ganze Zeile gewinnt" bei Konflikt auf
 Nutzung:
     from youtube_code.store.llm_run_store import (
         upsert_runs, get_runs, get_run, add_run, update_run,
-        get_video_ids_for_prompt,
+        get_video_ids_for_prompt, get_results_for_prompt,
     )
     upsert_runs("screening_active", records)  # Liste von dicts, REGISTRY_COLUMNS-Felder
     get_runs(dataset_id="main_transcripts", target_variable="ideology_score")
@@ -57,6 +57,7 @@ Nutzung:
     add_run("screening_active", prompt_id="PROMPT_32", ...)      # -> neue run_id
     update_run("screening_active", "run_0017", status="downloaded")
     get_video_ids_for_prompt("POSITION_V1")  # source default segment_analysis_active
+    get_results_for_prompt("POPULISMUS_P")   # alle Ergebniszeilen aller passenden Runs
 
 add_run()/update_run() sind duenne Komfortfunktionen ueber upsert_runs(),
 die die bisherige RunRegistry.add_run()/update_run()-Aufrufform an den
@@ -358,6 +359,58 @@ def get_video_ids_for_prompt(prompt_id: str, source: str = "segment_analysis_act
                 seen.add(vid)
                 video_ids.append(vid)
     return video_ids
+
+
+def get_results_for_prompt(prompt_id: str, source: str = "segment_analysis_active", status: str | None = "downloaded"):
+    """
+    Liest fuer alle Runs mit gegebenem `prompt_id`/`source` (optional weiter
+    per `status` gefiltert, Default "downloaded") die jeweilige
+    `results_path`-Ergebnisdatei ein und konkateniert sie zu einem einzigen
+    DataFrame - die mechanische Grundlage fuer Analysen, die "alle
+    Ergebnisse eines Prompts" brauchen (z.B.
+    step6_auswertung/prepare_channel_scores.py), ohne dass Aufrufer die
+    Run-Registry und results_path-Aufloesung selbst nachbauen muessen.
+
+    Jede Zeile bekommt zusaetzlich die Spalte `dataset_id` aus der
+    Run-Registry angehaengt - die steht sonst nirgends in der Ergebnisdatei
+    selbst (nur `run_id`, das die Ergebnisdatei bereits als eigene Spalte
+    mitbringt). Erlaubt Aufrufern z.B., Test-/Pilot-Runs anhand ihres
+    `dataset_id`-Namensmusters nachtraeglich herauszufiltern.
+
+    Bewusst OHNE Dedup- oder Exclude-Policy: welche Runs als Duplikate oder
+    Test-Laeufe gelten und wie damit umgegangen wird, ist Sache der
+    aufrufenden Analyse (unterschiedliche Konsumenten koennten
+    unterschiedliche Policies brauchen) - analog dazu, dass upsert_runs()
+    auch keinen Merge ueber `source`-Grenzen hinweg vornimmt (siehe
+    Modul-Docstring).
+
+    Runs ohne (oder mit nicht mehr vorhandener) results_path werden wie bei
+    get_video_ids_for_prompt() stillschweigend uebersprungen. Gibt ein
+    leeres DataFrame zurueck, wenn kein passender Run eine vorhandene
+    Ergebnisdatei hat.
+    """
+    from pathlib import Path
+
+    import pandas as pd
+
+    runs = get_runs(source=source, status=status)
+    runs = runs[runs["prompt_id"] == prompt_id].sort_values("run_id")
+
+    frames = []
+    for _, run in runs.iterrows():
+        results_path = run["results_path"]
+        if not results_path:
+            continue
+        path = Path(str(results_path).strip())
+        if not path.exists():
+            continue
+        df = pd.read_csv(path, low_memory=False)
+        df["dataset_id"] = run["dataset_id"]
+        frames.append(df)
+
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
 
 
 def total_count() -> int:

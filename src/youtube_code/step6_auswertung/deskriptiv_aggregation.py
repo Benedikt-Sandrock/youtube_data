@@ -2,21 +2,42 @@
 """
 deskriptiv_aggregation.py
 
-Liest die bereits von prepare_channel_scores.py aggregierten Kanal x Periode
-Zeitreihen ein (Populismus bzw. Position/Stance), ergaenzt Kanalmetadaten
-(Medientyp, Ideologie), filtert Kanaele und berechnet fuer Populismus den
-Baseline-Index (letzte Vorkriegsperioden = 100).
+Liest die bereits aggregierten Kanal x Periode Zeitreihen ein (Populismus/
+Position-Stance aus prepare_channel_scores.py, Erfolg/Views-Engagement aus
+prepare_success_metrics.py), ergaenzt Kanalmetadaten (Medientyp, Ideologie),
+filtert Kanaele und berechnet fuer Populismus zusaetzlich zum Rohwert einen
+Baseline-Index (letzte Vorkriegsperioden = 100). Der Rohwert (wert_roh)
+bleibt dabei fuer ALLE Kanal-Perioden-Zellen erhalten, auch fuer Kanaele
+ohne besetztes Vorkriegsfenster (deren index_100 = NaN bleibt) -
+deskriptiv_plots.py plottet standardmaessig den Rohwert, nicht den Index
+(siehe dortiger Docstring und frage1_methodik_und_stichprobe.md
+Abschnitt 3c). MODUS = "erfolg" (Forschungsfrage 2, siehe
+frage2_4_methodik_und_stichprobe.md) bekommt wie "stance" KEINEN
+Baseline-Index - rohe Views/Engagement werden bewusst NICHT auf eine
+Vorkriegsperiode normiert, siehe Docstring von prepare_success_metrics.py.
+MODUS = "erfolg_kriegsvideos" (Forschungsfrage 4, siehe deskriptiv_plots.py::
+NUR_TOPICVIDEOS) ist dieselbe Aufbereitung wie "erfolg", nur mit der auf
+Kriegsvideos gefilterten Zeitreihe (channel_{gran}_erfolg_kriegsvideos_
+timeseries.csv) als Eingabe - ebenfalls kein Baseline-Index.
 
-Granularitaet (Quartal/Monat) ueber GRANULARITAET waehlbar - prepare_channel_scores.py
-schreibt fuer beide Granularitaeten je eine eigene Zeitreihen-Datei, dieses Skript liest
-davon eine ein und produziert eine dazu passende deskriptiv_{modus}_{granularitaet}.csv.
+Granularitaet (Quartal/Monat) ueber GRANULARITAET_LISTE waehlbar - die jeweilige
+Quellzeitreihe schreibt fuer beide Granularitaeten je eine eigene Datei, dieses
+Skript liest je Kombination aus MODUS_LISTE x GRANULARITAET_LISTE eine ein und
+produziert dazu eine passende deskriptiv_{modus}_{granularitaet}.csv.
 
 Segment -> Video -> Kanal x Periode passiert NICHT mehr hier, sondern in
 prepare_channel_scores.py. Dieses Skript setzt bei der bereits aggregierten
 Tabelle an.
+
+MODUS_LISTE und GRANULARITAET_LISTE nehmen jeweils eine Liste von Werten -
+main() iteriert automatisch ueber alle Kombinationen (kartesisches Produkt)
+und schreibt fuer jede eine eigene deskriptiv_{modus}_{granularitaet}.csv.
 """
 
 import os
+from itertools import product
+from types import SimpleNamespace
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,8 +48,14 @@ from youtube_code.config import OUTPUTS, EXTERNAL
 # CONFIG
 # =========================================================
 
-MODUS = "populismus"          # "populismus" | "stance"
-GRANULARITAET = "monat"     # "quartal" | "monat"
+MODUS_LISTE = ["populismus", "stance", "erfolg", "erfolg_kriegsvideos"]  # Teilmenge von {"populismus", "stance", "erfolg", "erfolg_kriegsvideos"}
+# "erfolg_kriegsvideos": wie "erfolg", aber nur ueber Kriegsvideos aggregiert (channel_{gran}_
+# erfolg_kriegsvideos_timeseries.csv aus prepare_success_metrics.py) - Grundlage fuer
+# deskriptiv_plots.py::NUR_TOPICVIDEOS (Forschungsfrage 4). Standardmaessig NICHT in MODUS_LISTE,
+# weil nur fuer diesen einen Anwendungsfall gebraucht - bei Bedarf hier ergaenzen, bevor
+# deskriptiv_plots.py mit NUR_TOPICVIDEOS = True laeuft (sonst fehlt deskriptiv_erfolg_
+# kriegsvideos_{granularitaet}.csv).
+GRANULARITAET_LISTE = ["quartal", "monat"]     # Teilmenge von {"quartal", "monat"}
 
 # --- Granularitaets-Definitionen -------------------------------------------
 # Jede Granularitaet bringt ihre eigene Periodenspalte, Dateibenennung und
@@ -39,7 +66,7 @@ GRANULARITAETEN = {
         "spalte": "rel_quartal",
         "datei_suffix": "quartal",
         "periode_min": -4,
-        "periode_max": 14,
+        "periode_max": 18,
         "baseline_perioden": [-2, -1],
         "min_videos_pro_periode": 3,
     },
@@ -47,25 +74,41 @@ GRANULARITAETEN = {
         "spalte": "rel_monat",
         "datei_suffix": "monat",
         "periode_min": -12,
-        "periode_max": 42,
+        "periode_max": 52,
         "baseline_perioden": [-6, -5, -4, -3, -2, -1],
         "min_videos_pro_periode": 1,
     },
 }
 
-_GRAN_CFG = GRANULARITAETEN[GRANULARITAET]
-SPALTE_PERIODE = _GRAN_CFG["spalte"]
-PERIODE_MIN = _GRAN_CFG["periode_min"]
-PERIODE_MAX = _GRAN_CFG["periode_max"]
-BASELINE_PERIODEN = _GRAN_CFG["baseline_perioden"]
-MIN_VIDEOS_PRO_PERIODE = _GRAN_CFG["min_videos_pro_periode"]
+# --- Eingabedateien (Output von prepare_channel_scores.py bzw. -----------
+# --- prepare_success_metrics.py fuer "erfolg"/"erfolg_kriegsvideos") ------
+DATEISTAMM_MODUS = {
+    "populismus": "populism",
+    "stance": "position",
+    "erfolg": "erfolg",
+    "erfolg_kriegsvideos": "erfolg_kriegsvideos",
+}
 
-# --- Eingabedateien (Output von prepare_channel_scores.py) ---------------
-DATEISTAMM_MODUS = {"populismus": "populism", "stance": "position"}
-PFAD_ZEITREIHE = (
-    OUTPUTS / "segment_analysis" /
-    f"channel_{_GRAN_CFG['datei_suffix']}_{DATEISTAMM_MODUS[MODUS]}_timeseries.csv"
-)
+
+def baue_konfiguration(modus, granularitaet):
+    """Buendelt alle von (modus, granularitaet) abhaengigen Ableitungen (Periodenspalte,
+    Fenster, Eingabedatei) in einem Objekt, das durch einen main()-Durchlauf gereicht wird."""
+    gran_cfg = GRANULARITAETEN[granularitaet]
+    pfad_zeitreihe = (
+        OUTPUTS / "segment_analysis" /
+        f"channel_{gran_cfg['datei_suffix']}_{DATEISTAMM_MODUS[modus]}_timeseries.csv"
+    )
+    return SimpleNamespace(
+        modus=modus,
+        granularitaet=granularitaet,
+        spalte_periode=gran_cfg["spalte"],
+        periode_min=gran_cfg["periode_min"],
+        periode_max=gran_cfg["periode_max"],
+        baseline_perioden=gran_cfg["baseline_perioden"],
+        min_videos_pro_periode=gran_cfg["min_videos_pro_periode"],
+        pfad_zeitreihe=pfad_zeitreihe,
+    )
+
 
 # --- Kanal-Metadaten -------------------------------------------------------
 PFAD_MEDIENTYP = EXTERNAL / "media_type_russia_merged.xlsx"
@@ -101,7 +144,14 @@ MIN_BASELINE_WERT = 0.15              # Index nur bilden, wenn Baseline >= diese
 
 # --- Kanalauswahl -----------------------------------------------------------
 MEDIENTYPEN = None                    # z.B. ["ÖRR", "Traditionelles Medium"]; None = alle
-KANAL_WHITELIST = None                # Liste von channel_ids oder Pfad zu einer TXT/CSV; None = alle
+# Fuer Frage 1 (Populismus) auf die Whitelist aus frage1_stichprobe.py beschraenkt
+# (>= 5 Kriegsvideos im gesamten Upload-Verlauf UND mind. 1 klassifiziertes Video -
+# siehe dort und outputs/segment_analysis/frage1_methodik_und_stichprobe.md).
+# MODUS = "erfolg"/"erfolg_kriegsvideos" (Frage 2/4) nutzen dieselbe Whitelist
+# (bereits in prepare_success_metrics.py angewendet, hier also ein No-Op-Filter
+# zur Konsistenz). Fuer andere Auswertungen (z.B. MODUS="stance") ggf. auf None
+# zuruecksetzen.
+KANAL_WHITELIST = OUTPUTS / "segment_analysis" / "frage1_kanal_whitelist.csv"
 KANAL_BLACKLIST = None
 
 # --- Uebersicht Ideologie x Medientyp (separate Hilfsfunktion, nicht Teil von main()) ---
@@ -137,8 +187,8 @@ def lade_kanalliste(quelle):
 # SCHRITT 1: Zeitreihe einlesen
 # =========================================================
 
-def lade_zeitreihe():
-    pfad = PFAD_ZEITREIHE
+def lade_zeitreihe(cfg):
+    pfad = cfg.pfad_zeitreihe
     if not os.path.exists(pfad):
         raise FileNotFoundError(f"Datei nicht gefunden: {pfad}")
 
@@ -148,12 +198,12 @@ def lade_zeitreihe():
     if "wert" in df.columns and "wert_roh" not in df.columns:
         df = df.rename(columns={"wert": "wert_roh"})
 
-    pruefe = ["channel_id", SPALTE_PERIODE, "dimension", "wert_roh", "n_videos"]
+    pruefe = ["channel_id", cfg.spalte_periode, "dimension", "wert_roh", "n_videos"]
     fehlend = [s for s in pruefe if s not in df.columns]
     if fehlend:
         raise KeyError(f"In '{pfad}' fehlen Spalten {fehlend}. Vorhanden: {list(df.columns)}")
 
-    print(f"[Eingabe][{GRANULARITAET}] {len(df)} Zeilen, {df['channel_id'].nunique()} Kanaele aus {pfad}")
+    print(f"[Eingabe][{cfg.granularitaet}] {len(df)} Zeilen, {df['channel_id'].nunique()} Kanaele aus {pfad}")
     return df
 
 
@@ -161,10 +211,10 @@ def lade_zeitreihe():
 # SCHRITT 2: Kanal-Perioden-Zellen mit zu wenig Videos verwerfen
 # =========================================================
 
-def filtere_duenne_zellen(df):
-    zu_duenn = df["n_videos"] < MIN_VIDEOS_PRO_PERIODE
+def filtere_duenne_zellen(df, cfg):
+    zu_duenn = df["n_videos"] < cfg.min_videos_pro_periode
     print(f"[Periode] {int(zu_duenn.sum())} Kanal-Perioden-Zellen unter "
-          f"MIN_VIDEOS_PRO_PERIODE={MIN_VIDEOS_PRO_PERIODE} -> verworfen.")
+          f"MIN_VIDEOS_PRO_PERIODE={cfg.min_videos_pro_periode} -> verworfen.")
     return df[~zu_duenn]
 
 
@@ -222,8 +272,18 @@ def ergaenze_kanalmerkmale(df):
     med = lade_medientyp()
     df = df.merge(med, on="channel_id", how="left")
 
+    fehlende_ids = df.loc[df["medientyp"].isna(), "channel_id"].unique()
+    if len(fehlende_ids):
+        print(f"[Medientyp] {len(fehlende_ids)} Kanaele ohne Eintrag in '{PFAD_MEDIENTYP}' "
+              f"-> medientyp = NaN: {list(fehlende_ids)}")
+
     ideo = lade_ideologie()
     df = df.merge(ideo, on="channel_id", how="left")
+
+    fehlende_ideo_ids = df.loc[df["ideologie_gruppe"].isna(), "channel_id"].unique()
+    if len(fehlende_ideo_ids):
+        print(f"[Ideologie] {len(fehlende_ideo_ids)} Kanaele ohne Eintrag in '{PFAD_IDEOLOGIE}' "
+              f"-> ideologie_gruppe = NaN: {list(fehlende_ideo_ids)}")
 
     return df
 
@@ -232,7 +292,7 @@ def ergaenze_kanalmerkmale(df):
 # SCHRITT 4: Kanalauswahl
 # =========================================================
 
-def filtere_kanaele(df):
+def filtere_kanaele(df, cfg):
     if MEDIENTYPEN:
         vorher = df["channel_id"].nunique()
         df = df[df["medientyp"].isin(MEDIENTYPEN)]
@@ -247,7 +307,7 @@ def filtere_kanaele(df):
     if black is not None:
         df = df[~df["channel_id"].astype(str).isin(black)]
 
-    df = df[(df[SPALTE_PERIODE] >= PERIODE_MIN) & (df[SPALTE_PERIODE] <= PERIODE_MAX)]
+    df = df[(df[cfg.spalte_periode] >= cfg.periode_min) & (df[cfg.spalte_periode] <= cfg.periode_max)]
     return df
 
 
@@ -255,8 +315,8 @@ def filtere_kanaele(df):
 # SCHRITT 5: Baseline und Index (nur Populismus)
 # =========================================================
 
-def berechne_index(df):
-    basis = df[df[SPALTE_PERIODE].isin(BASELINE_PERIODEN)]
+def berechne_index(df, cfg):
+    basis = df[df[cfg.spalte_periode].isin(cfg.baseline_perioden)]
 
     if BASELINE_GEWICHTUNG == "periode":
         ref = basis.groupby(["channel_id", "dimension"], as_index=False).agg(
@@ -280,7 +340,19 @@ def berechne_index(df):
     ref = ref[ref["n_baseline_videos"] >= MIN_VIDEOS_BASELINE_GESAMT]
     print(f"[Baseline] {n_vor} -> {ref['channel_id'].nunique()} Kanaele mit gueltiger Baseline.")
 
-    df = df.merge(ref, on=["channel_id", "dimension"], how="inner")
+    # LEFT-Join (nicht INNER): Kanal-Dimension-Zeilen ohne gueltige Vorkriegs-Baseline
+    # bleiben mit ihrem Rohwert (wert_roh) erhalten, bekommen nur index_100 = NaN. Vor
+    # dieser Umstellung wurden sie hier komplett verworfen - das war fuer den (nicht mehr
+    # standardmaessig geplotteten) Index noetig, hat aber auch die absoluten Rohwerte
+    # dieser Kanaele aus den Plots entfernt (u.a. neu seit Kriegsbeginn dazugekommene
+    # Kanaele ohne Vorkriegsfenster). Siehe frage1_methodik_und_stichprobe.md Abschnitt 3c.
+    df = df.merge(ref, on=["channel_id", "dimension"], how="left")
+
+    ohne_baseline = df["baseline"].isna()
+    if ohne_baseline.any():
+        n_ohne = df.loc[ohne_baseline, "channel_id"].nunique()
+        print(f"[Baseline] {n_ohne} Kanaele ohne gueltige Vorkriegs-Baseline -> index_100 = NaN, "
+              f"wert_roh bleibt erhalten.")
 
     zu_klein = df["baseline"] < MIN_BASELINE_WERT
     if zu_klein.any():
@@ -377,37 +449,46 @@ def erstelle_uebersicht_ideologie_medientyp():
 # MAIN
 # =========================================================
 
-def main():
-    print(f"=== MODUS: {MODUS} | GRANULARITAET: {GRANULARITAET} ===")
+def verarbeite(cfg):
+    """Fuehrt Schritte 1-5 fuer eine einzelne (modus, granularitaet)-Kombination aus
+    und schreibt die dazu passende deskriptiv_{modus}_{granularitaet}.csv."""
+    print(f"=== MODUS: {cfg.modus} | GRANULARITAET: {cfg.granularitaet} ===")
 
-    df = lade_zeitreihe()
-    df = filtere_duenne_zellen(df)
+    df = lade_zeitreihe(cfg)
+    df = filtere_duenne_zellen(df, cfg)
     df = ergaenze_kanalmerkmale(df)
-    df = filtere_kanaele(df)
+    df = filtere_kanaele(df, cfg)
 
-    if MODUS == "populismus":
-        df = berechne_index(df)
+    if cfg.modus == "populismus":
+        df = berechne_index(df, cfg)
     else:
         df["baseline"] = np.nan
         df["index_100"] = np.nan
         df["n_baseline_videos"] = np.nan
         df["n_baseline_perioden"] = np.nan
 
-    df["modus"] = MODUS
-    df["granularitaet"] = GRANULARITAET
+    df["modus"] = cfg.modus
+    df["granularitaet"] = cfg.granularitaet
     spalten = ["modus", "granularitaet", "channel_id", "medientyp", "ideologie_wert", "ideologie_gruppe",
-               SPALTE_PERIODE, "dimension", "wert_roh", "n_videos", "n_deskriptiv",
+               cfg.spalte_periode, "dimension", "wert_roh", "n_videos", "n_deskriptiv",
                "baseline", "n_baseline_videos", "n_baseline_perioden", "index_100"]
     df = df[[s for s in spalten if s in df.columns]].sort_values(
-        ["dimension", "channel_id", SPALTE_PERIODE])
+        ["dimension", "channel_id", cfg.spalte_periode])
 
-    pfad = str(PFAD_AUSGABE).format(modus=MODUS, granularitaet=GRANULARITAET)
+    pfad = str(PFAD_AUSGABE).format(modus=cfg.modus, granularitaet=cfg.granularitaet)
     os.makedirs(os.path.dirname(pfad), exist_ok=True)
     df.to_csv(pfad, index=False, encoding="utf-8")
 
     print(f"\n[Ausgabe] {len(df)} Zeilen, {df['channel_id'].nunique()} Kanaele -> {pfad}")
-    print(f"\nKanaele je {SPALTE_PERIODE} (ueber alle Dimensionen):")
-    print(df.groupby(SPALTE_PERIODE)["channel_id"].nunique().to_string())
+    print(f"\nKanaele je {cfg.spalte_periode} (ueber alle Dimensionen):")
+    print(df.groupby(cfg.spalte_periode)["channel_id"].nunique().to_string())
+
+
+def main():
+    for modus, granularitaet in product(MODUS_LISTE, GRANULARITAET_LISTE):
+        cfg = baue_konfiguration(modus, granularitaet)
+        verarbeite(cfg)
+        print()
 
 
 if __name__ == "__main__":

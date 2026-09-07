@@ -68,7 +68,10 @@ def _report(label: str, df: pd.DataFrame, video_id_col: str = "video_id", extra_
 
 
 def check_screening_state() -> pd.DataFrame:
-    state = screening_state_store.get_state()
+    # get_state_with_text(): channel_title/title sind seit dem Text-Spalten-
+    # Drop kein State-eigenes Feld mehr, sondern werden per video_id-Join
+    # gegen video_registry nachgeladen (nur fuer diesen Debug-Report noetig).
+    state = screening_state_store.get_state_with_text()
     return _report(
         "screening_state",
         state,

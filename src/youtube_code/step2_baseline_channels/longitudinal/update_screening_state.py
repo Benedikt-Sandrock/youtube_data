@@ -21,10 +21,22 @@ the protection lives in that row mask, not in a separate check.
 
 Since Phase 4d, the state is read from and written to
 ``screening_state_store`` instead of a CSV. Only the two changed columns
-(``politics_title``/``politics_title_desc`` + ``politics_final``) for the
-masked rows are pushed via ``upsert_state_rows`` - no full-table rewrite and
-no manual state backup (SQLite needs neither); the merge audit CSV under
-``merge_reports/`` remains the record of what was applied.
+(``politics_title``/``politics_title_desc`` + ``politics_final``), plus
+``channel_id`` for the masked rows, are pushed via ``upsert_state_rows`` - no
+full-table rewrite and no manual state backup (SQLite needs neither); the
+merge audit CSV under ``merge_reports/`` remains the record of what was
+applied. ``channel_id`` never actually changes here - it is included solely
+because SQLite's UPSERT checks NOT NULL constraints
+(``screening_state.channel_id`` is NOT NULL) against the raw INSERT values
+before reaching the ON CONFLICT DO UPDATE / COALESCE fallback, so a record
+missing a NOT NULL column fails even when the row already exists with a
+valid value (see ``build_state_records()``).
+
+Since .claude/plans/screening_state_update.md, ``load_state()`` reads
+channel_title/published_at/title/description via
+``screening_state_store.get_state_with_text()`` (video_id-join against
+``video_registry``) rather than from the state's own copy of those columns,
+which no longer exists in the store's schema.
 """
 
 from __future__ import annotations
@@ -48,10 +60,10 @@ from youtube_code.store import llm_run_store, screening_state_store
 MODE = "description"
 
 # Screening round whose pending results are being merged.
-ROUND_NUMBER = 10
+ROUND_NUMBER = 12
 
 # Registry run containing the completely validated result file.
-RUN_ID = "run_0025"
+RUN_ID = "run_0029"
 
 # First inspect the complete merge plan with True. Set to False only after
 # counts, labels, paths, and sample rows are plausible.
@@ -204,7 +216,11 @@ def convert_label_column(
 
 
 def load_state() -> pd.DataFrame:
-    state = screening_state_store.get_state()
+    """Laedt den State inkl. channel_title/published_at/title/description
+    (per video_registry-Join nachgeladen, siehe
+    screening_state_store.get_state_with_text()) - beides wird fuer
+    DESCRIPTION_OUTPUT_COLUMNS bzw. STATE_REQUIRED_COLUMNS gebraucht."""
+    state = screening_state_store.get_state_with_text()
     if state.empty:
         raise FileNotFoundError("screening_state_store ist leer.")
     state = normalize_video_ids(state, "screening state")
@@ -731,17 +747,28 @@ def build_state_records(mode: str, audit: pd.DataFrame) -> list[dict]:
     ihrer eigenen Maske (nur vorher-NULL-Zellen) tatsaechlich aendern. Dadurch
     bildet sich die "Labels werden nie ueberschrieben"-Regel automatisch auf
     die COALESCE-Upsert-Semantik des Stores ab: nur diese Zeilen/Spalten
-    werden ueberhaupt uebergeben."""
+    werden ueberhaupt uebergeben.
+
+    channel_id wird dabei immer mitgeschickt, obwohl sich der Wert hier nie
+    aendert: screening_state.channel_id ist NOT NULL, und SQLites INSERT ...
+    ON CONFLICT DO UPDATE prueft NOT-NULL-Constraints gegen die rohen
+    INSERT-VALUES, BEVOR es zur Konfliktaufloesung (und damit zum
+    COALESCE(excluded.channel_id, screening_state.channel_id) im
+    DO-UPDATE-Teil) kommt - ein Record ohne channel_id liesse den ganzen
+    Upsert-Batch mit sqlite3.IntegrityError fehlschlagen, obwohl inhaltlich
+    nur bestehende Zeilen upgedatet werden (siehe fuer denselben Fix/dieselbe
+    Begruendung assign_postwar_baseline.py und
+    create_longitudinal_screening.create_screening_round())."""
     if mode == "title":
         records = audit[
-            ["video_id", "new_politics_title", "new_politics_final"]
+            ["video_id", "channel_id", "new_politics_title", "new_politics_final"]
         ].rename(columns={
             "new_politics_title": "politics_title",
             "new_politics_final": "politics_final",
         })
     else:
         records = audit[
-            ["video_id", "new_politics_title_desc", "new_politics_final"]
+            ["video_id", "channel_id", "new_politics_title_desc", "new_politics_final"]
         ].rename(columns={
             "new_politics_title_desc": "politics_title_desc",
             "new_politics_final": "politics_final",

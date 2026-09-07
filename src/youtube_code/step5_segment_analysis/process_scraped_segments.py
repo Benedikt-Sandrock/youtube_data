@@ -55,7 +55,7 @@ BEFEHL = "segmente"                    # "segmente" | "sample"
 
 # CSV mit mindestens der Spalte "video_id" - die zu verarbeitenden Videos.
 
-VIDEO_ID_SOURCE = EXPLORATION / "populism_todo.csv"
+VIDEO_ID_SOURCE = EXPLORATION / "todo_ideology.csv"
 # VIDEO_ID_SOURCE = OUTPUTS / "temp" / "baselinetodo.csv"
 # VIDEO_ID_SOURCE = OUTPUTS / "segment_analysis" / "pilot_classification.csv"
 
@@ -69,7 +69,7 @@ NUR_STATUS_OK = True                   # nur Zeilen mit status == "ok"
 
 # "segmente"           -> Segmentierung nach den bisherigen Regeln
 # "ganze_transkripte"  -> ein Segment (= das ganze Transkript) pro Video
-MODUS = "segmente"
+MODUS = "ganze_transkripte"
 
 TARGET_WORDS = 800                     # Zielwortzahl je Segment
 SNAP_WINDOW = 150                      # Suchfenster fuer die naechste Satzgrenze
@@ -98,7 +98,7 @@ EXCERPT_SNAP_WINDOW = 100
 
 OUT_DIR = EXPLORATION
 # OUT_DIR = SAMPLES / "russia" / "out_segments"
-OUT_FILE = OUT_DIR / "populism_todo_segments.csv"    # direkt als SEGMENT_FILE nutzbar
+OUT_FILE = OUT_DIR / "todo_ideology_segments.csv"    # direkt als SEGMENT_FILE nutzbar
 
 # Nur fuer BEFEHL = "sample"
 SAMPLE_N = 200

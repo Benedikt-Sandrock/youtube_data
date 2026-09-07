@@ -19,49 +19,98 @@ den Kriegsvideos (Schritt 3) in die Analyse einzugehen. Siehe
 
 Jede Zeile im State hat `period` (Monatsabstand zu einem Referenzdatum) sowie
 daraus abgeleitet `interval_index`/`interval_label` (3-Monats-Buckets). Es
-gibt zwei Mechanismen, je nachdem, ob ein Kanal den Kriegsbeginn schon
-"erlebt" hat:
+gibt zwei Mechanismen, je nachdem, ob ein Kanal rund um Kriegsbeginn
+tatsächlich aktiv war.
 
-### a) Normalfall — Kanal existierte schon vor Kriegsbeginn
+**Wichtig:** Diese Zuordnung basiert **nicht** mehr allein auf
+`channel_created_at` (Kanal-Gründungsdatum). Ein Kanal kann alt sein, seine
+ursprüngliche Aktivität aber eingestellt haben und erst Jahre später — teils
+erst nach Kriegsbeginn — wieder aktiv geworden sein; umgekehrt kann ein nach
+Kriegsbeginn gegründeter Kanal seine ersten Videos erst Jahre nach der
+Gründung hochladen. In beiden Fällen liegt das rein datumsbasierte Fenster
+leer. Seit der Umstellung auf
+`youtube_code.step2_baseline_channels.activity_phases` entscheidet
+stattdessen die tatsächliche Upload-Historie: Videos werden chronologisch
+sortiert und über Lücken ≥ `GAP_THRESHOLD_MONTHS` (12) in zusammenhängende
+Aktivitätsphasen segmentiert; welche Phase den Kriegsbeginn trägt bzw. ihm am
+nächsten liegt, bestimmt sowohl die Gruppe (a/b unten) als auch — für Gruppe
+b — den zu verwendenden Fenster-Anchor. Siehe der Modul-Docstring von
+`activity_phases.py` für die vollständige Herleitung und alle Kategorien
+(`aktivitaet_deckt_kriegsbeginn`, `reaktiviert_faelschlich_vorkrieg`,
+`nachkrieg_verzoegerter_start`, `nachkrieg_konsistent`,
+`tot_zum_kriegsbeginn`, `nachkrieg_keine_aktivitaet`, `keine_videos_bekannt`).
+
+### a) Normalfall — Aktivitätsphase deckt den Kriegsbeginn ab
 
 - Referenzdatum ist global: **2022-02-24** (Kriegsbeginn), Konstante
-  `REFERENCE_DATE` in `longitudinal/append_channels_to_state.py`.
+  `KRIEGSBEGINN` in `activity_phases.py` (dieselbe Konstante steht historisch
+  auch als `REFERENCE_DATE` in `append_channels_to_state.py`).
 - `period` = Monatsdifferenz `published_at` zu diesem Referenzdatum
   (`calculate_period()`), negative Werte liegen vor Kriegsbeginn.
 - `interval_index`/`interval_label` entstehen aus
   `assign_intervals(period, interval_start=INTERVAL_START,
-  interval_size=INTERVAL_SIZE)` (`longitudinal/interval_assignment.py`), mit
-  `INTERVAL_START=-12`, `INTERVAL_SIZE=3` aus `screening_config.py` —
-  3-Monats-Buckets ab Monat -12.
+  interval_size=INTERVAL_SIZE)` (`interval_assignment.py`), mit
+  `INTERVAL_START=-12`, `INTERVAL_SIZE=3` aus `longitudinal/screening_config.py`
+  — 3-Monats-Buckets ab Monat -12.
 - **Das Baseline-Fenster ist `interval_index` 0–3**, d. h. die vier Intervalle
   `-12_to_-10`, `-9_to_-7`, `-6_to_-4`, `-3_to_-1` — zusammen die 12 Monate
   unmittelbar vor Kriegsbeginn (2021-02-24 bis 2022-02-23).
 - Kanäle, deren historische Videos/Metadaten für dieses Fenster fehlten,
-  werden über `longitudinal/append_channels_to_state.py` nachträglich um
-  genau diese Zeilen ergänzt (siehe Ablauf in Abschnitt 3) — das Skript
-  erkennt automatisch, ob ein Kanal schon Zeilen im State hat (dann wird nur
-  `period<0` ergänzt) oder komplett neu ist (dann der volle Zeitraum ab
-  `INTERVAL_START`).
+  werden über `append_channels_to_state.py` nachträglich um genau diese
+  Zeilen ergänzt (siehe Ablauf in Abschnitt 3). Das Skript prüft dabei **pro
+  Kanal**, welche `video_registry`-Video-IDs (ab `INTERVAL_START`) noch
+  nirgends im State stehen — unabhängig davon, ob der Kanal schon
+  (unvollständige) Zeilen hat — und korrigiert zusätzlich `channel_id`-Drift
+  bei bereits vorhandenen Zeilen (z. B. wenn ein Video nachträglich einem
+  anderen Kanal zugeordnet wurde). Dieser Sync läuft seit
+  `.claude/plans/screening_state_update.md` außerdem automatisch vor jeder
+  neuen Screening-Runde (Abschnitt 3, Schritt 5) für alle im State
+  vorkommenden Kanäle — der manuelle Aufruf in Schritt 4 ist vor allem für
+  komplett neu zum Sample hinzugefügte Kanäle relevant.
 
-### b) Sonderfall — Kanal wurde erst nach Kriegsbeginn erstellt
+### b) Sonderfall — keine Aktivitätsphase deckt den Kriegsbeginn ab
 
-Für Kanäle ohne "Vorher" gibt es kein globales Vorkriegsfenster. Stattdessen
-weist `longitudinal/assign_postwar_baseline.py` kanal-individuell ein
-Ersatzfenster zu:
+Betrifft nicht nur Kanäle, die es vor dem Krieg noch nicht gab, sondern auch
+reaktivierte und verzögert gestartete Kanäle (siehe oben). `assign_postwar_baseline.py`
+weist kanal-individuell ein Ersatzfenster zu:
 
-- Kandidatenkanäle: `published_at` (Kanal-Erstelldatum) ≥ Kriegsbeginn,
-  `is_german == True`, Abonnenten ≥ `MIN_SUBSCRIBERS` (50.000).
-- Fenster beginnt am Kanal-Erstelldatum und wird adaptiv erweitert:
-  `WINDOW_STEPS_MONTHS = [3, 6, 9, 12]` — es wird das kleinste Fenster
-  genommen, in dem bereits `TARGET_WITH_BUFFER_PER_INTERVAL` (12)
-  Kandidatenzeilen liegen; reicht auch 12 Monate nicht, bleibt es bei 12
-  Monaten (Kanal ggf. dauerhaft unter Ziel).
+- Kandidatenkanäle: `is_german == True`, Abonnenten ≥ `MIN_SUBSCRIBERS`
+  (50.000), und laut `activity_phases.classify_channels_bulk` `war_group ==
+  "nachkriegskanal"` (d. h. Kategorie `reaktiviert_faelschlich_vorkrieg`,
+  `nachkrieg_verzoegerter_start` oder `nachkrieg_konsistent` — NICHT
+  `tot_zum_kriegsbeginn`/`nachkrieg_keine_aktivitaet`/`keine_videos_bekannt`,
+  die werden bewusst ausgeschlossen, siehe dortiger Modul-Docstring).
+- Fenster beginnt am `anchor_date` (= Beginn der maßgeblichen
+  Aktivitätsphase aus `activity_phases`, **nicht** `channel_created_at`) und
+  wird adaptiv erweitert: `WINDOW_STEPS_MONTHS = [3, 6, 9, 12]` — es wird das
+  kleinste Fenster genommen, in dem bereits `WINDOW_RAW_CANDIDATE_TARGET`
+  (30) rohe Kandidatenzeilen liegen; reicht auch 12 Monate nicht, bleibt es
+  bei 12 Monaten (Kanal ggf. dauerhaft unter Ziel). Dieser Schwellenwert ist
+  bewusst höher als `TARGET_WITH_BUFFER_PER_INTERVAL` (12, das eigentliche
+  Rundenplanungsziel): Zum Zeitpunkt der Fensterwahl ist `politics_final` für
+  die meisten Kandidaten noch nicht klassifiziert, die Fensterwahl kann sich
+  also nicht an der politischen Trefferquote orientieren, sondern nur an der
+  rohen Zeilenzahl. Der größere Puffer (30 statt 12) soll sicherstellen,
+  dass auch bei niedriger Politik-Trefferquote genug Rohmaterial im Fenster
+  liegt, aus dem die spätere Rundenplanung
+  (`longitudinal/create_longitudinal_screening.py`, adaptiv anhand
+  `POLITICAL_RATE_FLOOR`/`ROUND_SAFETY_FACTOR`) noch politische Kandidaten
+  nachziehen kann. Die Fensterlänge selbst wird danach nicht mehr verändert.
 - Betroffene Zeilen bekommen **`interval_index = -1`** (Sentinel, kollidiert
   nie mit echten Kalenderintervallen 0–3 bzw. ≥4) und `interval_label =
-  "postwar_0_to_<N>"` (`N` = gewähltes Fenster in Monaten). Es werden dabei
-  **keine neuen Zeilen erzeugt** — nur bereits vorhandene Kandidatenzeilen
-  dieses Kanals im gewählten Fenster werden umgelabelt; vorhandene
-  Klassifikationen wandern mit.
+  "<praefix>_0_to_<N>"` (`N` = gewähltes Fenster in Monaten; `<praefix>` kodiert
+  die Kategorie — `postwar_new` für `nachkrieg_konsistent`,
+  `postwar_reactivated` für `reaktiviert_faelschlich_vorkrieg`,
+  `postwar_delayed` für `nachkrieg_verzoegerter_start`, siehe
+  `LABEL_PREFIX_BY_KATEGORIE` in `assign_postwar_baseline.py` — damit spätere
+  Auswertungen bei Bedarf Robustheitschecks mit/ohne die reaktivierten bzw.
+  verzögert gestarteten Kanäle fahren können). Es werden dabei **keine neuen
+  Zeilen erzeugt** — nur bereits vorhandene Kandidatenzeilen dieses Kanals im
+  gewählten Fenster werden umgelabelt; vorhandene Klassifikationen wandern
+  mit. Fehlen für den neuen Anchor noch gar keine Kandidatenzeilen im State
+  (z. B. weil bisher nur das alte, datumsbasierte Fenster befüllt wurde),
+  liefert das Skript für den Kanal 0 Treffer — dann müssen zuerst die
+  Schritte 1–4 aus Abschnitt 3 für das neue Zeitfenster durchlaufen werden.
 
 **Merke:** `interval_index == -1` ist *ausschließlich* der Postwar-Sentinel.
 Die "normalen" Vorkriegs-Baseline-Intervalle sind `0`–`3` (positiv!), nicht
@@ -86,8 +135,9 @@ Frage "hat der Kanal *genug für die Baseline*" reicht in der Praxis bereits
 
 Egal ob komplett neue Kanäle oder Kanäle, die schon Zeilen im State haben
 (z. B. nur für Kriegsperioden), denen aber noch das Vorkriegs-Baseline-Fenster
-fehlt: der Ablauf ist identisch, das Skript in Schritt 4 unten erkennt
-automatisch, welcher Fall vorliegt.
+fehlt: der Ablauf ist identisch, das Skript in Schritt 4 unten ergänzt in
+beiden Fällen automatisch genau die `video_registry`-Video-IDs, die dem
+Kanal im State noch fehlen.
 
 **Grundprinzip:** Der State wird durch Anhängen (append) erweitert, nie durch
 Neuaufbau. Das frühere Bootstrap-Skript `prepare_longitudinal_screening.py`
@@ -189,7 +239,7 @@ tatsächlich Zeilen mit plausiblen Beschreibungen und `published_at` im
 gewünschten Fenster vorliegen (z. B. über `video_registry.
 get_videos_with_text(channel_ids=...)`), bevor man zu Schritt 4 übergeht.
 
-### Schritt 4 — State erweitern (`longitudinal/append_channels_to_state.py`)
+### Schritt 4 — State erweitern (`append_channels_to_state.py`)
 
 Braucht nur noch die Kanal-IDs aus Schritt 1 — die Videos (Titel/Beschreibung)
 holt sich das Skript automatisch per
@@ -207,22 +257,37 @@ Dann:
 
 ```bash
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
-  src/youtube_code/step2_baseline_channels/longitudinal/append_channels_to_state.py \
+  src/youtube_code/step2_baseline_channels/append_channels_to_state.py \
   --channels outputs/segment_analysis/meine_neuen_kanaele.csv \
   --dry-run
 ```
 
-Erst die Ausgabe prüfen (Anzahl neuer Kandidatenzeilen, Verteilung über
-`interval_index`, wie viele Kanäle als "komplett neu" vs. "nur Baseline
-ergänzt" erkannt wurden). Passt das Bild, denselben Befehl **ohne**
-`--dry-run` erneut ausführen, um wirklich zu schreiben.
+Erst die Ausgabe prüfen (Anzahl neu ergänzter Kandidatenzeilen, Verteilung
+über `interval_label`, Anzahl gefundener `channel_id`-Korrekturen). Passt das
+Bild, denselben Befehl **ohne** `--dry-run` erneut ausführen, um wirklich zu
+schreiben.
 
-Das Skript repliziert exakt die frühere Interval-/Rank-Logik von
-`prepare_longitudinal_screening.py`, aber additiv: Kanäle, die schon im
-State stehen, bekommen nur die fehlenden `period < 0`-Zeilen (Baseline),
-komplett neue Kanäle den vollen Zeitraum ab `period >= INTERVAL_START`.
-Bereits im State vorhandene `video_id`s werden automatisch übersprungen
-(keine Duplikate).
+Das Skript ermittelt pro Zielkanal `video_registry`-Video-IDs ab
+`period >= INTERVAL_START`, die noch **nirgends** im State stehen, und
+vergibt dafür dieselbe Interval-/Rank-Logik wie früher
+(`assign_intervals`/`stable_random_key`, `interval_assignment.py`) — egal ob
+der Kanal komplett neu ist oder schon (unvollständige) Zeilen hat. Zusätzlich
+korrigiert es `channel_id`-Drift: Zeilen, die im State einem der Zielkanäle
+zugeordnet sind, deren `video_registry`-`channel_id` aber inzwischen
+abweicht, werden per gezieltem Update auf die aktuelle `channel_id`
+umgeschrieben (alle anderen Spalten — Labels, `screening_round`, … — bleiben
+dabei unangetastet). Jeder Lauf schreibt einen Report nach
+`STATE_SYNC_LOG_DIR` (`data/samples/russia/state_sync_logs/`,
+`screening_config.py`): eine Detail-CSV der neu ergänzten `video_id`s, eine
+nach `channel_id`+`interval_label` gruppierte Summary-CSV, und — nur bei
+gefundenen Drifts — eine Korrektur-CSV.
+
+Dieser Sync läuft seit `.claude/plans/screening_state_update.md` außerdem
+**automatisch** vor jeder neuen Runde in Schritt 5
+(`create_longitudinal_screening.create_screening_round()`) für alle im State
+vorkommenden Kanäle — der manuelle Aufruf hier ist vor allem für komplett
+neu zum Sample hinzugefügte Kanäle nötig, deren Videos noch unter gar keiner
+`channel_id` im State stehen.
 
 ### Schritt 5 — Screening-Runde erzeugen (`longitudinal/create_longitudinal_screening.py`)
 
@@ -234,13 +299,43 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe \
   src/youtube_code/step2_baseline_channels/longitudinal/create_longitudinal_screening.py
 ```
 
-Das Skript plant adaptiv **über den gesamten State** (nicht nur die neuen
+Bevor geplant wird, synchronisiert das Skript automatisch den State gegen
+die `video_registry` für alle aktuell im State vorkommenden Kanäle (siehe
+Schritt 4 oben, `append_channels_to_state.sync_state_with_registry()`) —
+fehlende Videos werden ergänzt, `channel_id`-Drift korrigiert, ein Report
+nach `STATE_SYNC_LOG_DIR` geschrieben. `DRY_RUN` (Modul-Konstante) gilt für
+diesen Sync genauso wie für die Rundenplanung selbst.
+
+Das Skript plant danach adaptiv **über den gesamten State** (nicht nur die neuen
 Kanäle) die nächste Runde: pro Kanal/Interval wird geprüft, ob
 `TARGET_WITH_BUFFER_PER_INTERVAL` (aktuell 12) schon erreicht ist, ob
 Ergebnisse noch ausstehen, oder ob der Kandidatenpool erschöpft ist — nur
 unzureichende Zellen bekommen neue Kandidaten. Die gedruckte Planübersicht
 (Anzahl Kandidaten, Requests, Verteilung, Beispielzeilen) prüfen. Passt sie,
 `DRY_RUN = False` setzen und erneut laufen lassen — schreibt dann:
+
+**Gezielt nur bestimmte Kanäle screenen:** Modul-Konstante `CHANNEL_IDS` am
+Kopf der Datei auf eine Liste von `channel_id`s setzen (Standard `None` =
+state-weit über alle Kanäle im State, wie oben beschrieben). Ist sie gesetzt,
+werden sowohl der Sync gegen `video_registry` als auch die Rundenplanung auf
+genau diese Kanäle eingeschränkt — Zellen anderer Kanäle bleiben unangetastet.
+Die Rundennummer selbst wird trotzdem immer aus dem vollständigen,
+ungefilterten State bestimmt (bleibt global fortlaufend), damit sie mit den
+nachgelagerten Schritten 6–8 (die über `ROUND_NUMBER` adressieren) konsistent
+bleibt. Enthält der State eine der angegebenen `channel_id`s nicht, bricht das
+Skript mit einer Fehlermeldung ab, statt die fehlenden still zu ignorieren.
+
+**Gezielt nur bestimmte Intervalle screenen:** Modul-Konstante
+`INTERVAL_INDICES` am Kopf der Datei auf eine Liste von `interval_index`-Werten
+setzen (Standard `None` = alle Intervalle), z. B. `[-1]` für nur die
+Postwar-Baseline-Sentinel-Zellen oder `[0, 1, 2, 3]` für nur die
+Vorkriegs-Kalenderintervalle. Der Filter wirkt — anders als `CHANNEL_IDS` —
+ausschließlich auf die Rundenplanung, nicht auf den `video_registry`-Sync
+(der bleibt kanalbasiert und läuft unverändert für alle bzw. die per
+`CHANNEL_IDS` eingeschränkten Kanäle). Beide Filter lassen sich kombinieren.
+Enthält der (ggf. bereits per `CHANNEL_IDS` gefilterte) State einen der
+angegebenen `interval_index`-Werte nicht, bricht das Skript ebenso mit einer
+Fehlermeldung ab.
 
 - `data/samples/russia/batches_longitudinal/screening_rounds/screening_round_NNN_title_candidates.csv`
 - `data/samples/russia/batches_longitudinal/screening_round_summaries/screening_round_NNN_selection_summary.csv`
@@ -344,14 +439,15 @@ läuft über `run_transcript_selection.py` (`MODE = "baseline"`) — siehe
 | `../step1_sample/build_channel_provenance.py` | Sample-Zugehörigkeit definieren (Schritt 1, liegt nicht mehr hier); Output `eligible_channels_current.json` liefert die Kanalliste, mit der die eigentliche Schritt-2-Pipeline arbeitet | einmal |
 | `../step1_sample/channel_all_videos.py` | Video-IDs für Zeitfenster sammeln | pro neue Kanalgruppe |
 | `../step1_sample/metadata_collection.py` | Beschreibungen holen | pro neue Kanalgruppe |
-| `longitudinal/append_channels_to_state.py` | Neue Kandidatenzeilen in den State einspeisen | pro neue Kanalgruppe |
-| `longitudinal/assign_postwar_baseline.py` | Postwar-Kanälen den Sentinel-Fenster-Wert `interval_index=-1` zuweisen | pro neue Postwar-Kanalgruppe |
-| `longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (State-weit, adaptiv) | wiederholt |
+| `activity_phases.py` | Bestimmt je Kanal Aktivitätsphasen aus der Upload-Historie und leitet daraus war_group (vorkriegskanal/nachkriegskanal/ausgeschlossen) + Fenster-Anchor ab — Grundlage für die folgenden zwei Zeilen | wird importiert, nicht direkt ausgeführt |
+| `append_channels_to_state.py` | State gegen `video_registry` synchronisieren: fehlende Kandidatenzeilen ergänzen, `channel_id`-Drift korrigieren | pro neue Kanalgruppe manuell, sonst automatisch vor jeder Runde (Schritt 5) |
+| `assign_postwar_baseline.py` | Kanälen ohne nutzbares Vorkriegsfenster den Sentinel-Fenster-Wert `interval_index=-1` zuweisen | pro neue Kanalgruppe mit Postwar-/reaktiviertem/verzögertem Fenster |
+| `longitudinal/create_longitudinal_screening.py` | Nächste Screening-Runde planen (adaptiv; standardmäßig State-weit, optional per `CHANNEL_IDS` auf bestimmte Kanäle und/oder per `INTERVAL_INDICES` auf bestimmte Intervalle eingeschränkt) | wiederholt |
 | `longitudinal/run_longitudinal_screening_batch.py` | Batch-Job einreichen (Prompt 32 title / Prompt 33 description) | pro Runde × 2 Stufen |
 | `longitudinal/download_results.py` | Ergebnisse abholen | pro Runde × 2 Stufen |
 | `update_screening_state.py` | Ergebnisse in State mergen | pro Runde × 2 Stufen |
 | `../step4_transcript_download/select_targets.py` (`select_baseline_targets`) | Video-IDs qualifizierender Kanäle für den Transkript-Download abrufen | bei Bedarf |
-| `check_baseline_availability.py` | Übersicht je Vor-/Nachkriegskanal: wie viele haben eine vollständige Baseline, und bei den übrigen politische/unsichere/ungescreente Video-Zahlen sowie bisherige Politik-Quote | bei Bedarf |
+| `check_baseline_availability.py` | Übersicht je Vor-/Nachkriegskanal: wie viele haben eine vollständige Baseline, und bei den übrigen politische/unsichere/ungescreente Video-Zahlen, bisherige Politik-Quote sowie Anzahl insgesamt in der video_registry verfügbarer Videos im Fenster (unabhängig vom Screening-State) | bei Bedarf |
 
 Die vier in einer früheren Fassung dieser Kurzreferenz gelisteten
 Skriptnamen (`create_longitudinal_screening_round.py`,
@@ -373,6 +469,11 @@ Altlast einer nie umgesetzten früheren Planung.
   `longitudinal_screening_state.csv`) ist nur noch historisch, wird von den
   Schreiber-Skripten nicht mehr verwendet. **Vor jedem schreibenden Schritt
   (Schritt 4 oben) sichern.**
+- `STATE_SYNC_LOG_DIR` (`data/samples/russia/state_sync_logs/`): Reports von
+  `append_channels_to_state.sync_state_with_registry()` — je Lauf eine
+  Detail-CSV (neu ergänzte `video_id`s), eine Summary-CSV (gruppiert nach
+  `channel_id`+`interval_label`) und ggf. eine Korrektur-CSV
+  (`channel_id`-Drift).
 
 ## Optional: Master-Kanalliste
 
@@ -388,9 +489,10 @@ empfehlenswert, neue Kanäle dort ebenfalls einzutragen.
 | Datei | Rolle |
 |---|---|
 | `screening_config.py` | Konstanten (`INTERVAL_START`, `INTERVAL_SIZE`, `TARGET_POLITICAL_PER_INTERVAL`, `TARGET_WITH_BUFFER_PER_INTERVAL`, …) |
-| `longitudinal/append_channels_to_state.py` | Berechnet `period`/`interval_index`/`interval_label` für neue Kandidatenzeilen (Normalfall), schreibt in `screening_state_store` |
-| `longitudinal/assign_postwar_baseline.py` | Weist Postwar-Kanälen den Sentinel-Fenster-Wert `interval_index=-1` zu |
-| `longitudinal/create_longitudinal_screening.py` | Prüft je Zelle den Fortschritt gegen `target_with_buffer_per_interval`, plant nächste Screening-Runde |
-| `src/youtube_code/store/screening_state_store.py` | Zugriffsschicht auf den State (`get_state()`, `upsert_state_rows()`) |
+| `activity_phases.py` | Konstanten `KRIEGSBEGINN`, `GAP_THRESHOLD_MONTHS`; `find_activity_phases()`, `classify_channel_activity()`, `classify_channels_bulk()` — Aktivitätsphasen-basierte war_group-/Anchor-Bestimmung (siehe Abschnitt 1) |
+| `append_channels_to_state.py` | `sync_state_with_registry()`: ergänzt fehlende `video_registry`-Videos (inkl. `period`/`interval_index`/`interval_label`) und korrigiert `channel_id`-Drift im `screening_state_store`, schreibt Reports nach `STATE_SYNC_LOG_DIR` |
+| `assign_postwar_baseline.py` | Weist Kanälen ohne nutzbares Vorkriegsfenster (Postwar/reaktiviert/verzögert, via `activity_phases`) den Sentinel-Fenster-Wert `interval_index=-1` zu |
+| `longitudinal/create_longitudinal_screening.py` | Prüft je Zelle den Fortschritt gegen `target_with_buffer_per_interval`, plant nächste Screening-Runde; `create_screening_round(channel_ids=...)` bzw. Modul-Konstante `CHANNEL_IDS` schränkt Sync+Planung optional auf bestimmte Kanäle ein, `interval_indices=...` bzw. `INTERVAL_INDICES` schränkt zusätzlich nur die Planung auf bestimmte `interval_index`-Werte ein |
+| `src/youtube_code/store/screening_state_store.py` | Zugriffsschicht auf den State (`get_state()`, `get_state_with_text()` inkl. per Join nachgeladenem `channel_title`/`published_at`/`title`/`description`, `upsert_state_rows()`) |
 | `src/youtube_code/store/transcript_store.py` | Zugriffsschicht auf bereits versuchte/vorhandene Transkripte (`attempted_video_ids()`, `has_transcript()`) |
 | `src/youtube_code/step4_transcript_download/select_targets.py` | `select_baseline_targets()` — Video-IDs qualifizierender Kanäle abrufen (siehe Abschnitt 4 oben) |

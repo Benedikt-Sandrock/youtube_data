@@ -41,7 +41,7 @@ from deskriptiv_aggregation import lade_medientyp, lade_ideologie
 # CONFIG
 # =========================================================
 
-MODUS = "stance"          # "populismus" | "stance"
+MODUS = "populismus"          # "populismus" | "stance"
 GRANULARITAET = "monat"       # "quartal" | "monat"
 
 SPALTE_PERIODE = {"quartal": "rel_quartal", "monat": "rel_monat"}[GRANULARITAET]
@@ -68,15 +68,15 @@ PFAD_ZEITREIHE_ROH = OUTPUTS / "segment_analysis" / DATEINAME_ZEITREIHE_ROH[MODU
 # "position_russland", "position_westpolitik", "emotion" (stance) oder
 # "volkszentrismus", "antielitismus", "manichaeische_moralisierung",
 # "emotionale_intensitaet", "populismus_gesamt" (populismus).
-DIMENSION = "position_russland"
+DIMENSION = "antielitismus"
 
 # Gleiche Filterlogik wie FILTERKOMBINATIONEN in deskriptiv_plots.py: mehrere Spalten (UND),
 # je Spalte eine Liste erlaubter Werte (ODER).
 # Medientypen: ÖRR, Traditionelles Medium, Alternatives Medium, Politiker/Partei
 FILTER = {
-    # "medientyp": ["Alternatives Medium"],
-    "medientyp": ["ÖRR"],
-    # "ideologie_gruppe": ["rechts"],
+    "medientyp": ["Alternatives Medium"],
+    # "medientyp": ["ÖRR", "Traditionelles Medium"],
+    "ideologie_gruppe": ["rechts"],
 }
 
 # Nur Perioden im Fenster testen (z.B. um sehr duenn besetzte Randperioden auszuschliessen,
@@ -203,6 +203,12 @@ def lade_kanalgewichtete_daten_ungefiltert():
     noch nicht enthaelt."""
     df = pd.read_csv(PFAD_ZEITREIHE_ROH)
     print(f"[Eingabe][kanalgewichtet, ungefiltert] {len(df)} Zeilen aus {PFAD_ZEITREIHE_ROH}")
+
+    # Populismus-Zeitreihe nennt die Wertspalte "wert", Position-Zeitreihe "wert_roh" -
+    # dieselbe Inkonsistenz wie in deskriptiv_aggregation.py::lade_zeitreihe(), hier
+    # ebenso vereinheitlicht.
+    if "wert" not in df.columns and "wert_roh" in df.columns:
+        df = df.rename(columns={"wert_roh": "wert"})
 
     df = df[df["dimension"] == DIMENSION]
     if df.empty:

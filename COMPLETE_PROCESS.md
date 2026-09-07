@@ -16,8 +16,7 @@ Für die Kanäle, die diese Videos hochgeladen haben, wird zunächst eine Sprach
 ### README: `youtube_code/step2_baseline_channels/README.md` für eine detaillierte Beschreibung sowie den Schritt-für-Schritt-Ablauf.
 ### Scripts: `youtube_code/step2_baseline_channels` (inkl. `longitudinal/`) sowie die geteilte Batch-Infrastruktur in `youtube_code/llm_analysis`
 ### Zentrale Speicherung: `data/store/screening_state.sqlite`
-Kanäle, die bereits vor dem Krieg existiert haben (Grüdungsdatum in den Kanalmetadatan in `video_registry.sqlite`), erhalten die letzten 12 Monate vor Kriegsbeginn als Baseline-Fenster.
-Kanäle, die erst nach Kriegsbeginn gegründet wurden, erhalten ein flexibles Baseline-Fenster von bis zu 12 Monaten nach ihrer Gründung (`youtube_code/step2_baseline_channels/longitudinal/assign_postwar_baseline.py`).
+Ob ein Kanal die letzten 12 Monate vor Kriegsbeginn als Baseline-Fenster bekommt, entscheidet **nicht** allein das Gründungsdatum aus den Kanalmetadaten in `video_registry.sqlite` — ein alter Kanal kann seine Aktivität eingestellt haben und erst Jahre später (teils erst nach Kriegsbeginn) wieder aktiv geworden sein, ein nach Kriegsbeginn gegründeter Kanal kann seine ersten Videos erst Jahre nach der Gründung hochladen. Maßgeblich ist stattdessen die tatsächliche Upload-Historie: `youtube_code/step2_baseline_channels/activity_phases.py` segmentiert sie in Aktivitätsphasen und bestimmt daraus, ob eine Phase den Kriegsbeginn abdeckt (→ globales Vorkriegsfenster, letzte 12 Monate vor Kriegsbeginn) oder nicht (→ individuelles Ersatzfenster von bis zu 12 Monaten ab Beginn der maßgeblichen Aktivitätsphase, `youtube_code/step2_baseline_channels/assign_postwar_baseline.py`). Siehe `youtube_code/step2_baseline_channels/README.md` Abschnitt 1 für die vollständige Herleitung.
 Für das jeweilige Baseline-Fenster werden Videos benötigt, die politischen Inhalt enthalten, damit sie für eine Klassifikation verwendet werden können. Als Vorauswahl werden Videotitel und -beschreibungen über ein LLM klassifiziert. Sobald ein Kanal eine gewisse Anzahl politisch klassifizierter Videos hat, gilt seine Baseline als vollständig.
 
 ## 3. Identifikation von Kriegsvideos
@@ -48,4 +47,9 @@ Im Ordner sind weitere Diagnoseskripte enthalten, deren Funktion überprüft wer
 ## 6. Auswertung von Transkripten
 ### Scripts: `youtube_code/step6_auswertung`
 ### Zentrale Speicherung: `outputs`
-Über `prepare_channel_scores.py` (Segment- → Video- → Kanal×Periode-Aggregation), `deskriptiv_aggregation`, `deskriptiv_plots`, `geglaettete_kurve` und `fe_signifikanz_test` werden Auswertungen vorgenommen (siehe `youtube_code/step6_auswertung/README.md` für den Ablauf und die aktuell noch offene manuelle Kuratierungsstufe zwischen LLM-Rohergebnis und `prepare_channel_scores.py`-Input). 
+Über `prepare_channel_scores.py` (Segment- → Video- → Kanal×Periode-Aggregation, liest die passenden LLM-Runs automatisch aus `llm_runs.sqlite`), `deskriptiv_aggregation`, `deskriptiv_plots`, `geglaettete_kurve` und `fe_signifikanz_test` werden Auswertungen vorgenommen (siehe `youtube_code/step6_auswertung/README.md` für den Ablauf).
+
+## 7. Kommentar-Download
+### Scripts: `youtube_code/step7_comments`
+### Zentrale Speicherung: `data/store/comments.sqlite`
+Für relevante Videos (Startpunkt: themenrelevante Kriegsvideos aus Schritt 3) werden die Video-Kommentare über die YouTube-API heruntergeladen und in einem eigenen Store gespeichert (`youtube_code/store/comment_store.py`), analog zum Transkript-Download in Schritt 4. `select_targets.py` liefert die Video-ID-Liste, `download_comments()` lädt Top-Level-Kommentare (optional inkl. Antworten) und schreibt sie batchweise in den Store. Welcher Videopool im Detail Kommentare bekommen soll und welche der oben genannten Forschungsfragen die Kommentardaten beantworten sollen, ist noch offen (siehe `youtube_code/step7_comments/README.md`).

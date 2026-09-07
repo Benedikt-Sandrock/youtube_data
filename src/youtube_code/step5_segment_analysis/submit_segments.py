@@ -40,11 +40,11 @@ from youtube_code.step5_segment_analysis.segment_prompts_simple import get_bundl
 # CONFIG
 # ============================================================
 
-SEGMENT_FILE = EXPLORATION / "populism_todo_segments.csv"
+SEGMENT_FILE = EXPLORATION / "todo_ideology_segments.csv"
 # SEGMENT_FILE = SAMPLES / "russia" / "out_segments" / "war_vids_segments.csv"
 # SEGMENT_FILE = OUTPUTS / "temp" / "baselinetodo.csv"
 
-PROMPT_KEY = "POPULISMUS_P"
+PROMPT_KEY = "IDEOLOGIE_I"
 
 DATASET_VERSION = "v1"
 PROMPT_VERSION = "v4"
@@ -70,7 +70,7 @@ MAX_SEGMENTS = None
 DRY_RUN = False
 
 # Schutz gegen versehentliche Doppel-Submits.
-ALLOW_EXISTING_RUN = False
+ALLOW_EXISTING_RUN = True
 
 # Spaltennamen in SEGMENT_FILE. Fehlt SEGMENT_ID_COLUMN, wird die ID
 # aus VIDEO_ID_COLUMN und SEGMENT_INDEX_COLUMN gebaut. Fehlt auch

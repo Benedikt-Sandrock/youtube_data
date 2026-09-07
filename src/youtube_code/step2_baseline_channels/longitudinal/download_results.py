@@ -1099,10 +1099,10 @@ def main():
         print(f"  {run_id}")
     print(f"{'=' * 60}")
 
-    answer = input("\nCheck all and download finished results? [Y/n] ")
-    if answer.strip().lower() != "y":
-        print("Aborted.")
-        return
+    # answer = input("\nCheck all and download finished results? [Y/n] ")
+    # if answer.strip().lower() != "y":
+    #     print("Aborted.")
+    #     return
 
     summary = {
         "downloaded": [],

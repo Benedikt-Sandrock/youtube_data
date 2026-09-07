@@ -1,27 +1,41 @@
+import os
 import pandas as pd
 import numpy as np
 
 from youtube_code.config import OUTPUTS, SAMPLES
+from youtube_code.store import llm_run_store, screening_state_store, video_registry
 
-VIDEO_PATH = OUTPUTS / "sample_feasibility" / "videos_compact_pol_labels.csv"
-LLM_RESULTS = OUTPUTS / "llm_results"
 RESULTS_PATH = OUTPUTS / "segment_analysis"   # Ziel-/Lese-Ordner fuer abgeleitete Outputs
+os.makedirs(RESULTS_PATH, exist_ok= True)
+# Runs werden automatisch aus llm_runs.sqlite gesucht (source + prompt_id),
+# statt einzelne run_NNNN-Dateipfade hart zu kodieren - siehe
+# llm_run_store.get_results_for_prompt(). "downloaded"-Runs mit einer
+# dataset_id, die EXCLUDE_DATASET_SUBSTRING enthaelt (Test-/Pilot-Laeufe,
+# z.B. "single_channels_test_populism_segments"), werden dabei ausgeschlossen.
+SOURCE = "segment_analysis_active"
+PROMPT_IDEOLOGIE = "IDEOLOGIE_I"
+PROMPT_POPULISMUS = "POPULISMUS_P"
+PROMPT_POSITION = "POSITION_V1"
+EXCLUDE_DATASET_SUBSTRING = "test"
 
-# Rohergebnisse liegen seit der LLM-Ergebnis-Konsolidierung (Phase 4e,
-# scripts/adhoc/consolidate_llm_results.py) unter outputs/llm_results/<source>__<run_id>/,
-# nicht mehr flach unter outputs/segment_analysis/.
-RESULTS_PATH_IDEOLOGY = LLM_RESULTS / "segment_analysis_active__run_0012" / "run_0012_IDEOLOGIE_I_corrected.csv"
-RESULTS_PATH_POPULISM_BASE = LLM_RESULTS / "segment_analysis_active__run_0013" / "run_0013_POPULISMUS_P_corrected.csv"
-RESULTS_PATH_STANCE = LLM_RESULTS / "segment_analysis_active__run_0011" / "run_0011_POSITION_V1.csv"
-# populism_runs_combined.csv ist KEIN run_NNNN-praefigierter Pipeline-Output, sondern manuell
-# zusammengefuehrt (kein Erzeuger-Skript im Repo) - liegt daher weiterhin flach hier.
-RESULTS_PATH_POPULISM_MAIN = RESULTS_PATH / "populism_runs_combined.csv"
+# Kanal-Sample wird automatisch aus der kanonischen Sample-Definition
+# (step1_sample/build_channel_provenance.py) geladen, statt aus einer
+# manuell gepflegten Video-Metadaten-CSV.
+ANALYSIS_ID = "russia_longitudinal_v1"
+CHANNEL_SAMPLE_PATH = SAMPLES / ANALYSIS_ID / "channel_sample_provenance.csv"
 
 
 KRIEGSBEGINN = "2022-02-24"
 
 GESAMTSCORE_NAME = "populismus_gesamt"
 GESAMTSCORE_AUS = ["volkszentrismus", "antielitismus", "manichaeische_moralisierung"]
+POPULISM_VARS = ["volkszentrismus", "antielitismus", "manichaeische_moralisierung", "emotionale_intensitaet"]
+
+# Baseline-Fenster fuer channel_classification_populism.csv: dieselben
+# interval_index-Werte wie in step4_transcript_download/select_targets.py
+# ::select_baseline_targets() - Vorkriegsfenster [0,1,2,3], Postwar-
+# Baseline-Sentinel -1 (siehe step2_baseline_channels/README.md §1).
+BASELINE_INTERVAL_INDIZES = [-1, 0, 1, 2, 3]
 
 # Granularitaeten, fuer die jeweils eine eigene Zeitreihen-Datei erzeugt wird.
 # "spalte" ist der Name der Periodenspalte in der jeweiligen Ausgabedatei.
@@ -58,6 +72,101 @@ def _kanal_periode_aus_video(video_df, alle_dimensionen, periodenspalte):
 
 
 # =========================================================
+# Automatische Datenbeschaffung (llm_runs + Kanal-Sample)
+# =========================================================
+
+def _lade_llm_ergebnisse(prompt_id):
+    """
+    Holt alle Ergebniszeilen aller "downloaded"-Runs mit gegebenem prompt_id
+    unter SOURCE (llm_run_store.get_results_for_prompt()), wendet die
+    Test-Run-Ausschlussregel an und loest verbleibende video_id-
+    Ueberlappungen zwischen Runs auf (z.B. ein Video, das versehentlich in
+    zwei unterschiedlichen Batches klassifiziert wurde): pro video_id
+    gewinnt der hoechste run_id, die Zeilen der verdraengten Runs fuer
+    dieselbe video_id werden verworfen. Gibt das bereinigte DataFrame
+    zurueck (inkl. run_id/dataset_id/allen Ergebnisspalten).
+    """
+    df = llm_run_store.get_results_for_prompt(prompt_id, source=SOURCE)
+    if df.empty:
+        raise ValueError(f"Keine Ergebnisse fuer prompt_id={prompt_id!r}, source={SOURCE!r} gefunden.")
+
+    n_vor = len(df)
+    ist_test = df["dataset_id"].fillna("").str.contains(EXCLUDE_DATASET_SUBSTRING, case=False)
+    if ist_test.any():
+        test_runs = sorted(df.loc[ist_test, "run_id"].unique())
+        df = df[~ist_test]
+        print(f"[{prompt_id}] {n_vor - len(df)} Zeile(n) aus Test-Runs {test_runs} ausgeschlossen.")
+
+    gewinner_run = df.groupby("video_id")["run_id"].transform("max")
+    ueberschrieben = df["run_id"] != gewinner_run
+    if ueberschrieben.any():
+        betroffene_videos = df.loc[ueberschrieben, "video_id"].nunique()
+        verdraengte_runs = sorted(df.loc[ueberschrieben, "run_id"].unique())
+        print(f"[{prompt_id}] [Warnung] {betroffene_videos} video_id(s) in mehreren Runs klassifiziert - "
+              f"jeweils neuester Run gewinnt, Zeilen aus {verdraengte_runs} verworfen.")
+        df = df[~ueberschrieben]
+
+    return df.reset_index(drop=True)
+
+
+def _lade_kanal_sample():
+    """Gibt die Menge der channel_id's mit eligible_current_analysis == True aus der
+    kanonischen Sample-Definition (CHANNEL_SAMPLE_PATH) zurueck."""
+    sample = pd.read_csv(CHANNEL_SAMPLE_PATH, usecols=["channel_id", "eligible_current_analysis"])
+    return set(sample.loc[sample["eligible_current_analysis"] == True, "channel_id"])
+
+
+def _lade_video_metadaten(video_ids, eligible_channel_ids):
+    """
+    Video-Metadaten (channel_id, channel_title, published_at) live aus der
+    video_registry statt aus einer manuell gepflegten CSV. Der
+    Mindestlaengen-Filter von get_video_metadata() wird bewusst deaktiviert
+    (min_duration_seconds=None) - die Videos sind bereits klassifiziert,
+    ein nachtraeglicher Laengenfilter wuerde nur stillschweigend Zeilen
+    verlieren. Anschliessend Filterung auf eligible_channel_ids (aktuell
+    gueltiges Kanal-Sample, siehe _lade_kanal_sample()).
+    """
+    videos = video_registry.get_video_metadata(video_ids=video_ids, min_duration_seconds=None)
+    videos = videos[["channel_id", "channel_title", "video_id", "published_at"]]
+    videos["published_at"] = pd.to_datetime(videos["published_at"], errors="coerce", utc=True).dt.tz_localize(None)
+
+    n_vor = len(videos)
+    videos = videos[videos["channel_id"].isin(eligible_channel_ids)]
+    if n_vor - len(videos):
+        print(f"  {n_vor - len(videos)} Video(s) ausserhalb des aktuellen Kanal-Samples "
+              f"(eligible_current_analysis) verworfen.")
+    return videos
+
+
+# =========================================================
+# Korrekturen an den LLM-Rohergebnissen
+# =========================================================
+
+def _korrigiere_populismus(df):
+    """kodierbar == False -> alle vier Populismus-/Intensitaets-Dimensionen auf NaN setzen.
+    Der Prompt (segment_prompts_simple.py) sieht das so vor (nicht-politischer Inhalt
+    bekommt kodierbar=false und null-Dimensionswerte), wird vom LLM aber nicht immer
+    sauber eingehalten - diese Korrektur erzwingt es nachtraeglich."""
+    mask = df["kodierbar"] == False
+    df.loc[mask, POPULISM_VARS] = np.nan
+    return df
+
+
+def _korrigiere_position(df):
+    """rus_status/west_status == 'deskriptiv' -> rus_score/west_score auf 0 setzen
+    (statt roh NaN). 'deskriptiv' bedeutet: Thema kommt vor, wird aber nicht bewertet -
+    das entspricht einer neutralen Position (0) auf der -2..+2-Skala, nicht einem
+    fehlenden Wert. Wichtig: die Video-/Kanal-Aggregation unten mittelt danach direkt
+    ueber rus_score/west_score (kein .where(status=="bewertend")-Ausschluss mehr) -
+    sonst wuerde diese Korrektur von der Aggregation gleich wieder maskiert.
+    'nicht_thematisiert' bleibt unveraendert NaN (roh nie gesetzt) und wird von
+    pandas' mean() weiterhin automatisch ausgeschlossen."""
+    df.loc[df["rus_status"] == "deskriptiv", "rus_score"] = 0
+    df.loc[df["west_status"] == "deskriptiv", "west_score"] = 0
+    return df
+
+
+# =========================================================
 # POPULISMUS
 # =========================================================
 
@@ -84,39 +193,24 @@ def _video_populismus(pop_df, videos, dimensionen):
     return video_mittel
 
 
-def prepare_populism_results(results_path_base, results_path_main, video_path):
+def prepare_populism_results():
     """Gibt (zeitreihen, kanal_klassifikation, video_ebene) zurueck.
     zeitreihen: dict {granularitaet: Long-Format-DataFrame}
-    kanal_klassifikation: EIN DataFrame, granularitaetsunabhaengig (nur aus Quartals-Baseline)
-    video_ebene: EIN DataFrame, eine Zeile je Video (Base + Main), inkl. beider Periodenspalten."""
-    videos = pd.read_csv(video_path, usecols=["channel_id", "channel_title", "video_id", "published_at"])
-    videos["published_at"] = pd.to_datetime(videos["published_at"], errors="coerce", utc=True).dt.tz_localize(None)
+    kanal_klassifikation: EIN DataFrame, granularitaetsunabhaengig (nur aus dem
+        Baseline-Fenster, siehe BASELINE_INTERVAL_INDIZES)
+    video_ebene: EIN DataFrame, eine Zeile je Video, inkl. beider Periodenspalten."""
+    pop = _lade_llm_ergebnisse(PROMPT_POPULISMUS)
+    pop = _korrigiere_populismus(pop)
 
     dimensionen = ["volkszentrismus", "antielitismus", "manichaeische_moralisierung",
                    "emotionale_intensitaet"]
     alle_dimensionen = dimensionen + [GESAMTSCORE_NAME]
-    usecols = ["video_id"] + dimensionen + ["ukraine_bezug"]
 
-    pop_base = pd.read_csv(results_path_base, usecols=usecols)
-    pop_main = pd.read_csv(results_path_main, usecols=usecols, low_memory = False)
+    eligible_channel_ids = _lade_kanal_sample()
+    videos = _lade_video_metadaten(pop["video_id"].unique(), eligible_channel_ids)
 
-    video_base = _video_populismus(pop_base, videos, dimensionen)
-    video_main = _video_populismus(pop_main, videos, dimensionen)
-
-    # Ueberlappungspruefung auf Video-Ebene: derselbe video_id sollte nicht in Base UND Main
-    # klassifiziert worden sein (praeziser als der vorherige Check auf Kanal-Periode-Ebene).
-    ueberlappende_ids = set(video_base["video_id"]) & set(video_main["video_id"])
-    if ueberlappende_ids:
-        print(f"[Warnung] {len(ueberlappende_ids)} video_id(s) in Base UND Main klassifiziert "
-              f"(sollte nicht vorkommen): {sorted(ueberlappende_ids)}")
-    else:
-        print("[OK] Keine ueberlappenden video_ids zwischen Base und Main.")
-
-    video_base = video_base.assign(quelle="base")
-    video_main = video_main.assign(quelle="main")
-    video_ebene = pd.concat([video_base, video_main], ignore_index=True)
-    print(f"[Video-Ebene] {len(video_ebene)} Videos ({len(video_base)} Base, {len(video_main)} Main), "
-          f"{video_ebene['channel_id'].nunique()} Kanaele.")
+    video_ebene = _video_populismus(pop, videos, dimensionen)
+    print(f"[Video-Ebene] {len(video_ebene)} Videos, {video_ebene['channel_id'].nunique()} Kanaele.")
 
     zeitreihen = {}
     for granularitaet, cfg in GRANULARITAETEN.items():
@@ -134,12 +228,16 @@ def prepare_populism_results(results_path_base, results_path_main, video_path):
         print(f"[Zeitreihe][{granularitaet}] {lang['channel_id'].nunique()} Kanaele, "
               f"{periode_alle[spalte].nunique()} Perioden, {len(lang)} Zeilen.")
 
-    # Kanalweite Baseline-Klassifikation: bewusst granularitaetsunabhaengig, nur aus den
-    # Base-Videos (Quartals-Periodenspalte fuer die Aggregationsreihenfolge, wie zuvor).
+    # Kanalweite Baseline-Klassifikation: granularitaetsunabhaengig, nur aus Videos im
+    # Baseline-Fenster (Vorkriegsintervalle 0-3 bzw. Postwar-Sentinel -1, siehe
+    # screening_state_store/select_baseline_targets()), unabhaengig davon aus welchem
+    # Run ein Video stammt.
+    state = screening_state_store.get_state(video_ids=video_ebene["video_id"].tolist())
+    baseline_ids = set(state.loc[state["interval_index"].isin(BASELINE_INTERVAL_INDIZES), "video_id"])
+    video_ebene_baseline = video_ebene[video_ebene["video_id"].isin(baseline_ids)]
+
     spalte_quartal = GRANULARITAETEN["quartal"]["spalte"]
-    periode_base = _kanal_periode_aus_video(
-        video_ebene[video_ebene["quelle"] == "base"], alle_dimensionen, spalte_quartal
-    )
+    periode_base = _kanal_periode_aus_video(video_ebene_baseline, alle_dimensionen, spalte_quartal)
 
     kanal_klassifikation = periode_base.groupby(
         ["channel_id", "channel_title"], as_index=False
@@ -152,8 +250,8 @@ def prepare_populism_results(results_path_base, results_path_main, video_path):
     kanal_klassifikation = pd.merge(kanal_klassifikation, n_videos_total,
                                      on=["channel_id", "channel_title"], how="left")
 
-    print(f"[Klassifikation] {len(kanal_klassifikation)} Kanaele, "
-          f"{(kanal_klassifikation['n_quartale_besetzt'] == 1).sum()} davon mit nur 1 Quartal.")
+    print(f"[Klassifikation] {len(kanal_klassifikation)} Kanaele (aus {len(video_ebene_baseline)} "
+          f"Baseline-Videos), {(kanal_klassifikation['n_quartale_besetzt'] == 1).sum()} davon mit nur 1 Quartal.")
 
     return zeitreihen, kanal_klassifikation, video_ebene
 
@@ -162,12 +260,15 @@ def prepare_populism_results(results_path_base, results_path_main, video_path):
 # IDEOLOGIE
 # =========================================================
 
-def prepare_ideology_results(results_path_ideology, video_path):
-    videos = pd.read_csv(video_path, usecols=["channel_id", "channel_title", "video_id"])
+def prepare_ideology_results():
     dimensionen = ["wirtschaft", "gesellschaft"]
 
-    id_results = pd.read_csv(results_path_ideology, usecols=["video_id"] + dimensionen)
-    id_results = pd.merge(id_results, videos, on="video_id", how="left")
+    id_results = _lade_llm_ergebnisse(PROMPT_IDEOLOGIE)
+    eligible_channel_ids = _lade_kanal_sample()
+    videos = _lade_video_metadaten(id_results["video_id"].unique(), eligible_channel_ids)
+    videos = videos[["channel_id", "channel_title", "video_id"]]
+
+    id_results = pd.merge(id_results[["video_id"] + dimensionen], videos, on="video_id", how="left")
 
     # Bewusst einfacher Video-Mittelwert, NICHT ueber Quartal gewichtet
     # (anders als bei der Populismus-Zeitreihe) - hier nur einmaliger Kanalwert.
@@ -189,15 +290,17 @@ def prepare_ideology_results(results_path_ideology, video_path):
 # POSITION / STANCE
 # =========================================================
 
-def prepare_position_results(results_path_position, video_path):
+def prepare_position_results():
     """Gibt (zeitreihen, video_ebene) zurueck.
     zeitreihen: dict {granularitaet: Long-Format-DataFrame}
     video_ebene: EIN DataFrame, eine Zeile je Video, inkl. beider Periodenspalten."""
-    videos = pd.read_csv(video_path, usecols=["channel_id", "channel_title", "video_id", "published_at"])
-    videos["published_at"] = pd.to_datetime(videos["published_at"], errors="coerce", utc=True).dt.tz_localize(None)
+    pos = _lade_llm_ergebnisse(PROMPT_POSITION)
+    pos = _korrigiere_position(pos)
 
-    pos = pd.read_csv(results_path_position, usecols=["video_id", "rus_status", "rus_score",
-                                                        "west_status", "west_score", "emo_intensitaet"])
+    eligible_channel_ids = _lade_kanal_sample()
+    videos = _lade_video_metadaten(pos["video_id"].unique(), eligible_channel_ids)
+
+    pos = pos[["video_id", "rus_status", "rus_score", "west_status", "west_score", "emo_intensitaet"]]
     pos = pd.merge(pos, videos, on="video_id", how="left")
 
     ohne_datum = pos["published_at"].isna()
@@ -208,9 +311,9 @@ def prepare_position_results(results_path_position, video_path):
     pos = ergaenze_periodenspalten(pos)
     periodenspalten = [cfg["spalte"] for cfg in GRANULARITAETEN.values()]
 
-    # Score nur aus "bewertend"-Segmenten; deskriptive Erwaehnungen separat zaehlen
-    pos["rus_score_bewertend"] = pos["rus_score"].where(pos["rus_status"] == "bewertend")
-    pos["west_score_bewertend"] = pos["west_score"].where(pos["west_status"] == "bewertend")
+    # rus_score/west_score sind nach _korrigiere_position() bereits die richtige
+    # Eingabe fuer die Mittelwertbildung (bewertend -> echter Score, deskriptiv -> 0,
+    # nicht_thematisiert -> weiterhin NaN, wird von mean() automatisch ausgeschlossen).
     pos["ist_deskriptiv_rus"] = (pos["rus_status"] == "deskriptiv").astype(int)
     pos["ist_deskriptiv_west"] = (pos["west_status"] == "deskriptiv").astype(int)
 
@@ -218,9 +321,9 @@ def prepare_position_results(results_path_position, video_path):
     video_ebene = pos.groupby(
         ["channel_id", "channel_title", "video_id"] + periodenspalten, as_index=False
     ).agg(
-        position_russland=("rus_score_bewertend", "mean"),
+        position_russland=("rus_score", "mean"),
         n_deskriptiv_russland=("ist_deskriptiv_rus", "sum"),
-        position_westpolitik=("west_score_bewertend", "mean"),
+        position_westpolitik=("west_score", "mean"),
         n_deskriptiv_westpolitik=("ist_deskriptiv_west", "sum"),
         emotion=("emo_intensitaet", "mean"),
     )
@@ -234,7 +337,7 @@ def prepare_position_results(results_path_position, video_path):
             ["channel_id", "channel_title", spalte], as_index=False
         ).agg(
             position_russland=("position_russland", "mean"),
-            n_videos_russland=("position_russland", "count"),   # nur Videos mit >=1 bewertendem Segment
+            n_videos_russland=("position_russland", "count"),   # nur Videos mit >=1 bewertendem/deskriptivem Segment
             n_deskriptiv_russland=("n_deskriptiv_russland", "sum"),
             position_westpolitik=("position_westpolitik", "mean"),
             n_videos_westpolitik=("position_westpolitik", "count"),
@@ -265,19 +368,17 @@ def prepare_position_results(results_path_position, video_path):
 
 
 def main():
-    id_results_grouped = prepare_ideology_results(RESULTS_PATH_IDEOLOGY, VIDEO_PATH)
+    id_results_grouped = prepare_ideology_results()
     id_results_grouped.to_csv(RESULTS_PATH / "channel_classification_ideology.csv", index=False)
 
-    zeitreihen_populismus, kanal_klassifikation, video_ebene_populismus = prepare_populism_results(
-        RESULTS_PATH_POPULISM_BASE, RESULTS_PATH_POPULISM_MAIN, VIDEO_PATH
-    )
+    zeitreihen_populismus, kanal_klassifikation, video_ebene_populismus = prepare_populism_results()
     for granularitaet, cfg in GRANULARITAETEN.items():
         dateiname = f"channel_{cfg['datei_suffix']}_populism_timeseries.csv"
         zeitreihen_populismus[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)
     kanal_klassifikation.to_csv(RESULTS_PATH / "channel_classification_populism.csv", index=False)
     video_ebene_populismus.to_csv(RESULTS_PATH / "channel_video_populism.csv", index=False)
 
-    zeitreihen_position, video_ebene_position = prepare_position_results(RESULTS_PATH_STANCE, VIDEO_PATH)
+    zeitreihen_position, video_ebene_position = prepare_position_results()
     for granularitaet, cfg in GRANULARITAETEN.items():
         dateiname = f"channel_{cfg['datei_suffix']}_position_timeseries.csv"
         zeitreihen_position[granularitaet].to_csv(RESULTS_PATH / dateiname, index=False)

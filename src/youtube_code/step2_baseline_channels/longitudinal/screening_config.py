@@ -47,6 +47,11 @@ MANIFEST_DIR = BATCH_DIR / "manifests"
 RESULTS_DIR = SCREENING_DIR / "results"
 OUTPUT_DIR = LLM / "title_classification"
 
+# Reports von append_channels_to_state.sync_state_with_registry() (neu
+# ergaenzte video_ids, Zusammenfassung je Kanal/Intervall, ggf.
+# channel_id-Korrekturen) - siehe .claude/plans/screening_state_update.md.
+STATE_SYNC_LOG_DIR = SCREENING_DIR / "state_sync_logs"
+
 # source-Wert in der zentralen LLM-Run-Registry (data/store/llm_runs.sqlite,
 # siehe youtube_code.store.llm_run_store). Ersetzt die fruehere
 # REGISTRY_PATH-Konstante (eigene CSV-Datei je Quelle) seit Phase 4b der

@@ -1,5 +1,3 @@
-import pandas as pd
-from pathlib import Path
 import json
 
 with open("channels_sample.json", "r") as f, open("channels_screened.json") as f2:
@@ -40,14 +38,6 @@ print(missing_channels)
 # channels_missing = [c for c in channels_sample if c not in channels_screened]
 # print(len(channels_missing))
 
-from scripts.create_video_samples import METADATA_PATH
-from youtube_code.config import RAW
-import re
-from youtube_code.utils import load_json,save_json
-
-
-import json
-from pathlib import Path
 
 # SAMPLE_FILE = RAW / "sample_50k_channels_russia_ukraine.jsonl"
 # METADATA_FILE = RAW / "video_metadata_detailed_total.jsonl"

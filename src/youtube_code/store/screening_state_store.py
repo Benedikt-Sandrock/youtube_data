@@ -22,10 +22,22 @@ update_screening_state.validate_state_consistency) bleibt bewusst
 Business-Logik der aufrufenden Skripte und wird erst in Phase 4 auf die
 neuen Call-Sites uebertragen, nicht hier im Storage-Modul entschieden.
 
+Seit .claude/plans/screening_state_update.md enthaelt das Schema NICHT mehr
+die vier Text-Spalten channel_title/published_at/title/description - sie
+waren eine zum Zeitpunkt der Kandidatenauswahl eingefrorene Kopie aus
+video_registry und liefen damit derselben Veraltungs-Bug-Klasse wie der
+frueher beobachtete channel_id-Drift hinterher (Symptom: uneinheitlich
+geschriebenes published_at, siehe
+step2_baseline_channels.assign_postwar_baseline-Docstring). Wer diese vier
+Spalten braucht, ruft statt get_state() die Variante get_state_with_text()
+auf, die per video_id-Join gegen video_registry.get_videos_with_text()
+nachlaedt.
+
 Nutzung in einem Screening-Skript:
-    from youtube_code.store.screening_state_store import upsert_state_rows, get_state
+    from youtube_code.store.screening_state_store import upsert_state_rows, get_state, get_state_with_text
     upsert_state_rows(new_or_changed_rows)  # Liste von dicts mit mind. "video_id", "channel_id"
-    get_state(screening_round=10)           # DataFrame fuer eine Teilmenge
+    get_state(screening_round=10)           # DataFrame fuer eine Teilmenge (State-Spalten)
+    get_state_with_text(screening_round=10) # dieselbe Teilmenge + channel_title/published_at/title/description
 """
 import sqlite3
 
@@ -33,14 +45,13 @@ from youtube_code.config import STORE
 
 DB_PATH = STORE / "screening_state.sqlite"
 
-# Reihenfolge identisch zur Quell-CSV (siehe export_csv).
+# Reihenfolge identisch zur Quell-CSV (siehe export_csv). channel_title/
+# published_at/title/description wurden per
+# scripts/adhoc/drop_screening_state_text_columns.py entfernt - siehe
+# get_state_with_text() fuer den Ersatz per video_registry-Join.
 COLUMNS = [
     "video_id",
     "channel_id",
-    "channel_title",
-    "published_at",
-    "title",
-    "description",
     "period",
     "interval_index",
     "interval_label",
@@ -77,10 +88,6 @@ _SCHEMA = """
 CREATE TABLE IF NOT EXISTS screening_state (
     video_id                         TEXT PRIMARY KEY,
     channel_id                       TEXT NOT NULL,
-    channel_title                    TEXT,
-    published_at                     TEXT,
-    title                            TEXT,
-    description                      TEXT,
     period                           INTEGER,
     interval_index                   INTEGER,
     interval_label                   TEXT,
@@ -268,6 +275,37 @@ def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_r
     finally:
         con.close()
 
+def get_state_with_text(video_ids=None, channel_ids=None, politics_final=None, screening_round=None):
+    """
+    Wie get_state() (identische Filterparameter, UND-verknuepft), ergaenzt
+    das Ergebnis aber per video_id-Join um die vier aus dem Schema
+    entfernten Text-Spalten channel_title/published_at/title/description
+    (siehe Modul-Docstring). Quelle ist
+    video_registry.get_videos_with_text(video_ids=..., min_duration_seconds=None)
+    - der Duration-Filter wird hier bewusst deaktiviert: Konsumenten wollen
+    Text zu State-Zeilen nachladen, die per Definition schon Kandidaten
+    sind, nicht sie anhand einer (fuer diesen Zweck irrelevanten)
+    Mindestlaenge erneut aussieben. Fehlt zu einer video_id kein
+    video_registry-Eintrag, bleiben die vier Spalten NaN (Left-Join).
+    """
+    from youtube_code.store import video_registry
+
+    state = get_state(
+        video_ids=video_ids, channel_ids=channel_ids,
+        politics_final=politics_final, screening_round=screening_round,
+    )
+    text_cols = ["channel_title", "published_at", "title", "description"]
+    if state.empty:
+        for col in text_cols:
+            state[col] = None
+        return state
+
+    text = video_registry.get_videos_with_text(
+        video_ids=state["video_id"].tolist(), min_duration_seconds=None
+    )[["video_id"] + text_cols]
+    return state.merge(text, on="video_id", how="left")
+
+
 def total_count() -> int:
     con = _connect()
     try:
@@ -309,9 +347,10 @@ def label_counts():
 def export_csv(output_path) -> int:
     """
     Schreibt einen vollstaendigen Snapshot der Ablage als CSV nach
-    output_path, mit identischer Spaltenreihenfolge wie die Quell-CSV (haelt
-    bestehende Excel-/Ad-hoc-Konsumenten waehrend der Uebergangszeit bis
-    Phase 4 kompatibel). Gibt die Anzahl geschriebener Zeilen zurueck.
+    output_path (Spalten wie COLUMNS, seit dem Text-Spalten-Drop OHNE
+    channel_title/published_at/title/description - siehe get_state_with_text()
+    fuer einen Export inkl. dieser Spalten). Gibt die Anzahl geschriebener
+    Zeilen zurueck.
     """
     df = get_state()
     df.to_csv(output_path, index=False)

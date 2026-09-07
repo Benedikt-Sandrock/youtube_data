@@ -31,8 +31,8 @@ from youtube_code.store.video_registry import duration_lookup, get_channel_map, 
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 1
-VIDEO_LIST = "fill_vids_extended.json"  # nur fuer den __main__-Block
+SPEED_DOWNLOAD = 0
+VIDEO_LIST = "request_transcripts.json"  # nur fuer den __main__-Block
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]
@@ -292,7 +292,7 @@ def download_transcripts(
             time.sleep(batch_break)
 
         if api_request_count % 100 == 0:
-            long_break = random.uniform(290, 310)
+            long_break = 0 if speed_download else random.uniform(290, 310)
             print(f"Long break: {long_break:.2f} seconds")
             time.sleep(long_break)
 

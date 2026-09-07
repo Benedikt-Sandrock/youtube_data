@@ -22,4 +22,6 @@ LLM = OUTPUTS / "llm"
 OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
 
+ADHOC_OUTPUT = ROOT / "scripts" / "adhoc" / "output"
+
 SRC = ROOT / "src" / "youtube_code"

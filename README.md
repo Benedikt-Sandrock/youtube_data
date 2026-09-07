@@ -20,6 +20,7 @@ ausschließlich über die passenden Module in `src/youtube_code/store/` (nie
 | `data/store/transcripts.sqlite` | `transcript_store.py` | heruntergeladene Transkripte |
 | `data/store/screening_state.sqlite` | `screening_state_store.py` | longitudinaler Politik-Screening-Status |
 | `data/store/llm_runs.sqlite` | `llm_run_store.py` | Registry aller eingereichten LLM-Batch-Jobs |
+| `data/store/comments.sqlite` | `comment_store.py` | heruntergeladene Video-Kommentare (Schritt 7) |
 
 Die Dateien sind groß (bis >1 GB) und daher **nicht** in Git getrackt
 (`.gitignore`); sie existieren nur lokal bzw. in den externen Backups (siehe
@@ -57,7 +58,10 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
 - `outputs/segment_analysis/`, `outputs/title_classification/`,
   `outputs/validation/`, `outputs/sample_feasibility/`, `outputs/pilot/` —
   Analyse-/Validierungsausgaben einzelner Pipelines, überwiegend
-  regenerierbar aus den Stores.
+  regenerierbar aus den Stores. Für `outputs/segment_analysis/` (Schritt 6,
+  Populismus-/Haltung-Auswertung) siehe `outputs/segment_analysis/README.md`
+  — Einstiegspunkt für jede neue Session, verlinkt Stand, offene TODOs und
+  das laufend aktualisierte Ergebnis-Dokument.
 
 ## Code
 
@@ -100,6 +104,10 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   (`prepare_channel_scores.py`, `deskriptiv_aggregation.py`,
   `deskriptiv_plots.py`, `fe_signifikanz_test.py`, `geglaettete_kurve.py`;
   siehe `README.md` dort für Ablauf und offene Punkte).
+- `src/youtube_code/step7_comments/` — COMPLETE_PROCESS.md Schritt 7:
+  Kommentar-Download über die YouTube-API (`select_targets.py`,
+  `download_comments.py`), schreibt in `data/store/comments.sqlite`
+  (siehe `README.md` dort für Details und die noch offene Zielauswahl).
 - `src/youtube_code/llm_analysis/` — gemeinsame Infrastruktur für
   LLM-Batch-Jobs (Einreichung, Download, Registry-Anbindung).
 - `src/youtube_code/archive/` — abgelöster/toter Code, nicht mehr gepflegt,

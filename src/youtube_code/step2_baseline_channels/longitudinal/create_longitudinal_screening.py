@@ -12,16 +12,64 @@ multi-month interval. An interval is skipped when:
 The output CSV can be passed to the existing grouped title-batch pipeline.
 Selected videos are reserved in the state through ``screening_round`` so they
 cannot accidentally be submitted twice. Since Phase 4d, only the changed rows
-(``video_id`` + ``screening_round``) are pushed back via
-``screening_state_store.upsert_state_rows`` - no more full-table CSV rewrite.
+are pushed back via ``screening_state_store.upsert_state_rows`` - no more
+full-table CSV rewrite. Each pushed record carries ``video_id``,
+``channel_id`` and ``screening_round`` - ``channel_id`` never actually
+changes here, but it must be included because SQLite's UPSERT checks
+NOT NULL constraints (``screening_state.channel_id`` is NOT NULL) against
+the raw INSERT values before ever reaching the ON CONFLICT DO UPDATE /
+COALESCE fallback, so a record missing a NOT NULL column fails even when
+the row already exists with a valid value.
+
+Since .claude/plans/screening_state_update.md, ``create_screening_round()``
+first syncs the state against ``video_registry`` for every channel currently
+present in the state (``append_channels_to_state.sync_state_with_registry``)
+before planning the round - this backfills videos the registry has gained
+since the state was last touched and corrects any channel_id drift, instead
+of silently planning against a state that has fallen behind the registry.
+``load_screening_state()`` also loads channel_title/published_at/title/
+description via ``screening_state_store.get_state_with_text()`` rather than
+from the state's own (now removed) copy of those columns. Because that
+text-column reload runs a chunked video_id join against ``video_registry``
+(chunk size 500), ``create_screening_round()`` passes its ``channel_ids``
+filter straight into ``load_screening_state()`` so a channel-scoped round
+only loads and joins the rows of those channels instead of the full state
+(>750,000 rows as of this writing) - only the round number is still taken
+from a separate, unfiltered ``screening_state_store.get_state()`` call
+(cheap, no text join), since round numbers must stay globally sequential
+regardless of any channel/interval filtering.
+
+Optional targeted planning: ``create_screening_round()`` accepts a
+``channel_ids`` argument (module constant ``CHANNEL_IDS`` when run as a
+script) to restrict a round to a specific subset of channels instead of the
+default state-wide plan. When set, only those channels are synced and only
+their channel-interval cells are considered for new candidates; the round
+number itself is still taken from the full, unfiltered state so round
+numbers stay globally sequential regardless of any filtering (round numbers
+are relied on downstream by the batch submission/merge scripts).
+
+Optional interval filtering: ``create_screening_round()`` also accepts an
+``interval_indices`` argument (module constant ``INTERVAL_INDICES`` when run
+as a script) to further restrict planning to specific ``interval_index``
+values (e.g. ``[-1]`` for only the postwar-baseline sentinel cells). Unlike
+``channel_ids``, this filter only narrows which channel-interval cells are
+*planned* - it does not affect the ``video_registry`` sync step, which
+still runs for the full (or ``channel_ids``-filtered) set of channels, since
+syncing is channel-scoped, not interval-scoped.
 """
 
 import math
 from pathlib import Path
+import json
 
 import pandas as pd
 
-from youtube_code.config import MIN_VIDEO_DURATION_SECONDS
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS, EXPLORATION, ADHOC_OUTPUT
+from youtube_code.step2_baseline_channels.append_channels_to_state import (
+    print_sync_report,
+    sync_state_with_registry,
+    write_sync_report,
+)
 from youtube_code.step2_baseline_channels.longitudinal.screening_config import (
     INITIAL_CANDIDATES_PER_PERIOD,
     MAX_CANDIDATES_PER_PERIOD_PER_ROUND,
@@ -37,7 +85,28 @@ from youtube_code.store import screening_state_store, video_registry
 
 # First inspect the printed plan with DRY_RUN=True. Change it to False only
 # after the counts and the sample rows look plausible.
-DRY_RUN = False
+DRY_RUN = True
+
+# Optional: Rundenplanung auf bestimmte Kanaele einschraenken (z. B. um
+# gezielt nur neu hinzugefuegte oder einzelne Kanaele screenen zu lassen,
+# statt state-weit ueber alle Kanaele im screening_state zu planen). Liste
+# von channel_ids ("UC...") eintragen, sonst None fuer das Standardverhalten
+# (alle Kanaele im State).
+ids = pd.read_csv(ADHOC_OUTPUT / "topic_vids_per_channel.csv")
+ids = ids[ids["topic_vids"] >= 5]["channel_id"].tolist()
+
+# with open(EXPLORATION / "channels_add_screening.json") as f:
+#     ids = json.load(f)
+CHANNEL_IDS: list[str] | None = ids
+if CHANNEL_IDS:
+    print(f"{len(CHANNEL_IDS)} Channels selected.")
+
+# Optional: Rundenplanung zusaetzlich auf bestimmte interval_index-Werte
+# einschraenken (z. B. [-1] fuer nur die Postwar-Baseline-Sentinel-Zellen,
+# oder [0, 1, 2, 3] fuer nur die Vorkriegs-Kalenderintervalle). Wirkt nur auf
+# die Planung, nicht auf den video_registry-Sync (der bleibt kanalbasiert
+# unveraendert). None fuer das Standardverhalten (alle Intervalle).
+INTERVAL_INDICES: list[int] | None = None
 
 REQUIRED_COLUMNS = {
     "video_id",
@@ -178,10 +247,25 @@ def validate_state_consistency(state: pd.DataFrame) -> pd.DataFrame:
     return state
 
 
-def load_screening_state() -> pd.DataFrame:
-    """Laedt den kompletten Screening-State aus screening_state_store und wendet
-    validate_state_consistency an. Ersatz fuer pd.read_csv(STATE_FILE)."""
-    state = screening_state_store.get_state()
+def load_screening_state(channel_ids: list[str] | None = None) -> pd.DataFrame:
+    """Laedt den Screening-State aus screening_state_store (inkl. der per
+    video_registry-Join nachgeladenen Text-Spalten channel_title/
+    published_at/title/description, siehe
+    screening_state_store.get_state_with_text()) und wendet
+    validate_state_consistency an. Ersatz fuer pd.read_csv(STATE_FILE).
+
+    channel_ids (optional): reicht den Filter an get_state_with_text()
+    durch, statt wie zuvor immer den kompletten State (aktuell >750.000
+    Zeilen) zu laden und dessen Text-Spalten per gechunktem video_id-Join
+    (Chunk-Groesse 500, siehe video_registry.get_videos_with_text())
+    nachzuladen - bei einer auf wenige Kanaele eingeschraenkten Runde
+    (CHANNEL_IDS) waren das bislang >1.500 unnoetige Einzel-Queries gegen
+    videos/video_details, obwohl nur die Zeilen dieser Kanaele gebraucht
+    wurden. Fuer die Rundennummer (die immer aus dem vollstaendigen State
+    stammen muss) wird in create_screening_round() bewusst NICHT diese
+    Funktion, sondern das billigere screening_state_store.get_state()
+    (ohne Text-Join) verwendet."""
+    state = screening_state_store.get_state_with_text(channel_ids=channel_ids)
     if state.empty:
         raise FileNotFoundError("screening_state_store ist leer.")
     return validate_state_consistency(state)
@@ -491,12 +575,78 @@ def create_screening_round(
         round_dir: Path = SCREENING_ROUND_DIR,
         summary_dir: Path = SCREENING_ROUND_SUMMARY_DIR,
         dry_run: bool = DRY_RUN,
+        channel_ids: list[str] | None = None,
+        interval_indices: list[int] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    state = load_screening_state()
-    round_number = get_next_round_number(state)
+    """channel_ids (optional): schraenkt Sync UND Rundenplanung auf genau
+    diese Kanaele ein, statt state-weit ueber alle Kanaele im
+    screening_state zu planen (Standard, channel_ids=None). Die
+    Rundennummer wird trotzdem immer aus dem vollstaendigen, ungefilterten
+    State bestimmt (get_next_round_number), damit Rundennummern global
+    fortlaufend bleiben - nachgelagerte Skripte (run_longitudinal_
+    screening_batch.py, update_screening_state.py) adressieren Runden ueber
+    genau diese Nummer.
+
+    interval_indices (optional): schraenkt zusaetzlich NUR die
+    Rundenplanung auf genau diese interval_index-Werte ein (z. B. [-1] fuer
+    nur die Postwar-Baseline-Sentinel-Zellen). Der video_registry-Sync
+    bleibt davon unberuehrt, da er kanal- und nicht intervallbasiert ist."""
+    # Sync VOR dem Laden des States: gleicht fehlende video_registry-Videos
+    # und channel_id-Drift fuer die betroffenen Kanaele ab (siehe
+    # append_channels_to_state.sync_state_with_registry und
+    # .claude/plans/screening_state_update.md) - ohne diesen Schritt wuerde
+    # die Rundenplanung unten weiter auf einem gegenueber der Registry
+    # zurueckfallenden State arbeiten. dry_run gilt hier genauso wie fuer den
+    # Rest der Funktion: kein Schreiben, nur Report-Vorschau. Ohne
+    # channel_ids-Filter sind das wie bisher alle Kanaele im State; mit
+    # Filter nur die angeforderten (kein unnoetiger Sync fremder Kanaele).
+    if channel_ids is not None:
+        sync_target_ids = list(dict.fromkeys(channel_ids))
+    else:
+        sync_target_ids = screening_state_store.get_state()["channel_id"].unique().tolist()
+    sync_report = sync_state_with_registry(sync_target_ids, dry_run=dry_run)
+    sync_paths = write_sync_report(sync_report)
+    print_sync_report(sync_report, sync_paths)
+
+    # Rundennummer immer aus dem vollstaendigen, ungefilterten State
+    # bestimmen (siehe Docstring oben) - dafuer reicht das billige
+    # get_state() ohne Text-Join, ein voller load_screening_state() waere
+    # hier unnoetig teuer.
+    round_number = get_next_round_number(screening_state_store.get_state())
+
+    # state direkt auf channel_ids eingeschraenkt laden (siehe
+    # load_screening_state()-Docstring) statt wie frueher den kompletten
+    # State zu laden und erst danach in Python zu filtern - bei einer auf
+    # wenige Kanaele eingeschraenkten Runde spart das den Text-Join fuer
+    # alle uebrigen Kanaele.
+    state = load_screening_state(channel_ids=channel_ids)
+
+    if channel_ids is not None:
+        missing_channel_ids = set(channel_ids) - set(state["channel_id"].unique())
+        if missing_channel_ids:
+            raise ValueError(
+                f"{len(missing_channel_ids):,} angeforderte channel_ids sind "
+                f"nicht im Screening-State: {sorted(missing_channel_ids)[:10]}"
+            )
+    planning_state = state
+
+    if interval_indices is not None:
+        planning_state = planning_state[
+            planning_state["interval_index"].isin(interval_indices)
+        ]
+        missing_interval_indices = set(interval_indices) - set(
+            planning_state["interval_index"].unique()
+        )
+        if missing_interval_indices:
+            raise ValueError(
+                f"{len(missing_interval_indices):,} angeforderte "
+                "interval_indices kommen im (ggf. bereits per channel_ids "
+                f"gefilterten) Screening-State nicht vor: "
+                f"{sorted(missing_interval_indices)}"
+            )
 
     selected_round, summary = plan_screening_round(
-        state=state,
+        state=planning_state,
         round_number=round_number,
     )
     print_round_plan(
@@ -549,11 +699,20 @@ def create_screening_round(
         selected_round=selected_round,
         round_number=round_number,
     )
+    # channel_id wird hier mitgeschickt, obwohl sich der Wert nie aendert:
+    # screening_state.channel_id ist NOT NULL, und SQLites INSERT ... ON
+    # CONFLICT DO UPDATE prueft NOT-NULL-Constraints gegen die rohen VALUES
+    # des INSERT-Teils, BEVOR es zur Konfliktaufloesung (und damit zum
+    # COALESCE(excluded.channel_id, screening_state.channel_id) im
+    # DO-UPDATE-Teil) kommt - ein Record ohne channel_id fuehrt darum immer
+    # zu "NOT NULL constraint failed: screening_state.channel_id", auch fuer
+    # laengst vorhandene Zeilen mit gueltigem channel_id. Reines Beibehalten
+    # des vorhandenen Werts reicht, um das zu umgehen.
     changed_records = updated_state.loc[
         updated_state["video_id"].astype(str).isin(
             selected_round["video_id"].astype(str)
         ),
-        ["video_id", "screening_round"],
+        ["video_id", "channel_id", "screening_round"],
     ].to_dict("records")
     written = screening_state_store.upsert_state_rows(changed_records)
 
@@ -564,4 +723,4 @@ def create_screening_round(
 
 
 if __name__ == "__main__":
-    create_screening_round()
+    create_screening_round(channel_ids=CHANNEL_IDS, interval_indices=INTERVAL_INDICES)

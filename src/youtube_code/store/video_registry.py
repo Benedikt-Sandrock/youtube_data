@@ -30,6 +30,15 @@ gepflegte Buchfuehrung, sondern eine einfache Abfrage (coverage_report).
 Nutzung in einem Fetch-Skript:
     from youtube_code.store.video_registry import upsert_videos
     upsert_videos(new_videos)   # Liste von dicts mit mind. "video_id"
+
+view_count/like_count/comment_count sind bewusst ein einmaliger Snapshot:
+upsert_videos() ueberschreibt einen bereits gespeicherten Wert nie erneut
+(COALESCE(alt, neu), siehe frage2_4_methodik_und_stichprobe.md Abschnitt 2
+fuer die methodischen Konsequenzen). Fuer einen gezielten Aktualisierungslauf,
+der genau diese drei Spalten fuer eine explizite Video-ID-Liste bewusst
+ueberschreiben soll (z.B. periodisches Nachziehen aktueller Views fuer einen
+noch laufenden Zeitraum), siehe refresh_video_stats() weiter unten sowie
+refresh_video_metadata() in youtube_code.utils.io.
 """
 import json
 import re
@@ -171,6 +180,29 @@ ON CONFLICT(video_id) DO UPDATE SET
     comment_count = COALESCE(videos.comment_count, excluded.comment_count)
 """
 
+# Bewusstes Gegenstueck zu _UPSERT_SQL: dort gewinnt bei view_count/like_count/
+# comment_count IMMER der alte Wert (einmaliger Snapshot, siehe upsert_videos()-
+# Docstring). refresh_video_stats() (siehe unten) ist der einzige Schreibpfad,
+# der das absichtlich umkehrt - die drei Statistik-Spalten uebernehmen den NEUEN
+# Wert, wenn einer geliefert wurde (COALESCE(excluded, alt) statt COALESCE(alt,
+# excluded)), alle anderen Spalten bleiben COALESCE(alt, neu) wie ueberall sonst.
+_REFRESH_STATS_SQL = """
+INSERT INTO videos (
+    video_id, channel_id, published_at, title,
+    channel_title, duration, view_count, like_count, comment_count
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(video_id) DO UPDATE SET
+    channel_id = COALESCE(videos.channel_id, excluded.channel_id),
+    published_at = COALESCE(videos.published_at, excluded.published_at),
+    title = COALESCE(videos.title, excluded.title),
+    channel_title = COALESCE(videos.channel_title, excluded.channel_title),
+    duration = COALESCE(videos.duration, excluded.duration),
+    view_count = COALESCE(excluded.view_count, videos.view_count),
+    like_count = COALESCE(excluded.like_count, videos.like_count),
+    comment_count = COALESCE(excluded.comment_count, videos.comment_count)
+"""
+
 _DETAILS_UPSERT_SQL = """
 INSERT INTO video_details (
     video_id, description, tags, category_id, default_language,
@@ -296,14 +328,14 @@ def _connect() -> sqlite3.Connection:
     return con
 
 
-def upsert_videos(records) -> int:
+def _build_video_rows(records) -> list:
     """
-    Schreibt eine Liste von Video-Dicts (mind. "video_id", idealerweise
-    auch "channel_id"/"published_at"/"title") in die zentrale Registry.
-    Platzhalter-Eintraege ("no_video_found_...", siehe channel_all_videos.py)
-    werden uebersprungen. Vorhandene Felder werden nie mit leeren Werten
-    ueberschrieben (COALESCE), spaetere, luecken­haftere Quellen koennen
-    also nichts kaputtmachen. Gibt die Anzahl geschriebener Zeilen zurueck.
+    Baut die (video_id, channel_id, ..., comment_count)-Tupel fuer die videos-
+    Tabelle aus einer Liste von Video-Dicts. Geteilte Zeilen-Logik fuer
+    upsert_videos() und refresh_video_stats() - die beiden unterscheiden sich
+    nur im verwendeten SQL-Statement (_UPSERT_SQL vs. _REFRESH_STATS_SQL),
+    nicht in der Aufbereitung der Werte. Platzhalter-Eintraege
+    ("no_video_found_...", siehe channel_all_videos.py) werden uebersprungen.
     """
     rows = []
     for r in records:
@@ -321,12 +353,56 @@ def upsert_videos(records) -> int:
             _to_int(r.get("like_count")),
             _to_int(r.get("comment_count")),
         ))
+    return rows
+
+
+def upsert_videos(records) -> int:
+    """
+    Schreibt eine Liste von Video-Dicts (mind. "video_id", idealerweise
+    auch "channel_id"/"published_at"/"title") in die zentrale Registry.
+    Vorhandene Felder werden nie mit leeren Werten ueberschrieben (COALESCE),
+    spaetere, luecken­haftere Quellen koennen also nichts kaputtmachen. Das
+    gilt auch fuer view_count/like_count/comment_count: ein bereits
+    gespeicherter Wert bleibt fuer immer bestehen (einmaliger Snapshot, siehe
+    Modul-Docstring sowie frage2_4_methodik_und_stichprobe.md Abschnitt 2) -
+    fuer ein bewusstes Auffrischen dieser drei Spalten siehe
+    refresh_video_stats(). Gibt die Anzahl geschriebener Zeilen zurueck.
+    """
+    rows = _build_video_rows(records)
     if not rows:
         return 0
 
     con = _connect()
     try:
         con.executemany(_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def refresh_video_stats(records) -> int:
+    """
+    Wie upsert_videos(), aber view_count/like_count/comment_count werden mit
+    dem NEUEN Wert ueberschrieben, wenn einer geliefert wurde (sonst bleibt
+    der alte Wert stehen) - alle anderen Spalten weiterhin COALESCE(alt, neu)
+    wie ueberall sonst. Bewusster, expliziter Gegenpol zum sonst geltenden
+    "einmaliger Snapshot, nie ueberschreiben"-Prinzip (siehe upsert_videos()),
+    gedacht fuer gezielte Aktualisierungslaeufe (z.B. Views fuer Videos eines
+    bestimmten, noch laufenden Zeitraums neu abrufen) - NICHT als Ersatz fuer
+    upsert_videos() im Normalbetrieb. Aufrufende Stelle: refresh_video_metadata()
+    in youtube_code.utils.io (Bypass des "schon bekannt"-Filters von
+    get_video_metadata(), sonst wuerde die API fuer bereits gespeicherte IDs
+    gar nicht erst aufgerufen). Gibt die Anzahl geschriebener/aktualisierter
+    Zeilen zurueck.
+    """
+    rows = _build_video_rows(records)
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_REFRESH_STATS_SQL, rows)
         con.commit()
     finally:
         con.close()
@@ -825,6 +901,37 @@ def get_videos_for_channels(channel_ids) -> dict:
     return result
 
 
+def get_video_rows_for_channels(channel_ids):
+    """
+    Gibt video_id/channel_id/published_at fuer ALLE in der Registry bekannten
+    Videos der uebergebenen Kanaele zurueck - Verallgemeinerung von
+    get_videos_for_channels (dort nur video_id-Mengen) um published_at, ohne
+    den Umweg ueber get_video_rows(video_ids) mit vorab bekannten IDs.
+    """
+    import pandas as pd
+
+    channel_ids = [str(c) for c in channel_ids if c]
+    if not channel_ids:
+        return pd.DataFrame(columns=["video_id", "channel_id", "published_at"])
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(channel_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT video_id, channel_id, published_at FROM videos "
+                f"WHERE channel_id IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
+            columns=["video_id", "channel_id", "published_at"]
+        )
+    finally:
+        con.close()
+
+
 def get_channels(channel_ids=None):
     """
     Gibt die channels-Tabelle als DataFrame zurueck - vollstaendig, oder auf
@@ -998,7 +1105,7 @@ def get_search_provenance(queries=None, search_period=None):
         con.close()
 
 
-def get_topic_relevance(topic, video_ids=None):
+def get_topic_relevance(topic = "russia_ukraine_war", video_ids=None):
     """
     Gibt die video_topic_relevance-Zeilen fuer ein topic zurueck - vollstaendig,
     oder auf video_ids gefiltert, wenn uebergeben. Siehe upsert_topic_relevance()
@@ -1104,6 +1211,43 @@ def duration_lookup(video_ids) -> dict:
     return {row.video_id: duration_to_seconds(row.duration) for row in df.itertuples()}
 
 
+def comment_count_lookup(video_ids) -> dict:
+    """
+    Gibt video_id -> comment_count (None bei unbekanntem/nie von der API
+    geliefertem Wert, siehe get_video_stats()-Docstring) fuer die
+    uebergebenen video_ids zurueck. Grundlage fuer den Vorfilter in
+    step7_comments/select_targets.py: Videos mit comment_count NULL oder 0
+    haben laut Metadaten keine abrufbaren Kommentare (deaktiviert oder
+    keine vorhanden) und werden dort vor dem eigentlichen Kommentar-Download
+    aussortiert, analog zum Muster von duration_lookup()/
+    MIN_VIDEO_DURATION_SECONDS weiter oben.
+    """
+    import pandas as pd
+
+    video_ids = sorted({str(v) for v in video_ids if v})
+    if not video_ids:
+        return {}
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT video_id, comment_count FROM videos WHERE video_id IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=["video_id", "comment_count"])
+    finally:
+        con.close()
+
+    return {
+        row.video_id: (None if pd.isna(row.comment_count) else int(row.comment_count))
+        for row in df.itertuples()
+    }
+
+
 def get_videos_with_text(channel_ids=None, video_ids=None, min_duration_seconds=MIN_VIDEO_DURATION_SECONDS):
     """
     Gibt video_id/channel_id/channel_title/published_at/title/description
@@ -1180,6 +1324,10 @@ def get_video_metadata(
     JOIN und ohne description-Spalte ist diese Funktion bei grossen
     Ergebnismengen deutlich schneller und speichersparender.
 
+    Liefert bewusst NICHT view_count/like_count/comment_count - fuer diese
+    Erfolgsmetrik-Spalten siehe get_video_stats() weiter unten
+    (step6_auswertung/prepare_success_metrics.py).
+
     Mindestlaengen-Handling analog zu get_videos_with_text():
     - duration_filter=True (Default): Videos unter min_duration_seconds
       (inkl. Videos mit noch unbekannter Dauer) werden aus dem Ergebnis
@@ -1234,5 +1382,62 @@ def get_video_metadata(
             ))
         combined = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols + ["duration"])
         return _finalize(combined)
+    finally:
+        con.close()
+
+
+def get_video_stats(channel_ids=None, video_ids=None):
+    """
+    Gibt video_id/channel_id/channel_title/published_at/view_count/
+    like_count/comment_count/duration zurueck, gefiltert auf channel_ids
+    ODER video_ids (genau eines von beiden, wie bei get_video_metadata()).
+    Erfolgsmetrik-Gegenstueck zu get_video_metadata(): diese liefert
+    bewusst NICHT view_count/like_count/comment_count (schlank fuer reine
+    Zielauswahl/Filterung), get_video_stats() liefert dafuer NICHT title
+    (schlank fuer reine Erfolgsmetrik-Berechnung). Grundlage fuer
+    step6_auswertung/prepare_success_metrics.py.
+
+    view_count/like_count/comment_count sind in der DB nullable (_SCHEMA)
+    und werden nie mit einem Default 0 ueberschrieben (_to_int(),
+    COALESCE-Upsert in _UPSERT_SQL/upsert_videos()) - ein fehlender Wert
+    bedeutet "von der API nie geliefert" (z.B. deaktivierte Likes/
+    Kommentare), nicht "0". Aufrufende Stellen sollten NaN/None hier NICHT
+    als 0 interpretieren (siehe prepare_success_metrics.py::
+    berechne_erfolgsmetriken()).
+
+    Kein Mindestlaengen-Filter (anders als get_video_metadata()) - die
+    Erfolgsmetrik-Pipeline filtert stattdessen ueber die Kanal-Whitelist.
+    """
+    import pandas as pd
+
+    cols = ("v.video_id, v.channel_id, v.channel_title, v.published_at, "
+            "v.view_count, v.like_count, v.comment_count, v.duration")
+    base_sql = f"SELECT {cols} FROM videos v"
+    out_cols = ["video_id", "channel_id", "channel_title", "published_at",
+                "view_count", "like_count", "comment_count", "duration"]
+
+    if channel_ids is None and video_ids is None:
+        con = _connect()
+        try:
+            return pd.read_sql_query(base_sql, con)
+        finally:
+            con.close()
+
+    filter_col, filter_ids = ("v.channel_id", channel_ids) if channel_ids is not None else ("v.video_id", video_ids)
+    filter_ids = [str(x) for x in filter_ids if x]
+    if not filter_ids:
+        return pd.DataFrame(columns=out_cols)
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(filter_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"{base_sql} WHERE {filter_col} IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols)
     finally:
         con.close()

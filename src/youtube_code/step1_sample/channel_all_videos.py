@@ -69,7 +69,7 @@ import os
 import yt_dlp
 
 from settings_variables import published_before_analysis, published_after_analysis
-from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS, OUTPUTS
+from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS, OUTPUTS, ADHOC_OUTPUT
 from youtube_code.utils import save_json
 from youtube_code.store import video_registry
 from youtube_code.store.video_registry import upsert_videos as _registry_upsert
@@ -78,7 +78,7 @@ from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"  |  "TARGETED_SEARCH"  |  "TARGETED_SEARCH_YTDLP"
 # ─────────────────────────────────────────────
-MODE = "TARGETED_SEARCH_YTDLP"
+MODE = "UPDATE"
 
 # Ob zusaetzlich zur zentralen Registry (data/store/video_registry.sqlite,
 # immer geschrieben) noch eine JSON-Datei (VIDEOS_TOTAL_FILE) gepflegt wird.
@@ -96,7 +96,13 @@ YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 # Paths
 # ─────────────────────────────────────────────
 VIDEOS_TOTAL_FILE = RAW / "sample_50k_channels_russia_ukraine.json"
-CHANNEL_INPUT     = CHANNEL_LISTS / "all_identification" / "german_channels_50k.json"
+# UPDATE-Lauf 2026-09: die 292 Kanaele des Frage-1-Stufe-1-Samples (>= 5
+# Kriegsvideos, siehe frage1_stichprobe.py/frage1_stichprobe_kanalstatus.csv),
+# neu abgerufen ueber scripts/adhoc/output/frage1_stufe1_channel_ids_292.json
+# (Ad-hoc-Ableitung, siehe .claude/CLAUDE.md). Vorheriger Wert (alle
+# identifizierten deutschen Kanaele) auskommentiert stehen gelassen.
+# CHANNEL_INPUT     = CHANNEL_LISTS / "all_identification" / "german_channels_50k.json"
+CHANNEL_INPUT     = ADHOC_OUTPUT / "frage1_stufe1_channel_ids_292.json"
 CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 
 # ── TARGETED_SEARCH: Konfiguration ──

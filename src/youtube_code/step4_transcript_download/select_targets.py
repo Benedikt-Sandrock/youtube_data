@@ -131,7 +131,11 @@ def select_baseline_targets(channel_ids=None, limit_per_channel: int | None = TA
     urspruenglichen Verhalten ALLE politics_final==1-Videos qualifizierender
     Kanaele (keine Priorisierung noetig, da ohnehin alles genommen wird).
     """
-    state = screening_state_store.get_state(channel_ids=channel_ids)
+    # get_state_with_text() statt get_state(): published_at ist seit dem
+    # Text-Spalten-Drop kein State-eigenes Feld mehr, sondern wird per
+    # video_id-Join gegen video_registry nachgeladen (siehe
+    # screening_state_store-Moduldocstring).
+    state = screening_state_store.get_state_with_text(channel_ids=channel_ids)
     state = _filter_min_duration(state)
     df = state[["video_id", "channel_id", "interval_index", "politics_final", "published_at"]]
 
