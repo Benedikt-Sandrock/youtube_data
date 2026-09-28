@@ -18,7 +18,7 @@ Auswahltrichter (Funnel), in dieser Reihenfolge:
      Klassifikation ausgewaehlten Videos) - Spalte topic_vids aus
      scripts/adhoc/output/topic_vids_per_channel.csv. Diese Datei zaehlt
      is_relevant==True aus der Tabelle video_topic_relevance (Topic
-     "russia_ukraine_war", Keyword-Klassifikation aus step3_war_videos) ueber
+     "russia_ukraine_war", Keyword-Klassifikation aus step3_topic_relevance) ueber
      ALLE Videos des Kanals seit 24.02.2021, siehe
      scripts/adhoc/sample_creation_diagnostics.py::create_channel_overview().
   2. Mindestens MIN_KLASSIFIZIERTE_VIDEOS (Default 5) Videos mit gueltiger
@@ -235,7 +235,7 @@ jeweiligen `frage1_*_bericht.py`) unterscheidet sich.
 **Stufe 1** zaehlt `topic_vids` aus
 `scripts/adhoc/output/topic_vids_per_channel.csv`: Anzahl Videos eines
 Kanals, die die Keyword-basierte Themen-Relevanz-Klassifikation
-(`step3_war_videos/classify_topic_relevance.py`, Tabelle
+(`step3_topic_relevance/classify_topic_relevance.py`, Tabelle
 `video_topic_relevance`, Topic `russia_ukraine_war`) als (vermutlich)
 kriegsbezogen einstuft — ueber ALLE Videos des Kanals seit dem 24.02.2021,
 nicht nur die tatsaechlich fuer die LLM-Klassifikation ausgewaehlten. Das

@@ -1,10 +1,16 @@
 ## Regeln für jede Session:
 
-**HAUPTZIEL HEUTE (3.9.26)**: Erste Beantwortung aller Forschungsfragen
-
 **README.md**:Um die Dateistruktur zu verstehen, lies die im ROOT abgelegt `README.md`.
 
 **COMPLETE_PROCESS.md**: Um den Ablauf des Projekts zu verstehen, lies `COMPLETE_PROCESS.md`
+
+**Lies "Aufgaben.md" in .claude**: Da stehen die Hauptaufgaben, die ich heute erledigen möchte. Weise mich ab und zu darauf hin, falls ich zu viele andere Dinge mache und nicht zielgerichtet arbeite.
+
+**Realismus**: Gib keine zu optimistischen Antworten. Wenn ich bspw. frage, ob sich die detailliertere Untersuchung von ersten Befunden/grafischen Trends lohnt, gib eine ehrlich Einschätzung ab, ob wirklich etwas dahinterstecken könnte, oder ob es sich eher um Spezifikationssuche handelt.
+
+**Session Context**: Wenn ich Anfragen stelle, die sich effizienter in einer neuen Session mit leerem Context bearbeiten lassen, weise mich darauf hin, eine neue Session zu starten.
+
+**Regressionsoutput**: Wenn du Skripte für detaillierte Regressionen schreibst (mehrere Läufe mit verschiedenen Spezifikationen), sorge immer dafür, dass der Output übersichtlich in eine menschenlesbare Markdown Datei geschreiben wird. Das Verzeichnis dafür soll immer ein Ordner namens "regression_results" im ursprünglichen Ergebnispfad (z.B. OUTPUTS / "segment_analysis") sein.
 
 **Forschungsfragen**:
 Ich möchte mit dem Projekt folgende Fragen untersuchen:

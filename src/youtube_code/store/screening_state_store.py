@@ -38,6 +38,7 @@ Nutzung in einem Screening-Skript:
     upsert_state_rows(new_or_changed_rows)  # Liste von dicts mit mind. "video_id", "channel_id"
     get_state(screening_round=10)           # DataFrame fuer eine Teilmenge (State-Spalten)
     get_state_with_text(screening_round=10) # dieselbe Teilmenge + channel_title/published_at/title/description
+    get_state(politics_final_not_null=True) # alle Video-IDs mit irgendeinem Label (0, 1 oder -1)
 """
 import sqlite3
 
@@ -188,17 +189,30 @@ def upsert_state_rows(records) -> int:
     return after - before
 
 
-def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_round=None):
+def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_round=None,
+              politics_final_not_null=False):
     """
     Gibt ein DataFrame mit den screening_state-Spalten zurueck, gefiltert
     ueber jeden uebergebenen Parameter (UND-Verknuepfung).
+
+    politics_final_not_null=True filtert auf "politics_final IS NOT NULL",
+    liefert also alle Video-IDs mit irgendeinem Label (0, 1 oder -1),
+    unabhaengig vom konkreten Wert. Schliesst sich mit politics_final
+    (Exact-Match auf einen einzelnen Wert) gegenseitig aus.
     """
     import pandas as pd
+
+    if politics_final is not None and politics_final_not_null:
+        raise ValueError(
+            "politics_final und politics_final_not_null duerfen nicht "
+            "gleichzeitig gesetzt werden."
+        )
 
     con = _connect()
     try:
         # 1. Ohne jeglichen Filter: Komplette Tabelle laden
-        if video_ids is None and channel_ids is None and politics_final is None and screening_round is None:
+        if (video_ids is None and channel_ids is None and politics_final is None
+                and screening_round is None and not politics_final_not_null):
             return pd.read_sql_query(
                 f"SELECT {', '.join(COLUMNS)} FROM screening_state", con
             )
@@ -213,6 +227,8 @@ def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_r
             if politics_final is not None:
                 extra_where.append("politics_final = ?")
                 extra_params.append(politics_final)
+            if politics_final_not_null:
+                extra_where.append("politics_final IS NOT NULL")
             if screening_round is not None:
                 extra_where.append("screening_round = ?")
                 extra_params.append(screening_round)
@@ -275,24 +291,27 @@ def get_state(video_ids=None, channel_ids=None, politics_final=None, screening_r
     finally:
         con.close()
 
-def get_state_with_text(video_ids=None, channel_ids=None, politics_final=None, screening_round=None):
+def get_state_with_text(video_ids=None, channel_ids=None, politics_final=None, screening_round=None,
+                         politics_final_not_null=False):
     """
-    Wie get_state() (identische Filterparameter, UND-verknuepft), ergaenzt
-    das Ergebnis aber per video_id-Join um die vier aus dem Schema
-    entfernten Text-Spalten channel_title/published_at/title/description
-    (siehe Modul-Docstring). Quelle ist
-    video_registry.get_videos_with_text(video_ids=..., min_duration_seconds=None)
-    - der Duration-Filter wird hier bewusst deaktiviert: Konsumenten wollen
-    Text zu State-Zeilen nachladen, die per Definition schon Kandidaten
-    sind, nicht sie anhand einer (fuer diesen Zweck irrelevanten)
-    Mindestlaenge erneut aussieben. Fehlt zu einer video_id kein
-    video_registry-Eintrag, bleiben die vier Spalten NaN (Left-Join).
+    Wie get_state() (identische Filterparameter, UND-verknuepft, inkl.
+    politics_final_not_null), ergaenzt das Ergebnis aber per video_id-Join um
+    die vier aus dem Schema entfernten Text-Spalten
+    channel_title/published_at/title/description (siehe Modul-Docstring).
+    Quelle ist video_registry.get_videos_with_text(video_ids=...,
+    min_duration_seconds=None) - der Duration-Filter wird hier bewusst
+    deaktiviert: Konsumenten wollen Text zu State-Zeilen nachladen, die per
+    Definition schon Kandidaten sind, nicht sie anhand einer (fuer diesen
+    Zweck irrelevanten) Mindestlaenge erneut aussieben. Fehlt zu einer
+    video_id kein video_registry-Eintrag, bleiben die vier Spalten NaN
+    (Left-Join).
     """
     from youtube_code.store import video_registry
 
     state = get_state(
         video_ids=video_ids, channel_ids=channel_ids,
         politics_final=politics_final, screening_round=screening_round,
+        politics_final_not_null=politics_final_not_null,
     )
     text_cols = ["channel_title", "published_at", "title", "description"]
     if state.empty:

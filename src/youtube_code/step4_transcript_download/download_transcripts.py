@@ -22,7 +22,7 @@ import pandas as pd
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound
 
-from youtube_code.config import MIN_VIDEO_DURATION_SECONDS
+from youtube_code.config import MIN_VIDEO_DURATION_SECONDS, OUTPUTS
 from youtube_code.store.transcript_store import attempted_video_ids, get_transcripts, upsert_transcripts
 from youtube_code.store.video_registry import duration_lookup, get_channel_map, get_videos_for_channels
 
@@ -31,8 +31,8 @@ from youtube_code.store.video_registry import duration_lookup, get_channel_map, 
 # =====================================================
 
 STOP_WORD = "blocking"
-SPEED_DOWNLOAD = 0
-VIDEO_LIST = "request_transcripts.json"  # nur fuer den __main__-Block
+SPEED_DOWNLOAD = 1
+VIDEO_LIST = "political_nonwar_ids.json"  # nur fuer den __main__-Block, muss .json sein
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]

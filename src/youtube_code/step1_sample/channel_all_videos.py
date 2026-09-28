@@ -78,7 +78,7 @@ from youtube_code.store.video_registry import upsert_videos as _registry_upsert
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"  |  "TARGETED_SEARCH"  |  "TARGETED_SEARCH_YTDLP"
 # ─────────────────────────────────────────────
-MODE = "UPDATE"
+MODE = "TARGETED_SEARCH_YTDLP"
 
 # Ob zusaetzlich zur zentralen Registry (data/store/video_registry.sqlite,
 # immer geschrieben) noch eine JSON-Datei (VIDEOS_TOTAL_FILE) gepflegt wird.
@@ -90,7 +90,7 @@ MODE = "UPDATE"
 # Nebenprodukt, z.B. wenn ein anderes Skript sie gezielt als Input braucht.
 SAVE_JSON_SNAPSHOT = False
 
-YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
+YOUTUBE = build("youtube", "v3", developerKey=API_KEY_C)
 
 # ─────────────────────────────────────────────
 # Paths
@@ -109,20 +109,22 @@ CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 # Kanalliste: CSV mit "channel_id"-Spalte oder JSON (Liste von IDs oder von
 # Dicts mit "channel_id"). Standard: die 38 Kanaele ohne Baseline-Video aus
 # outputs/segment_analysis/baseline_still_missing_channels.csv.
-TARGETED_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "baseline_still_missing_channels.csv"
+TARGETED_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
 # Zeitfenster fuer die gezielte Suche: Monat -12 bis direkt vor Kriegsbeginn
 # (2022-02-24), nicht nur bis Monat -3 wie das engere Baseline-Fenster in
 # check_baseline_coverage.py.
 TARGETED_PUBLISHED_AFTER  = "2021-02-24T00:00:00Z"
-TARGETED_PUBLISHED_BEFORE = "2022-02-23T23:59:59Z"
+TARGETED_PUBLISHED_BEFORE = "2026-06-30T23:59:59Z"
 
 # ── TARGETED_SEARCH_YTDLP: Konfiguration ──
 # Kanalliste im selben Format wie TARGETED_CHANNEL_INPUT. Standard: die 5
 # sehr grossen Kanaele (>~15.000 Videos insgesamt), bei denen weder
 # TARGETED_SEARCH (playlistItems-20k-Grenze) noch eine search().list-Variante
 # (winziger, nicht repraesentativer Suchindex) das Zeitfenster erreichen.
-TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "baseline_unreliable_large_channels.csv"
+
+TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = "missing_channels.csv"
+# TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "baseline_unreliable_large_channels.csv"
 # Nutzt dasselbe Zeitfenster wie TARGETED_SEARCH (TARGETED_PUBLISHED_AFTER/_BEFORE).
 
 # videos().list erlaubt max. 50 IDs pro Aufruf.

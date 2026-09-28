@@ -54,8 +54,41 @@ log1p(view_count_summe)) berechnet - macht Kanaele sichtbar, die durch
 hoehere Aktivitaet (mehr Videos) insgesamt mehr Reichweite erzielen, ohne
 dass der Durchschnitt pro Video steigt.
 
+Seit 2026-09-08 (.claude/Aufgaben.md, letzter Absatz: Videolaenge als
+moeglicher Stoerfaktor, siehe vorausgegangene Diagnose in
+scripts/adhoc/videolaenge_diagnose.py) ergaenzt ergaenze_videodauer()
+zusaetzlich duration_seconds/log_duration_seconds je Video
+(video_registry.duration_lookup(), 100% Abdeckung auf der Whitelist-
+Stichprobe, Stand 2026-09-08) - Grundlage fuer die Kontrollvariable und die
+laengenbeschraenkte Sensitivitaets-Teilstichprobe in
+frage4_kriegspraemie_medientyp_bericht.py und populismuspraemie_
+kriegsvideos_bericht.py. Vorher wurde die Dauer nur lokal/ad-hoc in
+videolaenge_diagnose.py per duration_lookup() nachgeschlagen (siehe dortige
+Docstring-Historie); mit dieser Aenderung ist sie fester Teil der
+Pipeline-Ausgabe.
+
+Ebenfalls seit 2026-09-08, aber TESTWEISE (Nutzervorgabe: "Nimm age_days und
+category_id testweise dazu" - im Gegensatz zur Videodauer noch keine
+endgueltige Entscheidung, ob diese Kontrollvariablen dauerhaft bleiben)
+ergaenzt ergaenze_videokategorie() zusaetzlich category_id (YouTubes eigene
+numerische Video-Kategorie, z.B. "25" = News & Politics, "24" = Entertainment
+- video_registry.category_id_lookup(), 100% Abdeckung, Stand 2026-09-08).
+Anders als Medientyp/Ideologie ist category_id KEINE kanalkonstante
+Eigenschaft (ein Kanal kann z.B. sowohl News & Politics als auch
+Entertainment posten) - Grundlage fuer die (ebenfalls testweise) Kontroll-
+variable in populismuspraemie_kriegsvideos_bericht.py (Baustein a-f, als
+C(kategorie_gruppe)-Fixed-Effect). age_days (Tage zwischen Veroeffentlichung
+und REFERENZDATUM) war bereits vorher Teil der Ausgabe (siehe
+berechne_erfolgsmetriken()) - wird seit 2026-09-08 zusaetzlich als
+Kontrollvariable in populismuspraemie_kriegsvideos_bericht.py verwendet
+(dort, NICHT in frage4_kriegspraemie_medientyp_bericht.py - Begruendung fuer
+diese asymmetrische Anwendung siehe dortiger Moduldocstring).
+
 Outputs (outputs/segment_analysis/):
-  - channel_video_erfolg.csv: Video-Ebene, eine Zeile je Video.
+  - channel_video_erfolg.csv: Video-Ebene, eine Zeile je Video (inkl.
+    duration_seconds/log_duration_seconds seit 2026-09-08, sowie category_id
+    seit 2026-09-08 testweise, siehe oben; age_days war bereits vorher
+    enthalten).
   - channel_{quartal,monat}_erfolg_timeseries.csv: Long-Format wie die
     bestehenden channel_{gran}_populism_timeseries.csv, Dimensionen
     {view_count, log_views, engagement_rate, view_count_summe,
@@ -185,6 +218,40 @@ def berechne_erfolgsmetriken(df):
     return df
 
 
+def ergaenze_videodauer(df):
+    """Ergaenzt duration_seconds (video_registry.duration_lookup(), COALESCE-Upsert aus
+    contentDetails) und log_duration_seconds (log(duration_seconds), NaN bei <= 0 oder
+    unbekannter Dauer). Grundlage fuer die Kontrollvariable/laengenbeschraenkte
+    Sensitivitaets-Teilstichprobe in frage4_kriegspraemie_medientyp_bericht.py und
+    populismuspraemie_kriegsvideos_bericht.py (.claude/Aufgaben.md, letzter Absatz) -
+    siehe scripts/adhoc/videolaenge_diagnose.py fuer die vorausgegangene Diagnose
+    (100% Abdeckung auf der Whitelist-Stichprobe, Stand 2026-09-08)."""
+    dauer_sek = video_registry.duration_lookup(df["video_id"].tolist())
+    df["duration_seconds"] = pd.to_numeric(df["video_id"].map(dauer_sek), errors="coerce")
+    df["log_duration_seconds"] = np.log(df["duration_seconds"].where(df["duration_seconds"] > 0))
+
+    unbekannt = df["duration_seconds"].isna().sum()
+    print(f"[Videodauer] {unbekannt} von {len(df)} Videos ohne bekannte/parsebare Dauer "
+          f"(contentDetails nie abgefragt) -> duration_seconds/log_duration_seconds = NaN.")
+    return df
+
+
+def ergaenze_videokategorie(df):
+    """Ergaenzt category_id (video_registry.category_id_lookup(), YouTubes eigene
+    numerische Video-Kategorie, z.B. "25" = News & Politics) - TESTWEISE
+    Kontrollvariable (Nutzervorgabe 2026-09-08, siehe Moduldocstring), anders als
+    Medientyp/Ideologie KEINE kanalkonstante Eigenschaft. Videos ohne video_details-
+    Zeile (contentDetails nie abgefragt) bekommen NaN, nicht 0/"unbekannt" als eigene
+    Kategorie - analog zur Handhabung in ergaenze_videodauer()."""
+    kategorie = video_registry.category_id_lookup(df["video_id"].tolist())
+    df["category_id"] = df["video_id"].map(kategorie)
+
+    unbekannt = df["category_id"].isna().sum()
+    print(f"[Videokategorie] {unbekannt} von {len(df)} Videos ohne bekannte category_id "
+          f"(contentDetails nie abgefragt) -> category_id = NaN.")
+    return df
+
+
 def aggregiere_kanal_periode_erfolg(df, spalte_periode):
     """Video-Ebene -> Kanal x Periode. Neben den Mittelwert-Dimensionen
     (view_count, log_views, engagement_rate) zusaetzlich die Summe aller
@@ -240,10 +307,12 @@ def main():
     video_ebene = _ergaenze_kriegsvideo_flag(video_ebene)
     video_ebene = ergaenze_periodenspalten(video_ebene)
     video_ebene = berechne_erfolgsmetriken(video_ebene)
+    video_ebene = ergaenze_videodauer(video_ebene)
+    video_ebene = ergaenze_videokategorie(video_ebene)
 
     spalten = ["channel_id", "channel_title", "video_id", "published_at", "rel_quartal", "rel_monat",
                "view_count", "like_count", "comment_count", "log_views", "engagement_rate", "age_days",
-               "ist_kriegsvideo"]
+               "ist_kriegsvideo", "duration_seconds", "log_duration_seconds", "category_id"]
     video_ebene[spalten].to_csv(PFAD_VIDEO_EBENE, index=False, encoding="utf-8")
     print(f"[Ausgabe] {len(video_ebene)} Videos -> {PFAD_VIDEO_EBENE}")
 

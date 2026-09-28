@@ -16,7 +16,7 @@ ausschließlich über die passenden Module in `src/youtube_code/store/` (nie
 
 | Store | Modul | Inhalt |
 | --- | --- | --- |
-| `data/store/video_registry.sqlite` | `video_registry.py` | zentrale Video-/Kanal-Metadaten-Registry, inkl. Kanal-Metadaten (`channels`), Sprachklassifikation (`language_classification`), Such-Provenienz (`search_runs`/`video_search_hits`) sowie Keyword-basierter Themen-Relevanz (`video_topic_relevance`, z.B. Ukraine-Krieg-Bezug, siehe `step3_war_videos/`) — alle laufen live mit den Collection-/Klassifikationsskripten mit, keine separate Migration nötig |
+| `data/store/video_registry.sqlite` | `video_registry.py` | zentrale Video-/Kanal-Metadaten-Registry, inkl. Kanal-Metadaten (`channels`), Sprachklassifikation (`language_classification`), Such-Provenienz (`search_runs`/`video_search_hits`) sowie Keyword-basierter Themen-Relevanz (`video_topic_relevance`, fünf Themen inkl. Ukraine-Krieg-Bezug, siehe `step3_topic_relevance/`) — alle laufen live mit den Collection-/Klassifikationsskripten mit, keine separate Migration nötig |
 | `data/store/transcripts.sqlite` | `transcript_store.py` | heruntergeladene Transkripte |
 | `data/store/screening_state.sqlite` | `screening_state_store.py` | longitudinaler Politik-Screening-Status |
 | `data/store/llm_runs.sqlite` | `llm_run_store.py` | Registry aller eingereichten LLM-Batch-Jobs |
@@ -84,11 +84,13 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   restlichen, nicht in der Kurzreferenz-Pipeline geführten Skripte (Ad-hoc-/
   Diagnose-Skripte) liegen jetzt unter
   `src/youtube_code/archive/politics_screening_legacy/`.
-- `src/youtube_code/step3_war_videos/` — COMPLETE_PROCESS.md Schritt 3:
-  Keyword-basierte Themen-Relevanz-Klassifikation (`classify_topic_relevance.py`,
-  Keyword-Quelle `topic_keywords.py`, Boilerplate-Filter `boilerplate.py`),
-  schreibt in die Tabelle `video_topic_relevance` in `video_registry.sqlite`
-  (siehe `README.md` dort für Details).
+- `src/youtube_code/step3_topic_relevance/` — COMPLETE_PROCESS.md Schritt 3:
+  Keyword-basierte Themen-Relevanz-Klassifikation für fünf Themen
+  (Ukraine-Krieg sowie die Vergleichsthemen Corona, Migration, Wirtschaft,
+  Energie; `classify_topic_relevance.py`, Keyword-Quelle `topic_keywords.py`,
+  Boilerplate-Filter `boilerplate.py`), schreibt in die Tabelle
+  `video_topic_relevance` in `video_registry.sqlite` (siehe `README.md` dort
+  für Details).
 - `src/youtube_code/step4_transcript_download/` — COMPLETE_PROCESS.md
   Schritt 4: Zielauswahl für den Transkript-Download (`select_targets.py`,
   drei Konfigurationen: Baseline/Zell-Auffüllung/Kriegszeitraum) und der
@@ -141,7 +143,7 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Pipeline im Detail: wie das Vorkriegs-/Postwar-Baseline-Fenster pro Kanal
   festgelegt wird, der Schritt-für-Schritt-Ablauf zum Hinzufügen neuer Kanäle
   und wie man die Video-IDs qualifizierender Kanäle abruft.
-- `src/youtube_code/step3_war_videos/README.md` — Keyword-Quelle,
+- `src/youtube_code/step3_topic_relevance/README.md` — Keyword-Quelle,
   Boilerplate-Filter und Tabellen-Schema der Themen-Relevanz-Klassifikation.
 - `src/youtube_code/step4_transcript_download/README.md` — die drei
   Zielauswahl-Konfigurationen und `download_transcripts()`.

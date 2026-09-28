@@ -2,7 +2,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound
 import pandas as pd
 import os
-from youtube_code.config import TRANSCRIPTS
+from youtube_code.config import EXPLORATION
 
 def get_transcript(video_id):
     yta = YouTubeTranscriptApi()
@@ -20,8 +20,8 @@ def save_to_csv(daten_chunk, file_path):
         encoding="utf-8"
     )
 
-file_path = TRANSCRIPTS / "single_transcripts.csv"
-video_id = "SwH7WgG9dIY"
+file_path = EXPLORATION / "single_transcripts.csv"
+video_id = "3BdDu2mBSGU"
 daten = []
 
 try:

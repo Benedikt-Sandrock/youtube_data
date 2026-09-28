@@ -248,7 +248,31 @@ def lade_medientyp():
         print(f"[Warnung] {int(unbekannt.sum())} Kanaele mit unbekanntem typ_code "
               f"(nicht in {list(MEDIENTYP_LABELS)}) -> medientyp bleibt NaN.")
 
-    return med[["channel_id", "medientyp"]]
+    med = med[["channel_id", "medientyp"]]
+
+    # PFAD_MEDIENTYP enthaelt vereinzelt echte Duplikatzeilen fuer denselben channel_id
+    # (Kopier-/Pflegefehler in der extern gepflegten Excel-Datei, z.B. "ARTEde" und
+    # "WDR aktuell" je zweimal, 2026-09-08 entdeckt beim Nachgehen eines auffaellig
+    # starken OeRR-Populismus-Koeffizienten). Ohne diesen Dedup verdoppelt jeder
+    # nachfolgende Merge auf channel_id (Video- ODER Kanal-Ebene) genau diese Kanaele
+    # gegenueber allen anderen - sie bekommen dadurch unbemerkt doppeltes Gewicht in
+    # jeder Regression/Aggregation, die lade_medientyp() verwendet.
+    duplikate = med[med.duplicated(subset="channel_id", keep=False)]
+    if not duplikate.empty:
+        widerspruechlich = duplikate.groupby("channel_id")["medientyp"].nunique()
+        widerspruechliche_ids = widerspruechlich[widerspruechlich > 1].index.tolist()
+        if widerspruechliche_ids:
+            raise ValueError(
+                f"'{PFAD_MEDIENTYP}' enthaelt channel_id(s) mit WIDERSPRUECHLICHEN "
+                f"Medientyp-Werten in Duplikatzeilen: {widerspruechliche_ids}. Manuell "
+                f"in der Excel-Datei bereinigen, bevor lade_medientyp() weiterlaeuft."
+            )
+        print(f"[Warnung] {duplikate['channel_id'].nunique()} channel_id(s) mit "
+              f"identischen Duplikatzeilen in '{PFAD_MEDIENTYP}' -> auf je eine Zeile "
+              f"reduziert: {sorted(duplikate['channel_id'].unique())}")
+        med = med.drop_duplicates(subset="channel_id", keep="first")
+
+    return med
 
 
 def lade_ideologie():

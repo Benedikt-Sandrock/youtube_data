@@ -12,7 +12,7 @@ geklaert ist.
 
 select_topic_targets() deckt den naheliegendsten Startfall ab: Kommentare
 fuer bereits als themenrelevant klassifizierte Videos (Standard-Topic
-"russia_ukraine_war", siehe step3_war_videos).
+"russia_ukraine_war", siehe step3_topic_relevance).
 
 select_channel_targets() deckt den zweiten Fall ab: ALLE in der
 video_registry bekannten Videos einer Kanal-Liste (kein Themen- oder

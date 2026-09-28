@@ -1,3 +1,70 @@
+"""Schritt 0 der step6_auswertung-Pipeline: aggregiert die LLM-Segment-
+Klassifikationsergebnisse aus drei Prompts (Ideologie, Populismus,
+Position/Stance) die Kette Segment -> Video -> Kanal (x Periode) hoch.
+
+Input
+-----
+- LLM-Ergebnisse: llm_run_store.get_results_for_prompt(prompt_id, source=SOURCE)
+  fuer PROMPT_IDEOLOGIE ("IDEOLOGIE_I"), PROMPT_POPULISMUS ("POPULISMUS_P")
+  und PROMPT_POSITION ("POSITION_V1") unter SOURCE = "segment_analysis_active";
+  eine Zeile je klassifiziertem Segment mit den Rohspalten des jeweiligen
+  Prompts. "downloaded"-Runs, deren dataset_id EXCLUDE_DATASET_SUBSTRING
+  ("test") enthaelt, werden ausgeschlossen; bei video_id-Duplikaten ueber
+  mehrere Runs gewinnt jeweils der neueste run_id (siehe
+  _lade_llm_ergebnisse()).
+- Video-Metadaten: video_registry.get_video_metadata() liefert channel_id,
+  channel_title, published_at je video_id (min_duration_seconds=None, da die
+  Videos bereits klassifiziert sind); gefiltert auf das aktuell gueltige
+  Kanal-Sample (channel_id mit eligible_current_analysis == True aus
+  CHANNEL_SAMPLE_PATH = data/samples/<ANALYSIS_ID>/channel_sample_provenance.csv).
+- Baseline-Fenster (nur fuer die Populismus-Kanalklassifikation): video_ids mit
+  interval_index in BASELINE_INTERVAL_INDIZES ([-1, 0, 1, 2, 3]) aus
+  screening_state_store.get_state() - dieselben Intervalle wie
+  select_baseline_targets() in step4_transcript_download/select_targets.py.
+
+Aggregationsebenen je Prompt
+-----------------------------
+Populismus (prepare_populism_results):
+    Segment -> Video: Mittelwert je video_id ueber volkszentrismus,
+        antielitismus, manichaeische_moralisierung, emotionale_intensitaet
+        (nach _korrigiere_populismus(): kodierbar == False setzt alle vier auf
+        NaN); zusaetzlich populismus_gesamt = Mittelwert der drei
+        GESAMTSCORE_AUS-Dimensionen (ohne emotionale_intensitaet), berechnet
+        aus den Video-Rohwerten, nicht aus spaeteren Periodenmitteln.
+        -> video_ebene (eine Zeile je video_id, inkl. rel_monat/rel_quartal).
+    Video -> Kanal x Periode: je Granularitaet (Monat/Quartal) Mittelwert je
+        (channel_id, channel_title, Periodenspalte) ueber alle vier
+        Dimensionen + populismus_gesamt, plus n_videos = Videoanzahl in der
+        Zelle -> zeitreihen[granularitaet] (Long-Format: eine Zeile je
+        Kanal x Periode x Dimension).
+    Video -> Kanal (Klassifikation, granularitaetsunabhaengig): nur Videos aus
+        dem Baseline-Fenster, zunaechst auf Kanal x Quartal gemittelt, dann
+        auf Kanal aggregiert (Mittelwert ueber die Quartals-Mittel, NICHT
+        direkt ueber alle Baseline-Videos) -> kanal_klassifikation (eine Zeile
+        je Kanal, inkl. n_quartale_besetzt und n_videos_total).
+
+Ideologie (prepare_ideology_results):
+    Video -> Kanal (einmalig, NICHT nach Periode aufgeschluesselt): je
+        channel_title Mittelwert UND Median von wirtschaft/gesellschaft plus
+        n_videos -> ein DataFrame, eine Zeile je Kanal.
+
+Position/Stance (prepare_position_results):
+    Segment -> Video: Mittelwert je video_id ueber rus_score
+        ("position_russland"), west_score ("position_westpolitik") und
+        emo_intensitaet ("emotion") nach _korrigiere_position() (status ==
+        "deskriptiv" -> score = 0, "nicht_thematisiert" bleibt NaN und wird
+        von mean() ausgeschlossen); zusaetzlich Zaehler
+        n_deskriptiv_russland/_westpolitik je Video.
+    Video -> Kanal x Periode: je Granularitaet Mittelwert je (channel_id,
+        channel_title, Periodenspalte), getrennt je Dimension, inkl.
+        n_videos_<dimension> (nur Videos mit >=1 bewertendem/deskriptivem
+        Segment) und Summe der n_deskriptiv_*-Zaehler -> zeitreihen[granularitaet]
+        (Long-Format ueber position_russland, position_westpolitik, emotion).
+
+main() schreibt die zurueckgegebenen DataFrames als CSVs nach
+outputs/segment_analysis/ (siehe README.md, Abschnitt
+"0. prepare_channel_scores.py")."""
+
 import os
 import pandas as pd
 import numpy as np

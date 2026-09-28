@@ -69,9 +69,31 @@ def _prioritize(group: pd.DataFrame, transcribed: set) -> pd.DataFrame:
     return ordered.sort_values(["_needs_download", "published_at"])
 
 
-def _select_prioritized(group: pd.DataFrame, limit: int, transcribed: set) -> list[dict]:
-    """Waehlt bis zu `limit` Videos aus einer einzelnen Gruppe (z.B. das Postwar-Fenster eines Kanals)."""
-    return _prioritize(group, transcribed)[_OUT_COLS].head(limit).to_dict("records")
+def _top_n_per_group(df: pd.DataFrame, group_cols: list[str], limit: int, transcribed: set) -> pd.DataFrame:
+    """
+    Vektorisierter Ersatz fuer eine Python-Schleife ueber df.groupby(group_cols)
+    mit anschliessendem Aufruf von _prioritize() + .head(limit) je Gruppe:
+    waehlt bis zu `limit` Videos je Gruppe nach derselben Prioritaets-Logik
+    wie _prioritize() (Videos mit vorhandenem Transkript zuerst, dann
+    published_at aufsteigend), aber in EINEM sort_values() + EINEM
+    groupby(group_cols).cumcount() statt Tausender Einzel-DataFrame-Operationen.
+
+    Hintergrund: bei select_cell_fill_targets() mit ~13.000
+    Kanal-Perioden-Zellen (279 Kanaele x GRANULARITY="monat") brauchte die
+    vormalige Zeile-fuer-Zeile-Variante (_select_prioritized() je
+    df.groupby(...)-Gruppe) allein ueber 5 Minuten CPU-gebunden ohne
+    fertig zu werden (siehe select_political_nonwar_targets.py-Diagnose vom
+    2026-09-08: reiner Pandas-Overhead - .copy()/.isin()/.astype()/
+    .sort_values() - pro Gruppe, kein Hang), diese Variante braucht dafuer
+    wenige Sekunden.
+    """
+    if df.empty:
+        return pd.DataFrame(columns=_OUT_COLS)
+    ordered = df.copy()
+    ordered["_needs_download"] = (~ordered["video_id"].isin(transcribed)).astype(int)
+    ordered = ordered.sort_values(group_cols + ["_needs_download", "published_at"])
+    rank = ordered.groupby(group_cols).cumcount()
+    return ordered.loc[rank.to_numpy() < limit, _OUT_COLS]
 
 
 def _select_prewar_balanced(group: pd.DataFrame, limit: int, transcribed: set) -> list[dict]:
@@ -123,7 +145,7 @@ def select_baseline_targets(channel_ids=None, limit_per_channel: int | None = TA
     tatsaechlich uebernommen werden (Default TARGET_WITH_BUFFER_PER_INTERVAL
     = 12, um nicht mehr Transkripte herunterladen zu muessen als noetig):
     - Postwar-Fenster: die (nach Praeferenz sortierten) ersten
-      limit_per_channel Videos, siehe _select_prioritized.
+      limit_per_channel Videos, siehe _top_n_per_group.
     - Vorkriegs-Fenster: gleichmaessig ueber die vier Intervalle verteilt
       (Ziel 3 je Intervall bei limit_per_channel=12), siehe
       _select_prewar_balanced.
@@ -158,13 +180,14 @@ def select_baseline_targets(channel_ids=None, limit_per_channel: int | None = TA
         pd.concat([prewar_political["video_id"], postwar_political["video_id"]]).tolist()
     )
 
-    selected_rows = []
-    for _channel_id, group in postwar_political.groupby("channel_id"):
-        selected_rows.extend(_select_prioritized(group, limit_per_channel, transcribed))
-    for _channel_id, group in prewar_political.groupby("channel_id"):
-        selected_rows.extend(_select_prewar_balanced(group, limit_per_channel, transcribed))
+    postwar_selected = _top_n_per_group(postwar_political, ["channel_id"], limit_per_channel, transcribed)
 
-    fill_candidates = pd.DataFrame(selected_rows, columns=_OUT_COLS).drop_duplicates()
+    prewar_selected_rows = []
+    for _channel_id, group in prewar_political.groupby("channel_id"):
+        prewar_selected_rows.extend(_select_prewar_balanced(group, limit_per_channel, transcribed))
+    prewar_selected = pd.DataFrame(prewar_selected_rows, columns=_OUT_COLS)
+
+    fill_candidates = pd.concat([postwar_selected, prewar_selected], ignore_index=True).drop_duplicates()
     return _filter_attempted(fill_candidates)
 
 
@@ -173,6 +196,7 @@ def select_cell_fill_targets(
     videos_per_cell: int,
     topic: str = "russia_ukraine_war",
     granularity: str = "monat",
+    include_war: bool = True,
 ) -> pd.DataFrame:
     """
     Konfiguration 2: Kanal-Perioden-Zellen identifizieren und je Zelle
@@ -187,12 +211,23 @@ def select_cell_fill_targets(
 
     Je Zelle und Pool (Krieg/politisch) werden zuerst Videos beruecksichtigt,
     fuer die laut transcript_store.has_transcript() bereits ein Transkript
-    vorliegt (siehe _prioritize/_select_prioritized) - nur wenn das nicht
+    vorliegt (siehe _top_n_per_group) - nur wenn das nicht
     ausreicht, um videos_per_cell zu erreichen, werden weitere, noch nicht
     heruntergeladene Video-IDs ergaenzt. Eine Zelle, die ihre Quote (je Pool)
     bereits allein aus vorhandenen Transkripten erreicht, bekommt also KEINE
     zusaetzlichen Download-Kandidaten - es werden nur so viele neue IDs
     aufgefuellt, wie zum Erreichen von videos_per_cell tatsaechlich fehlen.
+
+    include_war=False ueberspringt den Kriegsvideo-Pool komplett und waehlt
+    NUR den Pool "politisch klassifizierte Nicht-Kriegsvideos" - fuer
+    Anwendungsfaelle, die ausschliesslich einen politischen Nicht-Kriegsvideo-
+    Vergleichspool brauchen (z.B. step6_auswertung/select_political_nonwar_targets.py,
+    Gegentest zu populismuspraemie_kriegsvideos_bericht.py: ist die
+    Populismus-Views-Beziehung bei politischen Nicht-Kriegsvideos genauso hoch
+    wie bei Kriegsvideos?), ohne zusaetzlich (ungenutzte) Kriegsvideo-Kandidaten
+    zu berechnen. topic bleibt auch dann Pflichtparameter, da weiterhin
+    Kriegsvideos aus dem politischen Pool ausgeschlossen werden muessen
+    (~is_war).
     """
     videos = video_registry.get_video_metadata(channel_ids=channel_ids)[
         ["video_id", "channel_id", "published_at"]
@@ -212,13 +247,12 @@ def select_cell_fill_targets(
     is_war = videos["video_id"].isin(war_ids)
     is_political_only = videos["video_id"].isin(political_ids) & ~is_war
 
-    selected_rows = []
-    for _cell, group in videos[is_war].groupby(["channel_id", "period"]):
-        selected_rows.extend(_select_prioritized(group, videos_per_cell, transcribed))
-    for _cell, group in videos[is_political_only].groupby(["channel_id", "period"]):
-        selected_rows.extend(_select_prioritized(group, videos_per_cell, transcribed))
+    frames = []
+    if include_war:
+        frames.append(_top_n_per_group(videos[is_war], ["channel_id", "period"], videos_per_cell, transcribed))
+    frames.append(_top_n_per_group(videos[is_political_only], ["channel_id", "period"], videos_per_cell, transcribed))
 
-    fill_candidates = pd.DataFrame(selected_rows, columns=_OUT_COLS).drop_duplicates()
+    fill_candidates = pd.concat(frames, ignore_index=True).drop_duplicates()
     return _filter_attempted(_filter_min_duration(fill_candidates))
 
 

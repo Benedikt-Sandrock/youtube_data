@@ -9,8 +9,9 @@ Recherche-Lauf ein Video gefunden wurde), die Sprach-Klassifikation je Kanal
 (language_classification) sowie die Kanal-Metadaten (channels: Abonnenten,
 Gruendungsdatum etc., siehe get_channel_metadata() in youtube_code.utils.io).
 Zusaetzlich die Keyword-basierte Themen-Relevanz je Video (video_topic_relevance,
-z.B. Ukraine-Krieg-Bezug, siehe youtube_code.step3_war_videos) - nicht zu
-verwechseln mit der YouTube-API-eigenen Spalte video_details.topic_relevant_topic_ids.
+fuenf Themen inkl. Ukraine-Krieg-Bezug, siehe youtube_code.step3_topic_relevance)
+- nicht zu verwechseln mit der YouTube-API-eigenen Spalte
+video_details.topic_relevant_topic_ids.
 Alle vier laufen seit der Anbindung der Collection-Skripte (video_identification.py,
 channel_all_videos.py, get_channel_metadata()/get_video_metadata() in
 youtube_code.utils.io) live mit, statt nur per Einmal-Migration befuellt zu
@@ -592,8 +593,9 @@ def upsert_channels(records) -> int:
 
 def upsert_topic_relevance(records) -> int:
     """
-    Schreibt die Keyword-basierte Themen-Klassifikation (z.B. Ukraine-Krieg-
-    Bezug, siehe youtube_code.step3_war_videos) in video_topic_relevance.
+    Schreibt die Keyword-basierte Themen-Klassifikation (fuenf Themen inkl.
+    Ukraine-Krieg-Bezug, siehe youtube_code.step3_topic_relevance) in
+    video_topic_relevance.
     Nicht zu verwechseln mit video_details.topic_relevant_topic_ids (das ist
     die YouTube-API-eigene Freebase-Topic-Kategorisierung - inhaltlich
     voellig unabhaengig, nur Namensaehnlichkeit).
@@ -1178,6 +1180,35 @@ def duration_to_seconds(duration):
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
+_DURATION_RE_ANCHORED = re.compile(
+    r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$", re.IGNORECASE
+)
+
+
+def _duration_seconds_series(duration: "pd.Series") -> "pd.Series":
+    """
+    Vektorisierte Variante von duration_to_seconds() fuer eine ganze
+    duration-Spalte (str.extract() einmal ueber die komplette Spalte statt
+    Series.map(duration_to_seconds), das den Python-Funktionsaufruf inkl.
+    Regex-fullmatch() pro Zeile einzeln ausfuehrt). Gibt NaN zurueck, wo
+    duration_to_seconds() None zurueckgeben wuerde (leer/nicht parsebar).
+    Eingesetzt in get_video_metadata()/get_videos_with_text(), deren
+    duration-Spalte bei einer grossen Kanalauswahl hunderttausende Zeilen
+    umfassen kann (siehe select_political_nonwar_targets.py-Diagnose vom
+    2026-09-08: das zeilenweise .map() allein kostete dort 20-65s).
+    """
+    import pandas as pd
+
+    text = duration.fillna("").astype(str).str.strip()
+    parts = text.str.extract(_DURATION_RE_ANCHORED)
+    days, hours, minutes, seconds = (
+        pd.to_numeric(parts[i], errors="coerce").fillna(0) for i in range(4)
+    )
+    total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
+    matched = text.str.match(_DURATION_RE_ANCHORED)
+    return total_seconds.where(matched)
+
+
 def duration_lookup(video_ids) -> dict:
     """
     Gibt video_id -> duration_seconds (None bei unbekannter/unparsebarer
@@ -1209,6 +1240,71 @@ def duration_lookup(video_ids) -> dict:
         con.close()
 
     return {row.video_id: duration_to_seconds(row.duration) for row in df.itertuples()}
+
+
+_POLITICS_TOPIC_MARKER = "wikipedia.org/wiki/Politics"
+
+
+def is_politics_topic(topic_categories) -> bool:
+    """
+    Prueft, ob eine roh aus video_details.topic_categories gelesene Zelle (JSON-Liste von
+    Wikipedia-Themen-URLs, z.B. '["https://en.wikipedia.org/wiki/Society", "https://
+    en.wikipedia.org/wiki/Politics"]', oder bereits eine geparste Liste/None) die
+    YouTube-eigene Themenkategorie "Politics" enthaelt. Reiner Substring-Check auf
+    _POLITICS_TOPIC_MARKER statt json.loads() + Listenvergleich - robust gegen
+    Kodierungs-/Formatierungsdetails der einzelnen URL und ausreichend schnell fuer
+    grosse Video-Mengen (siehe politics_topic_lookup()). Gibt False fuer leere/fehlende
+    Werte zurueck.
+
+    WICHTIG (siehe upsert_topic_relevance()-Docstring fuer die Abgrenzung zu
+    video_topic_relevance.topic): Dies ist NICHT dasselbe wie
+    screening_state_store.get_state()['politics_final'] (manuelle/LLM-Klassifikation aus
+    dem longitudinalen Politik-Screening, enger gefasst, aber nur fuer eine kleine
+    Zufallsstichprobe der Videos vorhanden - siehe frage4_kriegspraemie_relative_views_
+    plots.py). "Politics" hier ist YouTube's eigene, automatische, breiter gefasste
+    Themenzuordnung (deckt auch allgemeine Gesellschafts-/Nachrichteninhalte ab), dafuer
+    aber fuer praktisch alle Videos verfuegbar (~99% Abdeckung auf der Frage-1-Whitelist,
+    Stand 2026-09-08) - als eigenstaendige, ergaenzende Operationalisierung von
+    "politisches Video" zu behandeln, nicht als Ersatz.
+    """
+    if not topic_categories:
+        return False
+    return _POLITICS_TOPIC_MARKER in str(topic_categories)
+
+
+def politics_topic_lookup(video_ids) -> dict:
+    """
+    Gibt video_id -> bool (True, wenn video_details.topic_categories die YouTube-eigene
+    Kategorie "Politics" enthaelt, siehe is_politics_topic()) fuer die uebergebenen
+    video_ids zurueck. Videos ohne video_details-Zeile (contentDetails/topicDetails nie
+    abgefragt) fehlen im Rueckgabe-dict, nicht False - Aufrufer sollen das analog zu
+    duration_lookup() explizit als "unbekannt" behandeln (z.B. per .get(vid) statt
+    [vid], vgl. dict.get() liefert None), nicht mit "nicht politisch" gleichsetzen.
+    Gleiches Chunking-Muster wie duration_lookup()/comment_count_lookup().
+    """
+    import pandas as pd
+
+    video_ids = sorted({str(v) for v in video_ids if v})
+    if not video_ids:
+        return {}
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT video_id, topic_categories FROM video_details "
+                f"WHERE video_id IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
+            columns=["video_id", "topic_categories"])
+    finally:
+        con.close()
+
+    return {row.video_id: is_politics_topic(row.topic_categories) for row in df.itertuples()}
 
 
 def comment_count_lookup(video_ids) -> dict:
@@ -1248,12 +1344,52 @@ def comment_count_lookup(video_ids) -> dict:
     }
 
 
+def category_id_lookup(video_ids) -> dict:
+    """
+    Gibt video_id -> category_id (YouTubes eigene numerische Video-Kategorie aus
+    video_details, z.B. "25" = News & Politics, "24" = Entertainment - String, nicht
+    int, wie in der DB gespeichert) fuer die uebergebenen video_ids zurueck. Videos
+    ohne video_details-Zeile (contentDetails nie abgefragt) fehlen im Rueckgabe-dict,
+    nicht None - analog politics_topic_lookup()/duration_lookup(), Aufrufer sollen das
+    per .get(vid) statt [vid] behandeln. Grundlage fuer die (testweise, Nutzervorgabe
+    2026-09-08) Kontrollvariable "Videokategorie" in
+    step6_auswertung/prepare_success_metrics.py::ergaenze_videokategorie() -
+    category_id ist (anders als Medientyp/Ideologie) KEINE kanalkonstante Eigenschaft,
+    ein Kanal kann z.B. sowohl News & Politics als auch Entertainment posten.
+    category_id ist in der DB vollstaendig gefuellt (100% Abdeckung, Stand 2026-09-08),
+    anders als duration/topic_categories keine Parsing-Unsicherheit.
+    Gleiches Chunking-Muster wie duration_lookup()/comment_count_lookup().
+    """
+    import pandas as pd
+
+    video_ids = sorted({str(v) for v in video_ids if v})
+    if not video_ids:
+        return {}
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"SELECT video_id, category_id FROM video_details WHERE video_id IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(
+            columns=["video_id", "category_id"])
+    finally:
+        con.close()
+
+    return {row.video_id: row.category_id for row in df.itertuples() if pd.notna(row.category_id)}
+
+
 def get_videos_with_text(channel_ids=None, video_ids=None, min_duration_seconds=MIN_VIDEO_DURATION_SECONDS):
     """
     Gibt video_id/channel_id/channel_title/published_at/title/description
     zurueck (videos LEFT JOIN video_details), optional auf channel_ids oder
     video_ids gefiltert. Grundlage fuer die Keyword-Klassifikation in
-    youtube_code.step3_war_videos sowie fuer append_channels_to_state.py
+    youtube_code.step3_topic_relevance sowie fuer append_channels_to_state.py
     (Schritt 2), das damit die frueher separat exportierte JSONL ersetzt.
 
     Filtert dabei zentral alle Videos heraus, deren Dauer unter
@@ -1274,9 +1410,8 @@ def get_videos_with_text(channel_ids=None, video_ids=None, min_duration_seconds=
 
     def _finalize(df):
         if min_duration_seconds is not None and not df.empty:
-            seconds = df["duration"].map(duration_to_seconds)
-            keep = [s is not None and s >= min_duration_seconds for s in seconds]
-            df = df.loc[keep]
+            seconds = _duration_seconds_series(df["duration"])
+            df = df.loc[(seconds >= min_duration_seconds).to_numpy()]
         return df.drop(columns="duration").reset_index(drop=True)
 
     if channel_ids is None and video_ids is None:
@@ -1350,10 +1485,10 @@ def get_video_metadata(
     def _finalize(df):
         if min_duration_seconds is None:
             return df.drop(columns="duration").reset_index(drop=True)
-        seconds = df["duration"].map(duration_to_seconds)
-        meets = seconds.map(lambda s: s is not None and s >= min_duration_seconds)
+        seconds = _duration_seconds_series(df["duration"])
+        meets = seconds >= min_duration_seconds
         if duration_filter:
-            return df.loc[meets].drop(columns="duration").reset_index(drop=True)
+            return df.loc[meets.to_numpy()].drop(columns="duration").reset_index(drop=True)
         df = df.drop(columns="duration").reset_index(drop=True)
         df["meets_min_duration"] = meets.reset_index(drop=True)
         return df

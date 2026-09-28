@@ -373,10 +373,20 @@ def aggregiere(df, gruppe, wert, zentral="mean"):
 def glaette(x, y):
     """LOWESS-Glaettung einer einzelnen Gruppenlinie (reine Darstellungshilfe, siehe
     GLAETTUNG_LOWESS_FRAC). Gibt bei zu wenigen Punkten oder deaktivierter Glaettung
-    die rohen Werte unveraendert zurueck."""
+    die rohen Werte unveraendert zurueck.
+
+    it=0 (keine robustifizierenden Iterationen): statsmodels' lowess() gewichtet per
+    Standard (it=3) Punkte mit grossem Residuum ueber mehrere Iterationen zusaetzlich
+    herunter (Ausreisser-Robustheit) - bei einem lokalen Fenster mit einem extremen
+    Ausreisser-Block (z.B. einzelne virale Videos) koennen dabei ALLE Gewichte im
+    Fenster auf ~0 kollabieren, die gewichtete Regression wird singulaer und lowess()
+    liefert NaN zurueck - matplotlib zeichnet durch NaN-Punkte keine Linie, sichtbar
+    als Luecke in der Kurve (siehe frage2_sensitivitaet_plots.py::glaette() fuer den
+    konkreten Fall, der das aufgedeckt hat). it=0 verhindert das (reine ungewichtete
+    lokale Regression je Fenster, keine Robustifizierung)."""
     if not GLAETTUNG_LOWESS_FRAC or len(x) < 4:
         return y
-    return lowess(y, x, frac=GLAETTUNG_LOWESS_FRAC, xvals=x, return_sorted=False)
+    return lowess(y, x, frac=GLAETTUNG_LOWESS_FRAC, xvals=x, return_sorted=False, it=0)
 
 
 def periode_aus_datum(datum_str):

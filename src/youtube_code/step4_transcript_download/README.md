@@ -12,7 +12,7 @@ den Transkript-Download (`COMPLETE_PROCESS.md` Schritt 4).
    auf eine 27-Kanal-Todo-CSV kodiert) nach dem in
    `step2_baseline_channels/README.md` §4 dokumentierten Rezept — hier ueber
    alle Kanaele im `screening_state`, nicht nur eine feste Liste.
-2. **`select_cell_fill_targets(channel_ids, videos_per_cell, topic=..., granularity=...)`**
+2. **`select_cell_fill_targets(channel_ids, videos_per_cell, topic=..., granularity=..., include_war=True)`**
    — Kanal-Perioden-Zellen identifizieren und je Zelle GETRENNT bis zu
    `videos_per_cell` Kriegsvideos UND bis zu `videos_per_cell` politisch
    klassifizierte Nicht-Kriegsvideos einfuellen (zwei unabhaengige Quoten,
@@ -21,6 +21,9 @@ den Transkript-Download (`COMPLETE_PROCESS.md` Schritt 4).
    gegen die Quote; nur der fehlende Rest wird mit neuen, noch nicht
    heruntergeladenen IDs aufgefuellt — Zellen, die ihre Quote schon aus
    vorhandenen Transkripten erreichen, bekommen keine neuen Download-Kandidaten.
+   `include_war=False` ueberspringt den Kriegsvideo-Pool komplett und liefert
+   nur den Pool "politisch klassifizierte Nicht-Kriegsvideos" (Anwendungsfall:
+   `step6_auswertung/select_political_nonwar_targets.py`).
 3. **`select_war_period_targets(start_date, end_date, channel_ids=None, topic=...)`**
    — alle Kriegsvideos in einem bestimmten Zeitraum identifizieren (z. B. kurz
    vor/nach einem wichtigen Event).
