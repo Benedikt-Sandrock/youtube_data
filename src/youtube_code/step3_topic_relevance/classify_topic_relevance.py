@@ -11,9 +11,10 @@ Schluessel wie "prefix"/"label" sind Metadaten.
 Ablauf:
     1. get_videos_with_text(channel_ids=CHANNEL_FILTER) laedt Kandidaten
        (video_id, channel_id, published_at, title, description).
-    2. learn_boilerplate() lernt pro Kanal wiederkehrende Beschreibungs-
-       zeilen (siehe boilerplate.py) - EINMAL auf demselben DataFrame,
-       unabhaengig davon, wie viele Themen klassifiziert werden.
+    2. learn_boilerplate() lernt pro Kanal (kanalweit und je Zeitfenster,
+       auf normalisierten Zeilen) wiederkehrende Beschreibungszeilen (siehe
+       boilerplate.py) - EINMAL auf demselben DataFrame, unabhaengig davon,
+       wie viele Themen klassifiziert werden.
     3. Bei NUR_FEHLENDE = True je Thema die Videos ohne bestehende Zeile in
        video_topic_relevance bestimmen; nur diese werden klassifiziert.
     4. classify() prueft Titel und boilerplate-bereinigte Beschreibung
@@ -64,7 +65,7 @@ TOPICS_TO_RUN = list(TOPIC_KEYWORDS.keys())
 # damit die Bereinigung der Beschreibung dieselbe ist wie bei einem Volllauf.
 # False = alle geladenen Videos neu klassifizieren (z.B. nach Aenderung
 # eines Keyword-Sets).
-NUR_FEHLENDE = True
+NUR_FEHLENDE = False
 
 # None = alle Kanaele in videos; sonst Liste von channel_ids.
 channel_path = SAMPLES / "russia_longitudinal_v1" / "channel_sample_provenance.csv"
@@ -86,7 +87,8 @@ DRY_RUN = False
 
 def classify(df: pd.DataFrame, boiler: dict, topics: list = None) -> pd.DataFrame:
     """
-    Klassifiziert jede Zeile aus df (video_id, channel_id, title, description)
+    Klassifiziert jede Zeile aus df (video_id, channel_id, published_at,
+    title, description)
     gegen jedes Thema aus topics (Default: TOPICS_TO_RUN). Rueckgabe: langes
     DataFrame mit den video_topic_relevance-Spalten, eine Zeile je
     video_id x topic.
@@ -117,9 +119,12 @@ def classify(df: pd.DataFrame, boiler: dict, topics: list = None) -> pd.DataFram
     desc_clean = desc_filled.copy()
     if needs_clean.any():
         subset = df.loc[needs_clean]
+        # published_at bestimmt das Zeitfenster der fensterweise gelernten
+        # Boilerplate (siehe boilerplate.BOILERPLATE_WINDOW).
         desc_clean.loc[needs_clean] = [
-            clean_description(desc, ch, boiler)
-            for desc, ch in zip(subset["description"], subset["channel_id"])
+            clean_description(desc, ch, boiler, pub)
+            for desc, ch, pub in zip(subset["description"], subset["channel_id"],
+                                     subset["published_at"])
         ]
 
     # Flags fuer ALLE KW_RE-Eintraege (also ueber alle Themen) einmal

@@ -79,15 +79,39 @@ validierte Logik aus `feasibility.py` exakt.
 
 ## Boilerplate-Filter
 
-`boilerplate.py` portiert den zweistufigen Boilerplate-Lernprozess aus
-`feasibility.py` (`cmd_boilerplate`/`cmd_extract`) auf den Store: pro Kanal
-werden aus einer Stichprobe von Videobeschreibungen die Zeilen ermittelt, die
-in ≥ `BOILERPLATE_THRESHOLD` (60 %) der Videos wortgleich vorkommen (z. B.
-feste Hashtag-Ketten, Spendenblöcke) — diese werden vor dem Keyword-Matching
-aus der Beschreibung entfernt. Ohne diesen Filter würden Kanäle mit einer
-festen, keyword-haltigen Beschreibungszeile fälschlich zu 100 % als
-themenrelevant gelten. `learn_boilerplate()` läuft unabhängig davon, wie
-viele Themen klassifiziert werden, nur **einmal** pro geladenem DataFrame.
+`boilerplate.py` basiert auf dem zweistufigen Boilerplate-Lernprozess aus
+`feasibility.py` (`cmd_boilerplate`/`cmd_extract`): pro Kanal werden die
+Beschreibungszeilen ermittelt, die immer wieder vorkommen (z. B. feste
+Hashtag-Ketten, Spendenblöcke) — diese werden vor dem Keyword-Matching aus
+der Beschreibung entfernt. Ohne diesen Filter würden Kanäle mit einer festen,
+keyword-haltigen Beschreibungszeile fälschlich zu 100 % als themenrelevant
+gelten. `learn_boilerplate()` läuft unabhängig davon, wie viele Themen
+klassifiziert werden, nur **einmal** pro geladenem DataFrame.
+
+Seit 2026-10-05 (Korrekturen gegenüber `feasibility.py`):
+
+- **Normalisierung** (`normalize_line()`): vor dem Hashen Kleinschreibung,
+  URLs, Ziffern, Emojis und Sonderzeichen entfernen, Hashtags sortieren —
+  Fast-Duplikate (wechselnde Folgennummern, Link-Parameter) gelten als
+  dieselbe Zeile. Zeilen, deren normalisierte Form < 12 Zeichen hat (z. B.
+  reine Links), werden über die rohe Form gezählt.
+- **Alle Videos statt 300er-Stichprobe**; eine Zeile zählt pro Video einmal.
+- **Kanalweite Regeln** (`"all"`): Anteil ≥ `BOILERPLATE_THRESHOLD` (60 %)
+  aller Kanalvideos **oder** ≥ `BOILERPLATE_MIN_ABS_VIDEOS` (20) Videos.
+- **Zeitfenster** (`"windows"`): zusätzlich pro Kanal ×
+  `BOILERPLATE_WINDOW` (Default Kalenderhalbjahr, alternativ `"quarter"`)
+  ≥ 60 %, sofern das Fenster ≥ `BOILERPLATE_MIN_WINDOW_VIDEOS` (10) Videos
+  hat — erfasst Boilerplate, die nur zeitweise genutzt wird (z. B. ein
+  Spendenaufruf nur 2022). `clean_description()` braucht dafür `published_at`.
+
+Diagnose/Wirksamkeitsprüfung: `scripts/adhoc/diagnose_boilerplate_trefferquoten.py`
+vergleicht pro Kanal × Jahr die Trefferquote im Titel mit der in der
+bereinigten Beschreibung (alte vs. neue Bereinigung) und markiert sprunghafte
+Anstiege der Quote „nur Beschreibung trifft“ → `outputs/boilerplate_diagnose/`.
+
+**Achtung:** Bestehende Zeilen in `video_topic_relevance` sind noch mit der
+alten Bereinigung klassifiziert. Für konsistente Daten nach der Prüfung einen
+Volllauf mit `NUR_FEHLENDE = False` machen.
 
 ## Ausführung
 
@@ -108,7 +132,9 @@ entspricht. Nach einer Änderung eines Keyword-Sets auf `False` setzen.
 
 Ausführungsdauer 9/2/26 für 518k Videos, ein Thema (`russia_ukraine_war`
 allein): 1298 Sek. (634 Sek. Boilerplate, 552 Sek. Klassifikation, 112 Sek.
-Speicherung). Die Boilerplate-Phase ist unabhängig von der Themenzahl; die
+Speicherung) — gemessen mit der alten Boilerplate-Fassung (300er-Stichprobe);
+die neue zählt alle Videos und normalisiert jede Zeile, dürfte also etwas
+länger brauchen (noch nicht gemessen). Die Boilerplate-Phase ist unabhängig von der Themenzahl; die
 Klassifikations- und Speicherphase skalieren näherungsweise linear mit der
 Anzahl der Themen in `TOPICS_TO_RUN`, da jedes Thema eine eigene
 Ergebniszeile je Video erzeugt.
