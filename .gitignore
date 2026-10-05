@@ -70,3 +70,4 @@ __pycache__
 /data/store/
 # Validierungs-Outputs (Datendateien, ~245 MB)
 /outputs/validation/
+/src/youtube_data.egg-info/
