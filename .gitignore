@@ -24,8 +24,8 @@ __pycache__
 /scripts/downloads/
 /data/samples/russia/*.json
 /data/samples/russia/*.csv
-/data/samples/archive/*.json
-/data/samples/archive/*.csv
+/data/samples/archive/**/*.json
+/data/samples/archive/**/*.csv
 /outputs/archive/llm/gemini/nahost_descriptive_figures/
 /data/archive/channel_lists/archive/party_identification/channel_identification/
 /src/youtube_code/transcript_analysis/id_files_done/
