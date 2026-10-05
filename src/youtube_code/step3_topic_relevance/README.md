@@ -3,11 +3,15 @@
 Klassifiziert Videos nach Themen-Relevanz per Stichwortsuche in Titel und
 Beschreibung (`COMPLETE_PROCESS.md` Schritt 3) und schreibt das Ergebnis in
 die Tabelle `video_topic_relevance` in `data/store/video_registry.sqlite`.
-Fünf Themen: `russia_ukraine_war` (Ukraine-Krieg), `corona_pandemic`,
-`migration`, `economy_general`, `energy` — die letzten vier dienen als
+13 Themen (Stand 2026-10-05, vollständige Liste und Begründung im Docstring
+von `topic_keywords.py`): `russia_ukraine_war` (Ukraine-Krieg),
+`politics_general` (nur zur Abgrenzung „politisch“), `corona_pandemic`,
+`migration`, `economy_general`, `energy`, `climate`, `gender`, `mideast`,
+`iran`, `eu`, `usa`, `education` — die Nicht-Kriegsthemen dienen als
 Vergleichs-/Kontrollthemen für Forschungsfrage 4 (betrifft eine
 Erfolgsveränderung nur Kriegsvideos oder auch andere politische Themen?),
-siehe `.claude/plans/new_topics.md`.
+siehe `.claude/plans/new_topics.md`. Jeder Eintrag in `TOPIC_KEYWORDS` hat die
+Tiers aus `TIERS` (`core`/`wide`) plus Metadaten (`prefix`, `label`).
 
 ## Tabellen-Schema
 
@@ -92,11 +96,15 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.s
 ```
 
 `classify_topic_relevance.py`: Config-Konstanten am Kopf (`TOPICS_TO_RUN`,
-`CHANNEL_FILTER`, `DRY_RUN`). `TOPICS_TO_RUN` steuert, welche Themen aus
-`topic_keywords.TOPIC_KEYWORDS` klassifiziert werden (Default: alle fünf) —
+`CHANNEL_FILTER`, `NUR_FEHLENDE`, `DRY_RUN`). `TOPICS_TO_RUN` steuert, welche Themen aus
+`topic_keywords.TOPIC_KEYWORDS` klassifiziert werden (Default: alle) —
 für Testläufe auf ein einzelnes Thema einschränken, z. B. `["energy"]`. Erst
 mit `DRY_RUN=True` die gedruckte Zusammenfassung/Stichprobe je Thema prüfen,
-dann auf `False` setzen.
+dann auf `False` setzen. `NUR_FEHLENDE = True` (Default) klassifiziert je Thema
+nur Videos, die in `video_topic_relevance` noch keine Zeile zu diesem Thema
+haben (z. B. nach Nachscraping); die Boilerplate wird trotzdem auf allen
+geladenen Videos gelernt, damit die Beschreibungs-Bereinigung einem Volllauf
+entspricht. Nach einer Änderung eines Keyword-Sets auf `False` setzen.
 
 Ausführungsdauer 9/2/26 für 518k Videos, ein Thema (`russia_ukraine_war`
 allein): 1298 Sek. (634 Sek. Boilerplate, 552 Sek. Klassifikation, 112 Sek.

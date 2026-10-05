@@ -56,6 +56,7 @@ import pandas as pd
 
 from youtube_code.config import OUTPUTS, EXTERNAL, SAMPLES, MIN_VIDEO_DURATION_SECONDS
 from youtube_code.store import llm_run_store, screening_state_store, transcript_store, video_registry
+from youtube_code.step3_topic_relevance.topic_keywords import TOPIC_KEYWORDS
 from youtube_code.step6_auswertung.prepare_channel_scores import (
     BASELINE_INTERVAL_INDIZES,
     EXCLUDE_DATASET_SUBSTRING,
@@ -99,13 +100,24 @@ MEDIENTYP_UMKODIERUNG = {1: 1, 2: 2, 3: 4, 4: 3, 5: 1}
 MEDIENTYP_LABELS = {1: "ÖRR", 2: "traditionelle Medien", 3: "Partei/Politiker",
                     4: "Creator & alternative Medien"}
 
-# Themen aus video_topic_relevance -> Exportvariable (krieg separat)
+# Themen aus video_topic_relevance -> Exportvariable (krieg separat). Alle
+# Themen aus step3_topic_relevance.topic_keywords.TOPIC_KEYWORDS ausser dem
+# Krieg; Labels kommen von dort ("label"). Neues Thema in TOPIC_KEYWORDS ->
+# hier ergaenzen (main() bricht sonst ab).
 KRIEG_TOPIC = "russia_ukraine_war"
 TOPICS = {
+    "politics_general": "topic_politik",
     "corona_pandemic": "topic_corona",
     "migration": "topic_migration",
     "economy_general": "topic_wirtschaft",
     "energy": "topic_energie",
+    "climate": "topic_klima",
+    "gender": "topic_gender",
+    "mideast": "topic_nahost",
+    "iran": "topic_iran",
+    "eu": "topic_eu",
+    "usa": "topic_usa",
+    "education": "topic_bildung",
 }
 
 # Manuelle Hinweise je Kanal (Freitext, kanal_hinweis). Typ-5-Kanaele werden
@@ -284,7 +296,10 @@ def video_themen(video_ids):
     teil_klass = ergebnis[list(TOPICS.values())].notna().any(axis=1) & (ergebnis["topic_klass"] == 0)
     if teil_klass.any():
         log(f"[Merge] Achtung: {int(teil_klass.sum())} Videos nur fuer einen Teil der Vergleichsthemen klassifiziert")
-    ergebnis["topic_nur_titel"] = ergebnis["_titel_krieg"]
+    # title_only ist eine Videoeigenschaft (Beschreibung fehlt) -> erstes
+    # vorhandenes Thema nehmen, da nicht alle Themen alle Videos abdecken
+    titel_spalten = [f"_titel_{n}" for n in alle.values()]
+    ergebnis["topic_nur_titel"] = ergebnis[titel_spalten].bfill(axis=1).iloc[:, 0]
 
     # krieg_quelle: Trefferstufen der Stichwortsuche (z. B. ukr_core_title,
     # ukr_wide_desc) - zeigt Titel/Beschreibung und core/wide
@@ -293,6 +308,13 @@ def video_themen(video_ids):
             return ""
         return ",".join(sorted(s.strip(' "[]') for s in kw.split(",")))
     ergebnis["krieg_quelle"] = ergebnis["_kw_krieg"].map(stufen)
+
+    # <name>_core: nur Treffer der core-Liste (Titel oder Beschreibung);
+    # . wo das Thema nicht klassifiziert ist
+    for topic, name in alle.items():
+        core = {f"{TOPIC_KEYWORDS[topic]['prefix']}_core_{ort}" for ort in ("title", "desc")}
+        treffer = ergebnis[f"_kw_{name}"].map(stufen).map(lambda s: bool(core & set(s.split(","))))
+        ergebnis[f"{name}_core"] = treffer.astype(float).where(ergebnis[name].notna())
     return ergebnis.drop(columns=[c for c in ergebnis.columns if c.startswith("_")])
 
 
@@ -490,8 +512,15 @@ def konsistenz(v, k):
         "pos_klass": ["pos_russland", "pos_westpolitik"],
         "politisch_klass": ["politisch"],
         "krieg_klass": ["krieg"],
-        "topic_klass": list(TOPICS.values()),
     }
+    # topic_klass = 1 heisst: ALLE Vergleichsthemen klassifiziert. Die Themen
+    # wurden in verschiedenen Laeufen ueber verschiedene Videomengen
+    # klassifiziert, daher hier nur die Richtung topic_klass = 1 => kein '.'
+    ganz = v["topic_klass"] == 1
+    pruefe(v.loc[ganz, list(TOPICS.values())].notna().all().all(), "5 topic_klass = 1 => alle topic_* gesetzt")
+    for w in TOPICS.values():
+        log(f"[Check] 5 Hinweis: {w} klassifiziert bei {int(v[w].notna().sum())} Videos, "
+            f"davon mit topic_klass = 0: {int((~ganz & v[w].notna()).sum())}")
     for kennz, werte in paare.items():
         for w in werte:
             pruefe(not (v.loc[v[kennz] == 0, w].notna()).any(), f"5 {kennz} = 0 => {w} = .")
@@ -500,6 +529,10 @@ def konsistenz(v, k):
                 log(f"[Check] 5 Hinweis: {kennz} = 1, aber {w} = . bei {leer} Videos "
                     f"(klassifiziert, Dimension nicht kodierbar/thematisiert)")
     pruefe(not (v.loc[v["krieg_klass"] == 0, "krieg_quelle"] != "").any(), "5 krieg_klass = 0 => krieg_quelle leer")
+    for w in ["krieg", *TOPICS.values()]:
+        c = f"{w}_core"
+        pruefe((v[c].isna() == v[w].isna()).all() and not ((v[c] == 1) & (v[w] != 1)).any(),
+               f"5 {c} gleiche Missings wie {w} und {c} = 1 => {w} = 1")
     pruefe(not (v.loc[v["pop_klass"] == 0, "krieg_transkript"].notna()).any(), "5 pop_klass = 0 => krieg_transkript = .")
 
     # 6: unabhaengige Nachberechnung aus den exportierten Videowerten
@@ -536,11 +569,12 @@ VIDEO_SPALTEN = {
     "krieg_klass": ("byte", "Stichwortklassifikation Krieg liegt vor"),
     "krieg_quelle": ("str", "Trefferstufen Stichwortsuche (ukr_core/wide_title/desc)"),
     "krieg_transkript": ("byte", ">= 1 Segment mit ukraine_bezug (POPULISMUS_P)"),
-    "topic_corona": ("byte", "Thema Corona (Stichworte)"),
-    "topic_migration": ("byte", "Thema Migration (Stichworte)"),
-    "topic_wirtschaft": ("byte", "Thema Wirtschaft allgemein (Stichworte)"),
-    "topic_energie": ("byte", "Thema Energie (Stichworte)"),
-    "topic_klass": ("byte", "Stichwortklassifikation Vergleichsthemen liegt vor"),
+    "krieg_core": ("byte", "Kriegsvideo, nur core-Stichworte"),
+    **{name: ("byte", f"Thema {TOPIC_KEYWORDS[topic]['label']} (Stichworte, core+wide)")
+       for topic, name in TOPICS.items()},
+    **{f"{name}_core": ("byte", f"Thema {TOPIC_KEYWORDS[topic]['label']} (nur core-Stichworte)")
+       for topic, name in TOPICS.items()},
+    "topic_klass": ("byte", "Stichwortklassifikation ALLER Vergleichsthemen liegt vor"),
     "topic_nur_titel": ("byte", "Stichwortsuche nur im Titel (Beschreibung fehlt)"),
     "pop_gesamt": ("double", "Populismus gesamt (Mittel volk/antielite/manich), 0-3"),
     "pop_volk": ("double", "Volkszentrismus 0-3"),
@@ -637,6 +671,9 @@ assert _merge != 1
 
 
 def main():
+    fehlend = set(TOPIC_KEYWORDS) - set(TOPICS) - {KRIEG_TOPIC}
+    if fehlend:
+        raise KonsistenzFehler(f"Themen aus TOPIC_KEYWORDS ohne Exportvariable in TOPICS: {sorted(fehlend)}")
     os.makedirs(AUSGABE_PFAD, exist_ok=True)
     kanal_ids = lade_kanaele()
     alle, v, ideo_video = baue_videos(kanal_ids)
@@ -644,7 +681,7 @@ def main():
 
     log("")
     log("[Abdeckung] Videoebene (Anteil nicht fehlend bzw. = 1):")
-    for s in ["views", "likes", "kommentare", "politisch", "krieg", "topic_corona", "krieg_transkript",
+    for s in ["views", "likes", "kommentare", "politisch", "krieg", *TOPICS.values(), "krieg_transkript",
               "pop_gesamt", "pos_russland", "pos_westpolitik"]:
         log(f"    {s}: {v[s].notna().mean():.2%} nicht fehlend")
     for s in ["politisch_klass", "krieg_klass", "topic_klass", "pop_klass", "pos_klass", "transkript",

@@ -1197,7 +1197,7 @@ Codebuchs ab. Steuerung nur über den CONFIG-Block:
 | `MIN_DAUER_SEK` | Längenfilter der Video-Population (`MIN_VIDEO_DURATION_SECONDS` = 181, also > 180 s) |
 | `VORKRIEG_START`, `VORKRIEG_MIN_VIDEOS` | `sample_vorkrieg` = Whitelist UND ≥ n Videos in [24.02.2021, 24.02.2022) |
 | `MEDIENTYP_PFAD`, `MEDIENTYP_UMKODIERUNG` | Rohcodes der Excel → Codebuch-Kodierung (3 ↔ 4 getauscht, Typ 5 → ÖRR) |
-| `TOPICS`, `KRIEG_TOPIC` | Themen aus `video_topic_relevance` → Exportvariablen |
+| `TOPICS`, `KRIEG_TOPIC` | Themen aus `video_topic_relevance` → Exportvariablen (alle Themen aus `TOPIC_KEYWORDS`, Labels von dort; fehlt ein Thema in `TOPICS`, bricht `main()` ab); je Thema und für `krieg` zusätzlich `<name>_core` (nur core-Stichworte) |
 | `API_ABBRUCH_PFAD` | Kanäle mit Flag `playlist_limit` (nachgescrapt) → `api_abbruch` |
 | `KANAL_HINWEISE` | Freitext je Kanal für `kanal_hinweis` |
 | `BASELINE_TOLERANZ` | Toleranz für Prüfung 6 (Baseline-Nachberechnung) |

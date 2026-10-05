@@ -1,9 +1,12 @@
 """
 Klassifiziert Videos nach Themen-Relevanz (Schritt 3 aus COMPLETE_PROCESS.md)
-und schreibt das Ergebnis nach video_registry.video_topic_relevance. Fuenf
-Themen stehen zur Verfuegung (siehe topic_keywords.TOPIC_KEYWORDS):
-russia_ukraine_war, corona_pandemic, migration, economy_general, energy -
-Standard ist TOPICS_TO_RUN = alle fuenf.
+und schreibt das Ergebnis nach video_registry.video_topic_relevance. Die
+verfuegbaren Themen stehen in topic_keywords.TOPIC_KEYWORDS (aktuell 13, u.a.
+russia_ukraine_war, politics_general, corona_pandemic, migration, ...) -
+TOPICS_TO_RUN = alle; mit NUR_FEHLENDE = True werden je Thema nur Videos ohne
+bestehende Zeile klassifiziert (siehe CONFIG).
+Die Tiers je Thema (core/wide) kommen aus topic_keywords.TIERS; weitere
+Schluessel wie "prefix"/"label" sind Metadaten.
 
 Ablauf:
     1. get_videos_with_text(channel_ids=CHANNEL_FILTER) laedt Kandidaten
@@ -11,11 +14,13 @@ Ablauf:
     2. learn_boilerplate() lernt pro Kanal wiederkehrende Beschreibungs-
        zeilen (siehe boilerplate.py) - EINMAL auf demselben DataFrame,
        unabhaengig davon, wie viele Themen klassifiziert werden.
-    3. classify() prueft Titel und boilerplate-bereinigte Beschreibung
+    3. Bei NUR_FEHLENDE = True je Thema die Videos ohne bestehende Zeile in
+       video_topic_relevance bestimmen; nur diese werden klassifiziert.
+    4. classify() prueft Titel und boilerplate-bereinigte Beschreibung
        getrennt gegen die Keyword-Sets aus topic_keywords.py, fuer jedes
        Thema in TOPICS_TO_RUN, und liefert ein langes DataFrame (eine Zeile
        je video_id x topic).
-    4. Ergebnis wird batchweise ueber upsert_topic_relevance() geschrieben -
+    5. Ergebnis wird batchweise ueber upsert_topic_relevance() geschrieben -
        das Batch-Upsert-Schema liest ohnehin pro Record eine eigene
        topic-Spalte, bleibt also unveraendert.
 
@@ -37,6 +42,7 @@ from youtube_code.step3_topic_relevance.boilerplate import clean_description, le
 from youtube_code.step3_topic_relevance.topic_keywords import (
     KEYWORD_SET_VERSION,
     KW_RE,
+    TIERS,
     TOPIC_KEYWORDS,
     is_relevant_vectorized,
 )
@@ -48,8 +54,17 @@ from youtube_code.config import SAMPLES
 # ============================================================
 
 # Welche Themen aus topic_keywords.TOPIC_KEYWORDS klassifiziert werden.
-# Fuer Testlaeufe auf ein einzelnes Thema einschraenken, z.B. ["energy"].
+# Fuer Testlaeufe auf ein einzelnes Thema einschraenken, z.B. ["energy"];
+# alle Themen: list(TOPIC_KEYWORDS.keys()).
 TOPICS_TO_RUN = list(TOPIC_KEYWORDS.keys())
+
+# True = je Thema nur Videos klassifizieren, fuer die in video_topic_relevance
+# noch keine Zeile zu diesem Thema existiert (z.B. nach Nachscraping neuer
+# Videos). Die Boilerplate wird trotzdem auf ALLEN geladenen Videos gelernt,
+# damit die Bereinigung der Beschreibung dieselbe ist wie bei einem Volllauf.
+# False = alle geladenen Videos neu klassifizieren (z.B. nach Aenderung
+# eines Keyword-Sets).
+NUR_FEHLENDE = True
 
 # None = alle Kanaele in videos; sonst Liste von channel_ids.
 channel_path = SAMPLES / "russia_longitudinal_v1" / "channel_sample_provenance.csv"
@@ -107,7 +122,7 @@ def classify(df: pd.DataFrame, boiler: dict, topics: list = None) -> pd.DataFram
             for desc, ch in zip(subset["description"], subset["channel_id"])
         ]
 
-    # Flags fuer ALLE KW_RE-Eintraege (also ueber alle fuenf Themen) einmal
+    # Flags fuer ALLE KW_RE-Eintraege (also ueber alle Themen) einmal
     # berechnen, unabhaengig davon, welche Themen in topics angefragt sind -
     # guenstig, weil title/desc_clean ohnehin je Chunk nur einmal vorliegen.
     flags = {}
@@ -120,7 +135,7 @@ def classify(df: pd.DataFrame, boiler: dict, topics: list = None) -> pd.DataFram
     frames = []
     for topic in topics:
         prefix = TOPIC_KEYWORDS[topic]["prefix"]
-        tier_names = [t for t in TOPIC_KEYWORDS[topic] if t != "prefix"]
+        tier_names = [t for t in TIERS if t in TOPIC_KEYWORDS[topic]]
         flag_names = [f"{prefix}_{tier}_{loc}" for tier in tier_names for loc in ("title", "desc")]
         topic_flags = {name: flags[name] for name in flag_names}
 
@@ -158,16 +173,35 @@ def main() -> None:
     print(f"Boilerplate gelernt fuer {len(boiler):,} von {df.channel_id.nunique():,} Kanaelen "
           f"({time.perf_counter() - t0:.0f}s).")
 
+    # Je Thema die zu klassifizierenden Videos bestimmen (alle oder nur die
+    # ohne bestehende Zeile), dann Themen mit identischer Videomenge
+    # gemeinsam klassifizieren.
+    gruppen = {}
+    for topic in TOPICS_TO_RUN:
+        if NUR_FEHLENDE:
+            vorhanden = set(video_registry.get_topic_relevance(topic)["video_id"])
+            ids = frozenset(df["video_id"]) - vorhanden
+            print(f"  {topic}: {len(ids):,} von {len(df):,} Videos ohne Klassifikation.")
+        else:
+            ids = frozenset(df["video_id"])
+        if ids:
+            gruppen.setdefault(ids, []).append(topic)
+    if not gruppen:
+        print("Keine fehlenden Klassifikationen - nichts zu tun.")
+        return
+
     # In Chunks klassifizieren statt in einem Rutsch - Ergebnis ist identisch,
     # liefert aber regelmaessige Zwischenstaende bei grossen Video-Mengen.
     chunks = []
-    n_done = 0
-    for start in range(0, len(df), CLASSIFY_CHUNK_SIZE):
-        chunk = df.iloc[start:start + CLASSIFY_CHUNK_SIZE]
-        chunks.append(classify(chunk, boiler))
-        n_done += len(chunk)
-        print(f"  klassifiziert: {n_done:,}/{len(df):,} Videos "
-              f"({n_done / len(df):.0%}, {time.perf_counter() - t0:.0f}s)...")
+    for ids, topics in gruppen.items():
+        teil = df[df["video_id"].isin(ids)]
+        n_done = 0
+        for start in range(0, len(teil), CLASSIFY_CHUNK_SIZE):
+            chunk = teil.iloc[start:start + CLASSIFY_CHUNK_SIZE]
+            chunks.append(classify(chunk, boiler, topics))
+            n_done += len(chunk)
+            print(f"  klassifiziert ({len(topics)} Themen): {n_done:,}/{len(teil):,} Videos "
+                  f"({n_done / len(teil):.0%}, {time.perf_counter() - t0:.0f}s)...")
     result = pd.concat(chunks, ignore_index=True)
 
     print(f"\n{len(result):,} Zeilen ueber {result.topic.nunique()} Themen klassifiziert:")
@@ -180,7 +214,7 @@ def main() -> None:
 
         flag_counts = Counter(kw for row in group.matched_keywords for kw in row)
         prefix = TOPIC_KEYWORDS[topic]["prefix"]
-        tier_names = [t for t in TOPIC_KEYWORDS[topic] if t != "prefix"]
+        tier_names = [t for t in TIERS if t in TOPIC_KEYWORDS[topic]]
         flags = [f"{prefix}_{tier}_{loc}" for tier in tier_names for loc in ("title", "desc")]
         print("  Treffer je Keyword-Flag (ein Video kann mehrere Flags haben):")
         for flag in flags:

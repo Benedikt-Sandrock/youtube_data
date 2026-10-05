@@ -44,7 +44,7 @@ Stand: 02.10.2026 · Zweck: Export aus Python → Stata, Grundlage für alle Do-
 | `krieg` | byte | Kriegsvideo (Russland-Ukraine) | 1/0; `.` = nicht klassifiziert |
 | `krieg_klass` | byte | Klassifikation liegt vor | 1/0 |
 | `krieg_quelle` | str | Grundlage der Zuordnung | z. B. `titel`, `beschreibung`, `transkript` (letzte entscheidende Runde) |
-| `topic_*` | byte | weitere Topics | **offen**, welche (siehe Offene Fragen); je Topic 1/0/`.` |
+| `topic_*` | byte | weitere Topics | je Topic 1/0/`.`; Liste siehe Entscheidungen zur Umsetzung, Punkt 1 |
 
 ### Populismus (Videoebene)
 | Variable | Typ | Inhalt | Codierung / Hinweis |
@@ -143,7 +143,7 @@ Umgesetzt in `src/youtube_code/step6_auswertung/export_stata_rohdaten.py`, Ausga
 **Datenquellen:** ausschließlich die Stores (`video_registry`, `screening_state`, `transcripts`, `llm_runs`); immer die Original-Runs (nicht `run_0013_..._corrected.csv`, das nur 0 → NaN gesetzt hatte). Kanal-Population: 427 Kanäle aus `data/samples/russia_longitudinal_v1/channel_sample_provenance.csv`.
 
 **Offene Fragen – Antworten:**
-1. **Topics:** `topic_corona`, `topic_migration`, `topic_wirtschaft`, `topic_energie` aus `video_topic_relevance` (Stichwortsuche in Titel/Beschreibung, für alle Videos > 180 s, nicht nur politische); gemeinsames Kennzeichen `topic_klass`, dazu `topic_nur_titel` (Beschreibung fehlte).
+1. **Topics:** alle Themen aus `step3_topic_relevance/topic_keywords.TOPIC_KEYWORDS` außer dem Krieg (Stand 05.10.2026: `topic_politik` (politics_general, nur Abgrenzung „politisch“), `topic_corona`, `topic_migration`, `topic_wirtschaft`, `topic_energie`, `topic_klima`, `topic_gender`, `topic_nahost`, `topic_iran`, `topic_eu`, `topic_usa`, `topic_bildung`) aus `video_topic_relevance` (Stichwortsuche in Titel/Beschreibung, core+wide, für alle Videos > 180 s, nicht nur politische). Gemeinsames Kennzeichen `topic_klass` = 1 nur, wenn **alle** Vergleichsthemen klassifiziert sind; die Themen stammen aus verschiedenen Klassifikationsläufen über verschiedene Videomengen, daher kann ein einzelnes `topic_*` auch bei `topic_klass` = 0 gesetzt sein (je Topic `.` = nicht klassifiziert). Dazu `topic_nur_titel` (Beschreibung fehlte; aus dem ersten klassifizierten Thema). Zu jedem Topic und zu `krieg` zusätzlich `<name>_core` (z. B. `topic_klima_core`, `krieg_core`): 1 nur bei Treffer in der core-Liste (Titel oder Beschreibung), gleiche Missings wie die core+wide-Variable. Laut `topic_keywords.py` für Kontrastanalysen core als Themendefinition bevorzugen, core+wide als Robustheit (wide-Listen von Klima/Gender enthalten Kampfbegriffe).
 2. **Krieg:** `krieg` = `is_relevant` für `russia_ukraine_war` (alle Videos); `krieg_quelle` = Trefferstufen (`ukr_core_title`, `ukr_wide_desc` …), so dass core/wide im Do-File getrennt werden kann. **Zusätzlich** `krieg_transkript` (≥ 1 Segment mit `ukraine_bezug` im Populismus-Prompt; `.` ohne Populismus-Klassifikation) und `pop_n_seg_ukraine`.
 3. **Ideologie-Baseline:** zwei Skalen statt einer Variable: `ideo_gesellschaft_baseline` (−2 progressiv … +2 konservativ) und `ideo_wirtschaft_baseline` (−2 Umverteilung … +2 marktliberal), dazu `ideo_baseline_n`. Nur Baseline-Fenster-Videos (`interval_index` −1…3), ohne Kriegsvideos (`krieg` = 1 oder `krieg_transkript` = 1 ausgeschlossen); Segment → Video → Kanal.
 4. **`sample_vorkrieg`** = in der Frage-1-Whitelist (279) UND ≥ 1 Video > 180 s in [24.02.2021, 24.02.2022).
