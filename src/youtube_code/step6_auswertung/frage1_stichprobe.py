@@ -49,7 +49,17 @@ Schreibt drei Dateien nach outputs/segment_analysis/:
     Eingabedatei fuer KANAL_WHITELIST (deskriptiv_aggregation.py) und
     WHITELIST_PFAD (frage1_populismus_bericht.py).
   - frage1_methodik_und_stichprobe.md: Erzaehltext-Uebersicht (Funnel-Tabelle,
-    exakte Baseline-/Post-Definition, exakte Modellgleichung).
+    exakte Baseline-/Post-Definition, exakte Modellgleichung, Abschnitt 4a
+    zur Selektions-Asymmetrie).
+
+ACHTUNG (AP 1, 2026-09-28): Stufe 2 zaehlt aktuell ALLE Videos in
+channel_video_populism.csv, auch die kurzen Clips (< 181 s) ohne
+Themenklassifikation. Die in AP 1 festgelegte Analysepopulation lautet:
+Dauer >= MIN_VIDEO_DURATION_SECONDS UND (ist_kriegsvideo == 1 ODER
+politics_final == 1). Sie ist hier noch NICHT umgesetzt; das geschieht in
+AP 5. Mit dieser Population behielten 270 statt 273 Kanaele >= 5 Videos.
+Herleitung: frage1_methodik_und_stichprobe.md Abschnitt 4a und
+outputs/masterarbeit/ap1_selektion/.
 """
 
 import pandas as pd
@@ -350,6 +360,42 @@ y_cm = alpha_c + beta * post_cm + sum_g gamma_g * (post_cm x Gruppe_g) + epsilon
 
 mit gemeinsamem F-Test auf alle `gamma_g` (H0: der Post-Effekt ist in allen
 Gruppen gleich). Details und Code: `frage1_populismus_bericht.py`.
+
+## 4a. Selektions-Asymmetrie und Analysepopulation (AP 1, Stand 2026-09-28)
+
+**Problem.** Die Videos in `channel_video_populism.csv` stammen vor und nach
+Kriegsbeginn aus unterschiedlichen Auswahlwegen. `prepare_channel_scores.py`
+filtert nicht nach Auswahlweg, Politikfilter oder Laenge.
+
+- **Vorher:** Die Nicht-Kriegsvideos kommen zu 82 % aus dem Screening
+  (`select_baseline_targets()`, `politics_final == 1`, Dauer >= 181 s).
+- **Nachher:** 10.784 der 11.125 Nicht-Kriegsvideos haben keine Zeile in
+  `video_topic_relevance`. Das hat drei Ursachen:
+  - Sie sind kuerzer als `MIN_VIDEO_DURATION_SECONDS` (181 s), und
+    `get_videos_with_text()` schliesst sie deshalb von der
+    Themenklassifikation aus.
+  - Sie gelten dann per Default als `ist_kriegsvideo = 0`.
+  - Sie stammen aus der frueheren Kriegsvideo-Liste
+    (`outputs/archive/sample_feasibility/war_vids.csv`, Batches
+    `videos_to_classify_populism1-4`), die ohne Laengenfilter gezogen wurde.
+
+  Inhaltlich sind es ueberwiegend kurze Ukraine-Clips, vor allem von
+  traditionellen Medien. Belege dafuer: Das LLM setzt `ukraine_bezug` in 84 %
+  der Segmente, und 79 % der Videos sind nach der alten Liste Kern-Kriegsvideos.
+  Ihr niedriger Populismus erzeugte den scheinbaren Einbruch der
+  Nicht-Kriegsvideos nach Kriegsbeginn.
+
+**Analysepopulation fuer Frage 1 (ab AP 5 verbindlich):** Dauer >= 181 s
+**und** (`ist_kriegsvideo == 1` **oder** `politics_final == 1`). Robustheit:
+Nicht-Kriegsvideos zusaetzlich mit `topic_categories` = Politics.
+
+**Konsequenz.** Nach der Bereinigung bleiben nur 341 Nicht-Kriegsvideos
+nach Kriegsbeginn. Nur 43 Kanaele haben Nicht-Kriegsvideos vor UND nach
+Kriegsbeginn. Der saubere Vergleich der Nicht-Kriegsvideos hat damit wenig
+Power.
+
+Diagnose und Robustheitstabelle: `outputs/masterarbeit/ap1_selektion/`
+(`frage1_selektionsdiagnose.md`, `frage1_selektionscheck.md`).
 
 ## 5. Konfiguration dieses Skripts
 

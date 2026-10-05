@@ -174,10 +174,16 @@ def _lade_video_stats(channel_ids):
 def _ergaenze_kriegsvideo_flag(df):
     """Merged video_registry.get_topic_relevance(topic="russia_ukraine_war").
     Videos OHNE Eintrag in video_topic_relevance gelten explizit als
-    ist_kriegsvideo = 0 ("nicht als kriegsbezogen klassifiziert" - die
-    Keyword-Klassifikation lief ueber ALLE bekannten Videos, ein fehlender
-    Eintrag ist also keine Wissensluecke, sondern schlicht "kein Treffer"),
-    NICHT als "unbekannt"/NaN."""
+    ist_kriegsvideo = 0, NICHT als "unbekannt"/NaN.
+
+    ACHTUNG (AP 1, 2026-09-28): Die Keyword-Klassifikation
+    (step3_topic_relevance, Input get_videos_with_text()) lief nur ueber Videos
+    mit Dauer >= MIN_VIDEO_DURATION_SECONDS (181 s). Bei Videos von 181 s
+    und mehr bedeutet ein fehlender Eintrag "kein Treffer". Bei kuerzeren
+    Videos ist der Status dagegen UNBEKANNT; viele davon sind Ukraine-Clips.
+    Analysen, die Kriegs- mit Nicht-Kriegsvideos vergleichen, sollten deshalb
+    auf duration_seconds >= 181 filtern. Siehe
+    outputs/segment_analysis/frage1_methodik_und_stichprobe.md Abschnitt 4a."""
     relevanz = video_registry.get_topic_relevance(topic=TOPIC, video_ids=df["video_id"].tolist())
     relevante_ids = set(relevanz.loc[relevanz["is_relevant"] == 1, "video_id"])
     df["ist_kriegsvideo"] = df["video_id"].isin(relevante_ids).astype(int)

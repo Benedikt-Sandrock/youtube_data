@@ -12,6 +12,12 @@ aus youtube_code/archive/collection/comment_download.py
   statt jedes Video anzufragen und "Comments disabled" erst aus der
   403-Antwort zu erkennen - Vorfilter-Idee analog zum
   comment_count-Filter in archive/collection/comment_download.py.
+- 403-Fehler werden anhand des API-Fehlergrunds (_error_reason)
+  unterschieden: nur Quota-Gruende (QUOTA_REASONS) loesen die
+  Key-Rotation aus, "commentsDisabled" wird als "Comments disabled"
+  gespeichert, alle anderen 403 (z.B. Mitglieder-exklusive/private Videos)
+  als "Kein Zugriff: <reason>" - diese Videos werden uebersprungen, statt
+  alle Keys zu durchlaufen und den Lauf abzubrechen.
 - Kein STOP_WORD/Sleep-Regime wie beim Transkript-Download
   (download_transcripts.py): die offizielle YouTube Data API begrenzt nur
   ueber das taegliche Quota, nicht ueber IP-Sperren bei zu schnellen
@@ -22,18 +28,27 @@ Aufruf als Bibliothek (z.B. aus run_comment_selection.py):
     download_comments(video_ids, channel_map=channel_map, include_replies=False)
 
 Aufruf als Skript: Modus und Eingabe werden ueber den CONFIG-Block unten
-(MODE/VIDEO_LIST/CHANNEL_LIST_CSV/INCLUDE_REPLIES) gesteuert, nicht ueber
+(MODE/VIDEO_LIST/CHANNEL_LIST_CSV/TOPIC/INCLUDE_REPLIES) gesteuert, nicht ueber
 Kommandozeilenargumente - vor dem Lauf dort eintragen, dann:
     PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step7_comments.download_comments
 
-MODE = "video_list" (Default): laedt die Video-ID-Liste aus VIDEO_LIST
+MODE = "video_list": laedt die Video-ID-Liste aus VIDEO_LIST
 (JSON, Liste von IDs oder von {"video_id": ...}-Objekten).
 
 MODE = "channels": laedt ALLE in video_registry bekannten Videos der
 Kanaele aus CHANNEL_LIST_CSV (CSV mit channel_id-Spalte, Muster analog zu
 step2_baseline_channels/append_channels_to_state.py) ueber
 select_targets.py::select_channel_targets.
+
+MODE = "channels_topic": wie "channels", aber nur die Videos der Kanaele
+aus CHANNEL_LIST_CSV, die fuer TOPIC (Default "russia_ukraine_war") in
+video_topic_relevance als relevant klassifiziert sind - d.h. nur die
+Kriegsvideos des Samples (gleiche Definition wie ist_kriegsvideo in
+step6_auswertung), ueber select_targets.py::select_topic_targets. Die
+Abfragereihenfolge innerhalb dieser Videos ist wie in allen Modi zufaellig
+(siehe download_comments(), shuffle_seed).
 """
+import json
 import random
 import time
 
@@ -51,12 +66,36 @@ from youtube_code.store.video_registry import comment_count_lookup
 
 API_KEYS = [API_KEY, API_KEY_C]
 BATCH_SIZE = 20  # Anzahl Videos zwischen zwei Status-/Kommentar-Upserts
+SHUFFLE_SEED = None  # None = bei jedem Lauf neue Zufallsreihenfolge; int = reproduzierbare Reihenfolge
 
 # --- nur fuer den __main__-Block ---
-MODE = "channels"  # "video_list" (VIDEO_LIST-JSON) oder "channels" (CHANNEL_LIST_CSV)
+MODE = "channels_topic"  # "video_list" (VIDEO_LIST-JSON), "channels" (alle Videos aus CHANNEL_LIST_CSV) oder "channels_topic" (nur TOPIC-Videos aus CHANNEL_LIST_CSV)
 VIDEO_LIST = "request_comments.json"  # nur bei MODE="video_list"
-CHANNEL_LIST_CSV = SAMPLES / "russia_longitudinal_v1" / "topic_channels_sample.csv"  # nur bei MODE="channels": CSV mit channel_id-Spalte
+CHANNEL_LIST_CSV = SAMPLES / "russia_longitudinal_v1" / "topic_channels_sample.csv"  # bei MODE="channels"/"channels_topic": CSV mit channel_id-Spalte
+TOPIC = "russia_ukraine_war"  # nur bei MODE="channels_topic": Topic aus video_topic_relevance (Kriegsvideos = ist_kriegsvideo in step6)
 INCLUDE_REPLIES = False
+
+
+QUOTA_REASONS = {"quotaExceeded", "dailyLimitExceeded", "rateLimitExceeded", "userRateLimitExceeded"}
+
+
+def _error_reason(e: HttpError) -> str | None:
+    """
+    Liest den maschinenlesbaren Fehlergrund (z.B. "quotaExceeded",
+    "commentsDisabled", "forbidden") aus einer HttpError-Antwort der Data API.
+    None, falls die Antwort keinen Grund enthaelt/nicht parsebar ist.
+    """
+    try:
+        details = e.error_details
+        if details and isinstance(details, list) and details[0].get("reason"):
+            return details[0]["reason"]
+    except Exception:
+        pass
+    try:
+        content = json.loads(e.content.decode("utf-8"))
+        return content["error"]["errors"][0]["reason"]
+    except Exception:
+        return None
 
 
 def _fetch_video_comments(youtube, video_id: str, include_replies: bool) -> list[dict]:
@@ -129,6 +168,7 @@ def download_comments(
     api_keys: list | None = None,
     batch_size: int = BATCH_SIZE,
     sleep_range: tuple[float, float] = (0.1, 0.3),
+    shuffle_seed: int | None = SHUFFLE_SEED,
 ) -> pd.DataFrame:
     """
     Laedt Kommentare fuer video_ids herunter (Videos, die laut
@@ -156,6 +196,13 @@ def download_comments(
 
     api_keys: Liste von YouTube-API-Keys fuer Rotation bei Quota-Fehlern
     (403). Default: [API_KEY, API_KEY_C] aus youtube_code.config.
+
+    Reihenfolge: die nach allen Vorfiltern verbleibenden Videos werden in
+    zufaelliger Reihenfolge abgefragt, damit bei einem Abbruch (z.B. Quota
+    aller Keys erschoepft) die bis dahin erfassten Videos eine
+    Zufallsstichprobe sind statt eines alphabetischen Ausschnitts nach
+    Video-ID. shuffle_seed=None (Default) mischt bei jedem Lauf neu; ein int
+    macht die Reihenfolge reproduzierbar.
 
     Rueckgabewert: DataFrame aller in diesem Aufruf gespeicherten
     Kommentar-Zeilen (nicht der Status-Zeilen).
@@ -187,7 +234,13 @@ def download_comments(
         print(f"{len(no_comments)} Video(s) laut Metadaten ohne Kommentare (comment_count NULL/0) - werden uebersprungen.")
     videos_to_process = [v for v in videos_to_process if counts.get(v)]
 
-    print(f"{len(videos_to_process)} Videos werden abgefragt.")
+    # Zufaellige Abfragereihenfolge (siehe Docstring) - erst nach den
+    # Vorfiltern, auf der sortierten Liste, damit ein fester shuffle_seed
+    # unabhaengig von der Eingabereihenfolge dieselbe Reihenfolge liefert.
+    random.Random(shuffle_seed).shuffle(videos_to_process)
+
+    print(f"{len(videos_to_process)} Videos werden in zufaelliger Reihenfolge abgefragt"
+          f"{f' (Seed {shuffle_seed})' if shuffle_seed is not None else ''}.")
 
     status_batch = []
     comments_batch = []
@@ -212,7 +265,14 @@ def download_comments(
 
         except HttpError as e:
             error_msg = str(e)
-            if e.resp.status == 403 and "disabled" in error_msg.lower():
+            reason = _error_reason(e)
+            # Nur echte Quota-Fehler loesen die Key-Rotation aus. Andere 403
+            # (z.B. Mitglieder-exklusive oder private Videos, reason
+            # "forbidden") werden als Fehlerstatus gespeichert und
+            # uebersprungen - sonst wuerde ein einzelnes gesperrtes Video
+            # nacheinander alle Keys "verbrauchen" und den Lauf abbrechen.
+            is_quota = (reason in QUOTA_REASONS) if reason else ("quota" in error_msg.lower())
+            if e.resp.status == 403 and (reason == "commentsDisabled" or "disabled" in error_msg.lower()):
                 print(f"   -> Kommentare deaktiviert fuer {video_id}")
                 status_batch.append({
                     "video_id": video_id,
@@ -221,8 +281,8 @@ def download_comments(
                     "n_top_level": 0,
                     "n_replies": 0,
                 })
-            elif e.resp.status == 403:
-                print(f"   -> Quota erschoepft auf Key {key_index + 1}")
+            elif e.resp.status == 403 and is_quota:
+                print(f"   -> Quota erschoepft auf Key {key_index + 1} ({reason})")
                 key_index += 1
                 if key_index < len(keys):
                     youtube = build("youtube", "v3", developerKey=keys[key_index])
@@ -232,6 +292,15 @@ def download_comments(
                 else:
                     print("   -> Alle API-Keys erschoepft. Breche ab.")
                     break
+            elif e.resp.status == 403:
+                print(f"   -> Kein Zugriff auf {video_id} ({reason}, z.B. Mitglieder-exklusiv/privat) - uebersprungen")
+                status_batch.append({
+                    "video_id": video_id,
+                    "status": f"Kein Zugriff: {reason}",
+                    "include_replies": include_replies,
+                    "n_top_level": 0,
+                    "n_replies": 0,
+                })
             else:
                 print(f"   -> Fehler bei {video_id}: {e}")
                 status_batch.append({
@@ -271,8 +340,6 @@ def download_comments(
 
 
 if __name__ == "__main__":
-    import json
-
     if MODE == "channels":
         from youtube_code.step7_comments.select_targets import select_channel_targets
 
@@ -282,10 +349,22 @@ if __name__ == "__main__":
 
         targets = select_channel_targets(channel_ids, include_replies=INCLUDE_REPLIES)
         download_comments(targets["video_id"].tolist(), include_replies=INCLUDE_REPLIES)
+    elif MODE == "channels_topic":
+        from youtube_code.step7_comments.select_targets import select_topic_targets
+
+        channels_df = pd.read_csv(CHANNEL_LIST_CSV, dtype={"channel_id": "string"})
+        channel_ids = sorted(set(channels_df["channel_id"].dropna()))
+        print(f"{len(channel_ids)} Zielkanaele aus {CHANNEL_LIST_CSV}, Topic {TOPIC!r}.")
+
+        targets = select_topic_targets(topic=TOPIC, channel_ids=channel_ids, include_replies=INCLUDE_REPLIES)
+        print(f"{len(targets)} {TOPIC}-Videos ohne bisherigen Kommentar-Fetch in "
+              f"{targets['channel_id'].nunique()} Kanaelen.")
+        channel_map = targets.set_index("video_id")["channel_id"].to_dict()
+        download_comments(targets["video_id"].tolist(), channel_map=channel_map, include_replies=INCLUDE_REPLIES)
     elif MODE == "video_list":
         with open(VIDEO_LIST, "r", encoding="utf-8") as f:
             data = json.load(f)
         ids = [str(item["video_id"]) if isinstance(item, dict) else str(item) for item in data]
         download_comments(ids, include_replies=INCLUDE_REPLIES)
     else:
-        raise ValueError(f"Unbekannter MODE: {MODE!r} (erwartet 'video_list' oder 'channels').")
+        raise ValueError(f"Unbekannter MODE: {MODE!r} (erwartet 'video_list', 'channels' oder 'channels_topic').")

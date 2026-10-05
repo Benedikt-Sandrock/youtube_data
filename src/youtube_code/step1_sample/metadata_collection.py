@@ -80,9 +80,12 @@ VIDEOS_INPUT_PATH = OUTPUTS / "segment_analysis" / "datenluecken_kanaluebersicht
 # Nur relevant bei CHECK_CHANNELS_MODE = True. CSV mit "channel_id"-Spalte
 # oder JSON (Liste von IDs oder von Dicts mit "channel_id") - gleiches
 # Format wie TARGETED_CHANNEL_INPUT in channel_all_videos.py.
+# Aktuell: 17 Kanaele mit neuen Videos aus dem yt-dlp-Nachscraping (Test,
+# Teil 1, Teil 2), siehe scripts/adhoc/export_metadata_kanalliste_nachscraping.py.
 MISSING_METADATA_CHANNEL_INPUT = (
-    OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
+    OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "metadata_nachscraping_kanaele.csv"
 )
+# MISSING_METADATA_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
 YOUTUBE = build("youtube", "v3", developerKey=api_keys[0])
 

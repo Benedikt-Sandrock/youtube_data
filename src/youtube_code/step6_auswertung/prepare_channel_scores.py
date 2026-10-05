@@ -61,6 +61,16 @@ Position/Stance (prepare_position_results):
         Segment) und Summe der n_deskriptiv_*-Zaehler -> zeitreihen[granularitaet]
         (Long-Format ueber position_russland, position_westpolitik, emotion).
 
+ACHTUNG Selektion (AP 1, 2026-09-28): Die Video-Ebene wird NICHT nach
+Auswahlweg, politics_final, Themenklassifikation oder Mindestdauer gefiltert.
+Nach Kriegsbeginn enthaelt sie deshalb rund 10.800 kurze Clips (< 181 s) ohne
+video_topic_relevance-Zeile aus der frueheren Kriegsvideo-Liste. Sie gelten
+downstream als Nicht-Kriegsvideos. Fuer Vorher/Nachher-Vergleiche gilt die
+Analysepopulation "Dauer >= MIN_VIDEO_DURATION_SECONDS UND (ist_kriegsvideo
+== 1 ODER politics_final == 1)". Sie wird erst in den Auswertungsskripten
+angewandt (ab AP 5), nicht hier. Siehe
+outputs/segment_analysis/frage1_methodik_und_stichprobe.md Abschnitt 4a.
+
 main() schreibt die zurueckgegebenen DataFrames als CSVs nach
 outputs/segment_analysis/ (siehe README.md, Abschnitt
 "0. prepare_channel_scores.py")."""

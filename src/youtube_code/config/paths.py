@@ -21,7 +21,11 @@ LLM = OUTPUTS / "llm"
 
 OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
+# Ergebnisse der Arbeitspakete aus .claude/plans/masterarbeit_strategie.md,
+# je AP ein Unterordner (z. B. MASTERARBEIT_OUTPUTS / "ap1_selektion")
+MASTERARBEIT_OUTPUTS = OUTPUTS / "masterarbeit"
 
 ADHOC_OUTPUT = ROOT / "scripts" / "adhoc" / "output"
+MASTERARBEIT_SCRIPTS = ROOT / "scripts" / "masterarbeit"
 
 SRC = ROOT / "src" / "youtube_code"

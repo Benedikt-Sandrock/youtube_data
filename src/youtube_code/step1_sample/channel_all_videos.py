@@ -31,7 +31,14 @@ Modes:
                           flat mode is unreliable, so it is not trusted - the enumerated IDs are
                           instead looked up in batches of 50 via videos().list (1 quota unit per
                           batch) to get the real, authoritative publishedAt, which is what the
-                          window filter actually uses.
+                          window filter actually uses. IDs already in the registry are not
+                          looked up again, and the lookup stops once the /videos tab (newest
+                          first) has passed the window start - so the quota cost scales with
+                          the number of NEW in-window videos, not with the channel's total.
+                          Quota-safe: results are saved after every channel, a quota error
+                          keeps the partial result of the current channel, and a status file
+                          next to the channel list (<list>_status.csv) lets a follow-up run
+                          with the same list skip channels already marked "komplett".
 
 Switch between modes by setting MODE below.
 
@@ -111,10 +118,12 @@ CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 # outputs/segment_analysis/baseline_still_missing_channels.csv.
 TARGETED_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
-# Zeitfenster fuer die gezielte Suche: Monat -12 bis direkt vor Kriegsbeginn
-# (2022-02-24), nicht nur bis Monat -3 wie das engere Baseline-Fenster in
-# check_baseline_coverage.py.
-TARGETED_PUBLISHED_AFTER  = "2021-02-24T00:00:00Z"
+# Zeitfenster fuer die gezielte Suche. Aktuell 2021-01-01 bis Ende 2026Q2 =
+# der volle Beobachtungszeitraum des Quartals-Luecken-Screenings
+# (scripts/adhoc/videos_pro_quartal_whitelist.py), dessen Luecken bis in
+# 2021Q1 reichen. Frueherer Wert fuer die Baseline-Nachsuche: "2021-02-24T00:00:00Z"
+# (Monat -12 vor Kriegsbeginn).
+TARGETED_PUBLISHED_AFTER  = "2021-01-01T00:00:00Z"
 TARGETED_PUBLISHED_BEFORE = "2026-06-30T23:59:59Z"
 
 # ── TARGETED_SEARCH_YTDLP: Konfiguration ──
@@ -123,12 +132,30 @@ TARGETED_PUBLISHED_BEFORE = "2026-06-30T23:59:59Z"
 # TARGETED_SEARCH (playlistItems-20k-Grenze) noch eine search().list-Variante
 # (winziger, nicht repraesentativer Suchindex) das Zeitfenster erreichen.
 
-TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = "missing_channels.csv"
+# Aktuell: Nachscraping-Liste aus dem Quartals-Luecken-Screening
+# (scripts/adhoc/export_nachscraping_ytdlp_liste.py). Erledigt: Testlauf
+# WELT + OE24 (nachscraping_ytdlp_test.csv) und Teil 1 (12 Kanaele, +16.695
+# Videos). Jetzt Teil 2 (30 Kanaele mit >= 100 geschaetzt fehlenden Videos).
+# Pruefung per scripts/adhoc/vergleich_nachscraping.py vorher/nachher.
+TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = (
+    OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "nachscraping_ytdlp_kanaele_teil2.csv"
+)
+# TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = "missing_channels.csv"
 # TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "baseline_unreliable_large_channels.csv"
 # Nutzt dasselbe Zeitfenster wie TARGETED_SEARCH (TARGETED_PUBLISHED_AFTER/_BEFORE).
 
+# Statusdatei neben der Kanalliste (<liste>_status.csv): eine Zeile pro
+# bearbeitetem Kanal; Kanaele mit Status "komplett" (fuer dasselbe
+# Zeitfenster) werden in einem Folgelauf uebersprungen. Zum kompletten
+# Neu-Durchlauf die Datei loeschen.
+TARGETED_SEARCH_YTDLP_STATUS_FILE = str(TARGETED_SEARCH_YTDLP_CHANNEL_INPUT).rsplit(".", 1)[0] + "_status.csv"
+
 # videos().list erlaubt max. 50 IDs pro Aufruf.
 YTDLP_LOOKUP_BATCH_SIZE = 50
+# Abbruch der Nachschlage-Schleife, sobald so viele aufeinanderfolgende
+# 50er-Batches komplett vor TARGETED_PUBLISHED_AFTER liegen (/videos-Tab ist
+# neueste zuerst sortiert) - 2 statt 1 als Puffer gegen einzelne Ausreisser.
+YTDLP_EARLY_STOP_BATCHES = 2
 
 # Language-classification settings
 MAX_VIDEOS_FOR_CLASSIFICATION = 10
@@ -252,13 +279,40 @@ def list_channel_video_ids_ytdlp(channel_id: str) -> list[str]:
     return [e["id"] for e in entries if e and e.get("id")]
 
 
-def get_channel_videos_via_ytdlp(channel_id: str, published_after: str, published_before: str) -> list[dict]:
+class YtdlpQuotaExceeded(Exception):
+    """Quota-Abbruch mitten in get_channel_videos_via_ytdlp - traegt das bis
+    dahin gesammelte Teilergebnis (videos) und die Zahl der bereits
+    ausgefuehrten videos().list-Aufrufe (n_lookup), damit nichts verloren geht."""
+
+    def __init__(self, videos: list[dict], n_lookup: int, message: str):
+        super().__init__(message)
+        self.videos = videos
+        self.n_lookup = n_lookup
+
+
+def _is_quota_error(e: Exception) -> bool:
+    return "quota" in str(e).lower()
+
+
+def get_channel_videos_via_ytdlp(channel_id: str, published_after: str,
+                                 published_before: str) -> tuple[list[dict], int]:
     """
-    Fetch all videos for a channel within [published_after, published_before] by first
-    enumerating video IDs via yt-dlp (list_channel_video_ids_ytdlp), then looking up their
-    real metadata in batches of YTDLP_LOOKUP_BATCH_SIZE via videos().list - 1 quota unit per
-    batch, regardless of batch size. Videos outside the window, or no longer retrievable
+    Fetch all videos for a channel within [published_after, published_before] that are NOT
+    yet in the registry, by first enumerating video IDs via yt-dlp
+    (list_channel_video_ids_ytdlp), then looking up the real publishedAt of the unknown IDs
+    in batches of YTDLP_LOOKUP_BATCH_SIZE via videos().list - 1 quota unit per call,
+    regardless of batch size. Videos outside the window, or no longer retrievable
     (deleted/private), are silently dropped.
+
+    Quota savings (both do not change which in-window videos end up in the registry):
+      - IDs already known in the registry are not looked up again (their published_at is
+        taken from the registry) and not returned - the return value is only NEW videos.
+      - The /videos tab lists newest first. Once YTDLP_EARLY_STOP_BATCHES consecutive
+        batches lie entirely before published_after, the rest (older) is skipped instead of
+        looking up the channel's entire history.
+
+    On a quota error, raises YtdlpQuotaExceeded carrying the partial result collected so far.
+    Returns (new_videos, number_of_videos().list_calls).
 
     Use this for very large channels where TARGETED_SEARCH (playlistItems.list, caps around
     item #20,000) and a search().list-based approach (sparse, non-exhaustive search index -
@@ -267,29 +321,102 @@ def get_channel_videos_via_ytdlp(channel_id: str, published_after: str, publishe
     """
     video_ids = list_channel_video_ids_ytdlp(channel_id)
     if not video_ids:
-        return []
+        return [], 0
+
+    bekannt_df = video_registry.get_video_rows_for_channels([channel_id])
+    bekannt = {
+        vid: pub for vid, pub in zip(bekannt_df["video_id"], bekannt_df["published_at"])
+        if isinstance(pub, str) and pub[:1].isdigit()
+    }
+    print(f"  yt-dlp: {len(video_ids)} IDs, davon {sum(v in bekannt for v in video_ids)} bereits in Registry")
 
     videos: list[dict] = []
+    n_lookup = 0
+    alte_batches = 0
     for i in range(0, len(video_ids), YTDLP_LOOKUP_BATCH_SIZE):
         batch = video_ids[i:i + YTDLP_LOOKUP_BATCH_SIZE]
-        response = YOUTUBE.videos().list(part="snippet", id=",".join(batch)).execute()
+        daten = [bekannt[v] for v in batch if v in bekannt]
+        unbekannt = [v for v in batch if v not in bekannt]
 
-        for item in response.get("items", []):
-            snippet = item.get("snippet", {})
-            pub_date = snippet.get("publishedAt")
-            if not pub_date:
-                continue
-            if not (published_after <= pub_date <= published_before):
-                continue
+        if unbekannt:
+            try:
+                response = YOUTUBE.videos().list(part="snippet", id=",".join(unbekannt)).execute()
+            except Exception as e:
+                if _is_quota_error(e):
+                    raise YtdlpQuotaExceeded(videos, n_lookup, str(e)) from e
+                raise
+            n_lookup += 1
 
-            videos.append({
-                "video_id":    item.get("id"),
-                "channel_id":  snippet.get("channelId", channel_id),
-                "published_at": pub_date,
-                "title":       snippet.get("title"),
-            })
+            for item in response.get("items", []):
+                snippet = item.get("snippet", {})
+                pub_date = snippet.get("publishedAt")
+                if not pub_date:
+                    continue
+                daten.append(pub_date)
+                if not (published_after <= pub_date <= published_before):
+                    continue
 
-    return videos
+                videos.append({
+                    "video_id":    item.get("id"),
+                    "channel_id":  snippet.get("channelId", channel_id),
+                    "published_at": pub_date,
+                    "title":       snippet.get("title"),
+                })
+
+        if daten and max(daten) < published_after:
+            alte_batches += 1
+            if alte_batches >= YTDLP_EARLY_STOP_BATCHES:
+                print(f"  Fenster-Anfang erreicht nach {i + len(batch)} von {len(video_ids)} IDs -> Stopp")
+                break
+        else:
+            alte_batches = 0
+
+    return videos, n_lookup
+
+
+# ─────────────────────────────────────────────
+# TARGETED_SEARCH_YTDLP: Statusdatei (Fortsetzen nach Quota-Abbruch)
+# ─────────────────────────────────────────────
+_YTDLP_STATUS_FIELDS = ["zeitpunkt", "channel_id", "status", "n_neue_videos", "aeltestes_neues_video",
+                        "n_videos_list_aufrufe", "fenster_von", "fenster_bis", "detail"]
+
+
+def append_ytdlp_status(path, channel_id: str, status: str, videos: list[dict],
+                        n_lookup: int, detail: str = "") -> None:
+    """Haengt eine Zeile pro bearbeitetem Kanal an die Statusdatei an
+    (status: komplett | teilweise_quota | fehler)."""
+    from datetime import datetime
+
+    neu_anlegen = not os.path.exists(path)
+    with open(path, "a", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_YTDLP_STATUS_FIELDS)
+        if neu_anlegen:
+            writer.writeheader()
+        writer.writerow({
+            "zeitpunkt": datetime.now().isoformat(timespec="seconds"),
+            "channel_id": channel_id,
+            "status": status,
+            "n_neue_videos": len(videos),
+            "aeltestes_neues_video": min((v["published_at"] for v in videos), default=""),
+            "n_videos_list_aufrufe": n_lookup,
+            "fenster_von": TARGETED_PUBLISHED_AFTER,
+            "fenster_bis": TARGETED_PUBLISHED_BEFORE,
+            "detail": detail,
+        })
+
+
+def load_ytdlp_completed_channels(path, published_after: str, published_before: str) -> set[str]:
+    """Kanaele, die laut Statusdatei fuer GENAU dieses Zeitfenster schon
+    komplett durchlaufen sind (ein spaeterer Eintrag ueberschreibt einen
+    frueheren)."""
+    if not os.path.exists(path):
+        return set()
+    letzter: dict[str, str] = {}
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        for row in csv.DictReader(f):
+            if row["fenster_von"] == published_after and row["fenster_bis"] == published_before:
+                letzter[row["channel_id"]] = row["status"]
+    return {cid for cid, s in letzter.items() if s == "komplett"}
 
 
 def get_new_channel_videos(channel_id: str, published_after: str, published_before: str,
@@ -634,37 +761,51 @@ if __name__ == "__main__":
         #    (playlistItems-20k-Grenze) noch search().list (winziger,
         #    unrepraesentativer Suchindex) das Zeitfenster erreichen (siehe
         #    Docstring oben). Gleiches Zeitfenster wie TARGETED_SEARCH.
+        #    Robust gegen Quota-Abbruch: Speichern nach JEDEM Kanal, Teilergebnis
+        #    des laufenden Kanals bleibt erhalten, und die Statusdatei
+        #    (TARGETED_SEARCH_YTDLP_STATUS_FILE) laesst einen Folgelauf mit
+        #    derselben Kanalliste bereits komplett erledigte Kanaele ueberspringen.
         targeted_channel_ids = load_targeted_channel_ids(TARGETED_SEARCH_YTDLP_CHANNEL_INPUT)
         print(f"Targeted-Search-yt-dlp-Modus: {len(targeted_channel_ids)} Kanaele aus "
               f"{TARGETED_SEARCH_YTDLP_CHANNEL_INPUT}")
         print(f"Zeitfenster: {TARGETED_PUBLISHED_AFTER} bis {TARGETED_PUBLISHED_BEFORE}")
+        print(f"Statusdatei: {TARGETED_SEARCH_YTDLP_STATUS_FILE}")
 
-        channel_counter = 1
-        for cid in targeted_channel_ids:
-            try:
-                print(f"Kanal: {cid} ({channel_counter}/{len(targeted_channel_ids)})")
-                channel_videos = get_channel_videos_via_ytdlp(
-                    cid, TARGETED_PUBLISHED_AFTER, TARGETED_PUBLISHED_BEFORE
-                )
-                print(f"  Videos gefunden: {len(channel_videos)}")
-                if channel_videos:
-                    new_videos.extend(channel_videos)
-                else:
-                    new_videos.append({
-                        "video_id":    f"no_video_found_{cid}",
-                        "channel_id":  cid,
-                        "published_at": f"no_video_found_{cid}",
-                        "title":       f"no_video_found_{cid}",
-                    })
+        erledigt = load_ytdlp_completed_channels(
+            TARGETED_SEARCH_YTDLP_STATUS_FILE, TARGETED_PUBLISHED_AFTER, TARGETED_PUBLISHED_BEFORE
+        )
+        if erledigt:
+            print(f"Bereits komplett laut Statusdatei, werden uebersprungen: {len(erledigt)}")
 
-            except Exception as e:
-                if "quotaExceeded" in str(e):
-                    print(f"  API-Quota erreicht, Abbruch.")
-                    break
-                print(f"  Fehler bei {cid}: {e}")
+        for channel_counter, cid in enumerate(targeted_channel_ids, start=1):
+            print(f"Kanal: {cid} ({channel_counter}/{len(targeted_channel_ids)})")
+            if cid in erledigt:
+                print("  bereits komplett -> uebersprungen")
                 continue
 
-            channel_counter += 1
+            status, detail = "komplett", ""
+            try:
+                channel_videos, n_lookup = get_channel_videos_via_ytdlp(
+                    cid, TARGETED_PUBLISHED_AFTER, TARGETED_PUBLISHED_BEFORE
+                )
+            except YtdlpQuotaExceeded as e:
+                channel_videos, n_lookup = e.videos, e.n_lookup
+                status, detail = "teilweise_quota", "Quota erreicht"
+            except Exception as e:
+                print(f"  Fehler bei {cid}: {e}")
+                append_ytdlp_status(TARGETED_SEARCH_YTDLP_STATUS_FILE, cid, "fehler", [], 0, str(e)[:300])
+                continue
+
+            n_gespeichert = _registry_upsert(channel_videos)
+            new_videos.extend(channel_videos)
+            append_ytdlp_status(TARGETED_SEARCH_YTDLP_STATUS_FILE, cid, status, channel_videos, n_lookup, detail)
+            print(f"  Neue Videos im Fenster: {len(channel_videos)} (gespeichert: {n_gespeichert}, "
+                  f"videos().list-Aufrufe: {n_lookup})")
+
+            if status != "komplett":
+                print("  API-Quota erreicht - Abbruch. Alle bisherigen Ergebnisse sind gespeichert; "
+                      "ein Folgelauf mit derselben Kanalliste setzt bei diesem Kanal wieder an.")
+                break
 
     else:
         raise ValueError(

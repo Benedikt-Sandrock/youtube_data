@@ -1,0 +1,527 @@
+[Laden] Kanal-Sample russia_longitudinal_v1: 427 Kanaele
+[Laden] Videos der Sample-Kanaele (vor Laengenfilter): 1085159
+[Laden] ohne channel_id: 0, ohne/unparsebares published_at: 0, ohne/unparsebare Dauer: 8428
+[Check] ok: video_id in der Registry eindeutig
+[Laengenfilter] Dauer >= 181 s: 542110 von 1085159 Videos (422 Kanaele mit >= 1 Video)
+[Merge] video_details.topic_categories (politisch): 540511 gematcht, 1599 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[russia_ukraine_war]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[corona_pandemic]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[migration]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[economy_general]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[energy]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
+[Merge] transcript_store: 37141 Videos mit Transkript (status OK)
+[Laden] POPULISMUS_P: 115361 Segmentzeilen aus 14 Runs; Test-Runs ausgeschlossen: ['run_0006', 'run_0007', 'run_0008', 'run_0009'] (160 Zeilen)
+[Laden] POPULISMUS_P: 257 Segmente in mehreren Runs (58 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
+[Laden] POPULISMUS_P: nach Segment-Dedup 114944 Segmente, 36864 Videos, davon ungueltig (parse_error/leer): 0
+[Laden] POSITION_V1: 113653 Segmentzeilen aus 10 Runs; Test-Runs ausgeschlossen: [] (0 Zeilen)
+[Laden] POSITION_V1: 408 Segmente in mehreren Runs (73 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
+[Laden] POSITION_V1: nach Segment-Dedup 113245 Segmente, 35893 Videos, davon ungueltig (parse_error/leer): 0
+[Laden] IDEOLOGIE_I: 23354 Segmentzeilen aus 13 Runs; Test-Runs ausgeschlossen: ['run_0001', 'run_0002', 'run_0003', 'run_0004', 'run_0005'] (108 Zeilen)
+[Laden] IDEOLOGIE_I: 2287 Segmente in mehreren Runs (2287 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
+[Laden] IDEOLOGIE_I: nach Segment-Dedup 20951 Segmente, 20951 Videos, davon ungueltig (parse_error/leer): 0
+[Merge] POPULISMUS_P: 25161 gematcht, 516949 nur Export, 11703 nur Quelle
+[Check] Pruefung 7 (POPULISMUS_P): klassifiziert, aber nicht im Export: 11703 (Laengenfilter/Dauer fehlt: 11444, nicht unter den Videos der Sample-Kanaele: 259)
+[Merge] POSITION_V1: 24950 gematcht, 517160 nur Export, 10943 nur Quelle
+[Check] Pruefung 7 (POSITION_V1): klassifiziert, aber nicht im Export: 10943 (Laengenfilter/Dauer fehlt: 10698, nicht unter den Videos der Sample-Kanaele: 245)
+[Merge] IDEOLOGIE_I: 12095 gematcht, 530015 nur Export, 8856 nur Quelle
+[Check] Pruefung 7 (IDEOLOGIE_I): klassifiziert, aber nicht im Export: 8856 (Laengenfilter/Dauer fehlt: 2348, nicht unter den Videos der Sample-Kanaele: 6508)
+[Merge] screening_state: 501028 gematcht, 41082 nur Export, 443 nur Quelle
+[Merge] channels (Kanalmetadaten): 427 gematcht, 0 nur Export, 0 nur Quelle
+[Laengenfilter] Videos je Kanal vor/nach Filter (channel_id | vorher | nachher):
+    UC-5Ao5j48FBONkfprK1m5YA | 7 | 7
+    UC-75V7JVPyuhsdJnPJCP2GQ | 1939 | 1336
+    UC-7qscJH_SncZvCm9Ty014Q | 2086 | 1183
+    UC-UQNye_z8EqecFJluZ1PxQ | 473 | 334
+    UC-ZMxS-psFAo2NahWdE3I5g | 1200 | 828
+    UC-k-5F2j4CUzuwkx1QLRlpA | 973 | 935
+    UC-pttzXDm3W7mGe7YZIAOCw | 1605 | 1487
+    UC-q8URCNmX5Wg4R9kXtW4tg | 472 | 262
+    UC-qQ1TNcFK3DqD7jEK5D_jg | 5818 | 4076
+    UC-ry8ngUIJHTMBWeoARZGmA | 692 | 432
+    UC-uCV5UTtCwrjnFalOfhLkg | 1744 | 1283
+    UC0CQVmtT10QMU-_p0td3TSQ | 572 | 446
+    UC0J2k12Zbs_tf-f7WxVhYZg | 616 | 511
+    UC0RBJwg8ZfRM8TLGOKTpArA | 880 | 26
+    UC0gowAwNIqEOMVSuXdJHJOw | 192 | 111
+    UC0ia0Bh33OgZ8p4emfeGG6g | 1564 | 904
+    UC0wmQHhNnuVUAl7PBXnwDEQ | 557 | 536
+    UC19tEGPtxdnSMZnoqYUVvzA | 694 | 566
+    UC1RF0nztcvsH2Vjhh2xDt8g | 5266 | 614
+    UC1RJJZSO2GYBrPQuiLUp1dA | 15956 | 710
+    UC1cQzKmbx9x0KipvoCt4NJg | 353 | 330
+    UC1lSJPfMswLZcpyfzmkX5HA | 5529 | 175
+    UC1lcA9yIr-6brMzptYk_fwA | 1784 | 656
+    UC1qFtRUgiodtHFWRs3RY1lg | 2968 | 2607
+    UC1w6pNGiiLdZgyNpXUnA4Zw | 5467 | 2943
+    UC1y1GtNgGiAUBfQz87ltjag | 5239 | 1337
+    UC267Hlq_ACFuWzZYfazrDGQ | 1809 | 1806
+    UC2cJbBzyHM48MVFB6eOW9og | 1228 | 801
+    UC2n9cj1SR8lXPnNjmFl2BBw | 390 | 10
+    UC2q758ZoKua2OKWxSHJiVXA | 5027 | 287
+    UC2w2teNMpadicMg3Sd_yiyg | 3118 | 1189
+    UC2xqE9CFcyhokm0VxdJBKpg | 558 | 542
+    UC39NWHuZJnbL2yBidzlJfZQ | 3199 | 3183
+    UC3AdN1bEmEonuSwXNS8LixQ | 3517 | 1627
+    UC3gJSe50HI67uKN4mO9a91g | 344 | 241
+    UC3hekG458EdMK2KmbGbMHmw | 382 | 347
+    UC3z34-ighaGmK30To86HMqw | 544 | 188
+    UC44EGa9fuj0AsoBqQNjn4VA | 1280 | 267
+    UC4UpKVeiRJJd-mCBQuhe_8g | 1862 | 1556
+    UC4V1z5uOPGL0FodEEScHd8g | 1327 | 1042
+    UC4gENfIXqpg-CCVN7felClg | 2273 | 1451
+    UC4mTAdfgY48VtPSXVWTC9wQ | 710 | 97
+    UC4qhj5cnX0MkbwXQ5vlI1NQ | 20154 | 7872
+    UC4zcMHyrT_xyWlgy5WGpFFQ | 20091 | 7214
+    UC55YgoWqUE8IU0XZ5wBCUow | 1173 | 1021
+    UC55ntFpDyyt8jKEaVAgwmpA | 1502 | 1283
+    UC5NOEUbkLheQcaaRldYW5GA | 22796 | 16865
+    UC5QXyeVn0LD-2ydrr_Owe4A | 1026 | 45
+    UC5ShHwirTLDS6T9nro0MXaQ | 370 | 275
+    UC5i6nCpwmDVKo98sZD2AAcQ | 526 | 508
+    UC5vRhLlSCrBEBuzn51ZrpBQ | 577 | 502
+    UC5w2aXFKL_kLWSattQ6ekmQ | 591 | 559
+    UC6-3bNvn4FpTebBhsreWZBg | 981 | 26
+    UC60nUxdEh1j8gV_fWAlj_hw | 663 | 479
+    UC62IIFhchBWQxLPSyUatD-A | 11255 | 9517
+    UC67IaTsbpkzgAaeRMnJt5AQ | 245 | 174
+    UC6RYT0kcxYh_u8OJoAaF1Pg | 1181 | 324
+    UC6eKQpThuLPOHAf_EPyB3xw | 750 | 62
+    UC6hrzR7smGOGQgOh5q5HZYQ | 1245 | 931
+    UC6rdE0CWPOZBJdM-b5Yk-Yg | 2468 | 169
+    UC6zXbTQEujMO-5CzyywlVDQ | 374 | 40
+    UC70-qPE5cS_aOYAOGnM_24g | 1086 | 485
+    UC71SOu9JMKd3VHJs7GipdNQ | 315 | 312
+    UC7HpbItjae9vGSvO5bYDU3w | 443 | 376
+    UC7UmWgseKK7p3NPLo7RISdg | 1493 | 1354
+    UC7g7kvJmGit81_4R_4yxhGA | 1807 | 774
+    UC7nW8V_NntJawOXED8zJ55A | 573 | 158
+    UC7n_Hml4hw5H4G-HP8QPeKw | 10722 | 1025
+    UC7x1zUUIrccDYILEpD-gbBA | 66 | 18
+    UC8Km0txKTlSPYIJF9HwPZMA | 709 | 676
+    UC8TFpnUndPTOnxhIfzsx4mA | 4413 | 3609
+    UC8TsX50arK9Ap1oNIBQmQgw | 187 | 126
+    UC8WYi3XQXsf-6FNvqoEvxag | 6814 | 1132
+    UC94WBmb8xvVUcV_b9Px0P3A | 262 | 176
+    UC9QV7uZvrqbWUbIRifdWz5g | 6264 | 28
+    UC9qdoYTVU413M6EvqDRZDtA | 333 | 91
+    UC9wj8KPMMTnZyk0lFGlnicg | 731 | 704
+    UCA95T5bSGxNOAODBdbR2rYQ | 1290 | 666
+    UCACdxU3VrJIJc7ujxtHWs1w | 40314 | 7213
+    UCAKB9wGGRccBDrvbbbmgetw | 2214 | 719
+    UCAU09OnUvIPwe19RdrJBg0w | 3184 | 2580
+    UCAe4VvNMKFlFnqT2fe9-0HA | 1126 | 1071
+    UCAeXKE-3J-6u68tO5Oafyag | 867 | 615
+    UCAszOEwa5CS4WFwYpkjdaUQ | 1753 | 1041
+    UCB0H51gtgcpgYGI7LgflNJw | 675 | 534
+    UCB1pc5wo3AD972KPpWQTdXg | 427 | 292
+    UCB37CFICVTUlewYdbMSChIA | 2898 | 2104
+    UCB4UKfI2Wj5xWFUUTklxy-w | 515 | 105
+    UCBA2L-XIgGYVn_t_8B0VMMg | 2381 | 1901
+    UCBAj8YKmLRd8yyGFM9lwuXw | 82 | 79
+    UCBEbuDZ0EQWrEMd87c3rc1A | 325 | 229
+    UCBWSgdr27NcLig0XzWLq2gQ | 731 | 200
+    UCBYhZdvuMIpQK9SSaargYwQ | 268 | 76
+    UCB_E_F5o6_c-VqI-L1ZlK3w | 956 | 310
+    UCBkfxC056lxHJ6QMUCKZHJw | 1124 | 215
+    UCBlOtMAWn6nQpChhRo14CYA | 875 | 653
+    UCBzai1GXVKDdVCrwlKZg_6Q | 923 | 251
+    UCC6MaGWuQS-t7k0TBkA5ZXQ | 826 | 826
+    UCCcFnVUHZDKDUkghDspBKdQ | 981 | 906
+    UCCdKkuyDe0rt950_fF3lAig | 1171 | 757
+    UCChHIg4Mp_k8_Wp8js6NQow | 1894 | 1855
+    UCCjkK_Qk9BUytDlAzz0iCZw | 23010 | 309
+    UCCk8v-UmHH9jPfs3m3cRr0Q | 855 | 15
+    UCCljzsYpepeNeY-nKPBKnhA | 6034 | 4636
+    UCCwCa-faBqcY-zJ4PS1lCHA | 5313 | 4357
+    UCCymCsB5DpL5YydF5q_LudA | 1754 | 1374
+    UCDG7fluFPCLOmFz_Rhc3cXw | 88 | 83
+    UCDW1yldFKWrfjrr78aP5Nkw | 215 | 213
+    UCDbDbm3v-MAqL4IPR2wIA9A | 1220 | 337
+    UCDw0K7K658-ztRuCn2mn0Kw | 241 | 192
+    UCDzjkX1p0DNmy6Mt4s29dUw | 1546 | 1030
+    UCE0rCXRjJkY3Pro4rm8NINQ | 404 | 74
+    UCE1qoGwuxVCkIMRZOL6MIKA | 11349 | 6455
+    UCE5CMv3a2bF7UTDdvjuenoA | 634 | 554
+    UCE7b8qctaEGmST38-sfdOsA | 4129 | 3855
+    UCEPZNMjVXBALuPZNKNua5Hg | 236 | 61
+    UCEnCHQArKlggj11Si3bjv3Q | 541 | 453
+    UCEtYtMoD26j2BJBJ4w_hM6w | 277 | 106
+    UCFFM_g9QSjmE45y9XtfYLdw | 418 | 352
+    UCFemltyr6criZZsWFHUSHPQ | 2200 | 426
+    UCFoKXoDoExwtBWdSTCIdEVQ | 1338 | 719
+    UCFqcNI0NaAA21NS9W3ExCRg | 1679 | 609
+    UCFsViOtZE0cNVjqBkvetpmA | 1724 | 583
+    UCG6KtMc5WYB-ppxwpaX5CFw | 1507 | 1301
+    UCGHH5XUlAtp5dKhYRQrFluw | 619 | 444
+    UCGOVq1UBjaq45vO_oyVQNYw | 228 | 184
+    UCGTRC_2I15euSzNi7VJy9og | 1992 | 1933
+    UCGVAL_wYwXMHLLYR_ER2bwg | 1585 | 1470
+    UCGZLruV9OMz7JnmXz86ELdg | 2022 | 984
+    UCGcheBSVngQt09ubb0BZyJw | 2532 | 1675
+    UCGhpSxT5gmwaNgz6jZbCHyg | 736 | 1
+    UCGrQfvVlhJJfgjCLk6WppOw | 512 | 490
+    UCGs4xGAYB_qSoWJ9EsPAKAQ | 2204 | 148
+    UCHNVmVDguYH5EiKdC_EFcDQ | 2137 | 1656
+    UCHuiLKtABrDZVGlDA24my1g | 431 | 431
+    UCI9wqAKuTelhdToktHJ4s9Q | 738 | 333
+    UCICWTMc7Jni_u5ORVXBOnLQ | 5647 | 1907
+    UCIIVvAp6DP3a2MmoIuIjvQA | 629 | 120
+    UCIRrEh0xY1F0JUTj4QCNJbw | 2546 | 1633
+    UCIk-Fw1QuWJdO4sAxhXE5DA | 939 | 598
+    UCIrg1CS42VIQl4Q1a0fS33g | 410 | 352
+    UCIvthGRDv___2gL2JGiDryQ | 1054 | 910
+    UCJ1NGNrj5b_x789iOLyFr2g | 10988 | 4542
+    UCJEFIodDXA3hF7DyQFvd6zg | 2212 | 1661
+    UCJZIMpxy0Q8qhJg5mwLWe9g | 882 | 453
+    UCJiRXf1Pb0ZkoPD7qcQIvlg | 8675 | 8517
+    UCJvp5iq9klHnvki_YnTmxQA | 198 | 70
+    UCK1aTcR0AckQRLTlK0c4fuQ | 452 | 228
+    UCK4LDHLxBqiAtcwCm4z7DRg | 301 | 282
+    UCK6jlnWA8t-XgUxwZJJHkQA | 823 | 707
+    UCKK6WkPbdo91whuKTT1BPPA | 1115 | 765
+    UCKZmirEl03pmXEwsFYjr87Q | 370 | 201
+    UCKbigI3YRqL7wFliRr7R8Mw | 638 | 634
+    UCL5-tPmf_sttES7ZcYJRp5A | 915 | 855
+    UCLLibJTCy3sXjHLVaDimnpQ | 3384 | 2507
+    UCLdvZfZPIJtRzN_C5vO-IzA | 3679 | 2292
+    UCLi8PUVEzLSShCnomkIB48A | 1666 | 0
+    UCLkHXX5R9S_qFZuCMGHWMrQ | 1456 | 1300
+    UCLm6s42r_wCbBX0QqXNCTwg | 313 | 219
+    UCM5gP5bRLmc7ysiLbXA2R3A | 1008 | 776
+    UCMIgOXM2JEQ2Pv2d0_PVfcg | 6820 | 5130
+    UCMW8XBBRkjrF_fweALWaZyw | 1938 | 1754
+    UCMbiTMFu2Sm06aiKbxQ3ibg | 123 | 102
+    UCMlirlzQIUpfb3uC5LXB17Q | 744 | 530
+    UCMpW4tdyZUid2Ka9_FuDDhQ | 19685 | 5260
+    UCN23GlvCgK9XZDsNQzln4_Q | 385 | 302
+    UCNJxn7JS4saCHPsnD91yf9Q | 628 | 343
+    UCNNEMxGKV1LsKZRt4vaIbvw | 603 | 493
+    UCNWwYB-jHnTegtzdBP4RJzQ | 880 | 871
+    UCN_VDT9sfpp43culPLOjIbQ | 1149 | 262
+    UCNhu9O6tvBzIqGT29VOOs2Q | 1604 | 594
+    UCNiXdX4GTsg2bd2nmGDLvNg | 3154 | 3148
+    UCNohL6FyY0okQxJQKszfXRg | 1148 | 937
+    UCNyCbbSxjcPZta5x4UjjrFw | 2491 | 12
+    UCO-mUnAn9Ezgh7XXi-gGvxA | 252 | 190
+    UCO3vATnmLHULoZLUpOzrLmw | 7611 | 2260
+    UCOOc_k7pKmmjq8qtGLjBW5A | 919 | 893
+    UCOQFfcGRc886dXP2Oyt5OEg | 448 | 387
+    UCOXf4qt_FN_aNYCpOd0CZwQ | 209 | 209
+    UCOY3VWW4NGQAue_rqTBtdhA | 579 | 499
+    UCObT1HxDVGDWtvmJxG3E4Cw | 3852 | 89
+    UCOgPGtSnFR6GM-AkzCnxqMQ | 128 | 15
+    UCOiG4UoE0-CBZKlDVgw1eTA | 282 | 43
+    UCOnyot4cXF5C7OmNXL_kbeA | 1195 | 401
+    UCP0XtrbAFWp-RkPS904VSEw | 751 | 179
+    UCPCM96Nc3zxkdU1Td92S75Q | 489 | 466
+    UCPH3ZPeqWqRVZ_ef4vOZgSw | 537 | 194
+    UCPOmsF_XgQohcJhdj58zshg | 797 | 239
+    UCPc6vijv_rMNwI573waZHeA | 788 | 719
+    UCPhsnKyNcH3huafz_wNG_5A | 8082 | 5033
+    UCPtPTEFWA0PscaOIR55okfA | 997 | 262
+    UCQGqiGhMjc_p4lZEhSTb12g | 9216 | 2332
+    UCQNjg0-yEA8LoyCcWI-j8mA | 3563 | 1057
+    UCQU3PO2g_rmqbmr8VJWvrsA | 2115 | 1669
+    UCQyWcZxP3MpuQ54foJ_IsgQ | 1673 | 1538
+    UCQz0thmRLbm2mVDJwmVjsOg | 658 | 165
+    UCR2r-x-wLNCl957sh2-Lplw | 1338 | 1234
+    UCR_iFmLcHBFxc3x3CA71xvw | 884 | 513
+    UCRdEdkAlZetdf74bYaBRv3g | 4779 | 2395
+    UCRhB0rzRfzFNKKbPLO4BYYg | 465 | 299
+    UCRkFMKQApHodjgV0IVuAXHQ | 851 | 367
+    UCRprqV4FxwrWQJbZ0VLFS_g | 436 | 424
+    UCRvNgIlm7NnKLSL1WIc_yHQ | 807 | 769
+    UCSEr0-U62P5qeqqpJA2_Nog | 288 | 0
+    UCSExr_QUT6h-4sGW5hGjrCA | 341 | 303
+    UCSFnRsoF9zANc6_s96yCw5w | 408 | 0
+    UCSQJpXRkiYEnDeHFoMNGfww | 735 | 506
+    UCSeil5V81-mEGB1-VNR7YEA | 10960 | 6000
+    UCSgXnWOMcVUE2He4lSx2l8A | 136 | 74
+    UCSiFC1DCXr3p1YDzyu9rogA | 3169 | 838
+    UCSiR8kjXDgvKh0Reuuj5Dgw | 262 | 250
+    UCT0wo1uc6G3UTuM_MiacA9g | 298 | 155
+    UCT87TG9Rt5ThxMfAkjAJznw | 264 | 227
+    UCT8A_4ZjyyfLSOfhec2uV3g | 173 | 171
+    UCT8fbPYycfhjYzLbsU1dl3Q | 1362 | 912
+    UCTINJvbvjiivYhI1oqv37lw | 4523 | 396
+    UCTPAHk1b-h-WGQn9cfGlw2Q | 1875 | 1312
+    UCUA2wv8aKohNqTAtTDGV9wQ | 1501 | 706
+    UCUQ0WLZUAKArPdkgmZjFCWQ | 344 | 12
+    UCUYQypt91KuQPHRgr1k8wlg | 941 | 247
+    UCUnxR8x1hsw2Zt35-P-slsw | 450 | 343
+    UCUplDvA1BR9qRXUsOlI4QEw | 6198 | 5433
+    UCUuab1dctZzN5ZmRmQnTzkg | 440 | 387
+    UCVH7_5qzjTuQFGzCbP7AKDw | 213 | 185
+    UCVJc8RKxfX00EIFo1wwJ3ow | 221 | 10
+    UCVTzfXBluaApg_1HYaq4IFA | 73 | 45
+    UCVUYh7UEdKW8v3cPIDA4Iow | 2775 | 584
+    UCWFl8y-bkvnJ9RhnTtyfPtA | 12 | 11
+    UCWFnsgnkOAc0D7OweruB3hA | 1306 | 654
+    UCWKEY-aEu7gcv5ayIpgrnvg | 560 | 184
+    UCWOVvQzsJj5O-CxDAeon-Vw | 378 | 292
+    UCWZu-P34DVZUVrYAROU3Cmw | 286 | 280
+    UCX1S3lCetZc9qf5LSu7-yFg | 1369 | 1240
+    UCX9NCHt0gI0nMbUWNPIKsCw | 120 | 82
+    UCXJBRgiZRZvfilIGQ4wN5CQ | 1364 | 297
+    UCXSknWhye34DTvq-oYcAlSg | 1714 | 140
+    UCXTTZIvh1UAlf0kv6XHvOtg | 606 | 351
+    UCXUY7ZedAkeAH1jQBdoihKg | 1560 | 1114
+    UCX_2-8KGmcSSAF8P0YAVpOQ | 958 | 921
+    UCXdfGoYTQq5eQXP6OJwWSQw | 32 | 28
+    UCXpvI8jeu166he5e_Emo2ig | 2405 | 1920
+    UCY4IRKiV-jGyef351u9B7SA | 1514 | 1439
+    UCYEWIee0ApH6cBxciYxPXDg | 1910 | 380
+    UCYJ61XIK64sp6ZFFS8sctxw | 5452 | 5446
+    UCYo2MjFS5C7Wynyty9wTM7g | 405 | 234
+    UCYyerybBwXg3GhxofPs9eHQ | 410 | 368
+    UCZAnY7eNSydfTCooQmreUJQ | 393 | 381
+    UCZHpIFMfoJJ_1QxNGLJTzyA | 366 | 310
+    UCZMsvbAhhRblVGXmEXW8TSA | 59961 | 30162
+    UCZOM0CqaJ5njZB_O-RyQSsw | 436 | 433
+    UCZX_5XCRE_dZ_4tNXOEYtog | 2044 | 1004
+    UCZiX_brEG6VlfqGjOv78VAw | 3315 | 1429
+    UCZjKcrTI_oBVK0PBuKt0Csg | 762 | 179
+    UCZt4nIjVCTcvVYzjp_VTJew | 828 | 757
+    UCZwBkcBxgpP12o7_YtAxmXg | 553 | 352
+    UC_3M2qj2haMDhrPobUBx1Fw | 970 | 256
+    UC_54Oneq5DtXk13PRtazREQ | 1423 | 1384
+    UC_YnP7DDnKzkkVl3BaHiZoQ | 9039 | 1119
+    UC_cCcxd8yUwIu1-rt5dpBdw | 327 | 261
+    UC_dZp8bZipnjntBGLVHm6rw | 6207 | 5487
+    UCa2ikhDgZNB01WGmvI8784A | 1546 | 337
+    UCaICID7P7gdRoVeeXbj-s7w | 425 | 389
+    UCaWbn671XbI1GLTgndyI7gQ | 381 | 262
+    UCair4tGwkIovC3UQlkc3-zQ | 326 | 319
+    UCanbTgWMvESZy3xhXcxjHcg | 5929 | 3843
+    UCb5TfGtSgvNPVPQawfCFuAw | 1895 | 1409
+    UCbRJHkDuRmTdUj8ETeIp2rw | 694 | 176
+    UCbanHTRuGv2Fi7flpO735yw | 3676 | 3246
+    UCbh5D3EdIHP4YQA5X-eK1ug | 4782 | 4561
+    UCbkFiLRzg8S0iyXgHnAjfdQ | 1750 | 1168
+    UCbpJUoV86egRXUzDCrX0C-g | 627 | 622
+    UCbxb2fqe9oNgglAoYqsYOtQ | 1143 | 529
+    UCc2PueJVrynVhKB99Z0-jew | 1817 | 921
+    UCcHMudRg3_xhJfTGDSRIx1w | 912 | 858
+    UCcPcua2PF7hzik2TeOBx3uw | 21745 | 4439
+    UCcoQ3WG2J_Xjwwyt-sJqh-w | 2054 | 542
+    UCcv4TGfToIWJKIBVdhfRfAA | 631 | 592
+    UCcweJsCV2TUP_kzMX25U-oQ | 9324 | 4886
+    UCd1uEp8YZkV-soNnMstlqTg | 333 | 85
+    UCd5UUo_FcVV3Gd0n-WyhE9g | 940 | 249
+    UCdEOBBKrRrUC1Sw4zWQyqcw | 1228 | 574
+    UCdG3Qj5snC8LL26g0oZmXqw | 1035 | 433
+    UCdGz2Uvjn8guaHTyWIqizpQ | 735 | 179
+    UCdJUFxC2vb7xDAa5M-Mvi_A | 4506 | 430
+    UCdPX3MNVbr5nGRthygN2JRQ | 24184 | 8071
+    UCdQO07TAiovFOgBtgMfWeCQ | 7019 | 1567
+    UCdWyaS6Xtjh4CP7iMFifqgg | 1780 | 1780
+    UCdoHHeblAGGW3uy52DalI7w | 460 | 88
+    UCe5hl70Es-VQ4OWvxssFH4A | 1482 | 1424
+    UCeARcCUiZg79SQQ-2_XNlXQ | 2208 | 459
+    UCeKWO9gvmAyoPiEuaIwnGHQ | 513 | 269
+    UCeMVwcZum_Iicuo3JMuPfPg | 171 | 127
+    UCeP-mETJStV6mg34dfUl6rA | 2281 | 1788
+    UCeWYsa2ynPc0VNwqL-vF2wQ | 155 | 155
+    UCeqKIgPQfNInOswGRWt48kQ | 10284 | 7993
+    UCex-tVEkNsXHikRB3RGKucA | 492 | 379
+    UCf3Ns5rI0nV4EnO-KNxxtLA | 840 | 840
+    UCf4WJRXsgDEP7KH2eNGv8Hw | 586 | 337
+    UCf4YizfEQiftTFR4qbvb5Qw | 1463 | 450
+    UCfIMrBjWDvg_3iQGJhkDe-Q | 1334 | 1143
+    UCfWebHklGjJLdh4SgMVWkwg | 810 | 89
+    UCfa7jJFYnn3P5LdJXsFkrjw | 272 | 188
+    UCfb7LAYCeJJiT3gyquv7V5Q | 363 | 248
+    UCfluzhYpawqHUYNcFdw68Gg | 1808 | 1623
+    UCfmOzrUPX4shSByl7fQPmGg | 217 | 128
+    UCfnNah9Q-A2OzcbqeZQiFhQ | 1708 | 1685
+    UCg1-w2x7jwdQ8-3pM9aUQ6g | 245 | 215
+    UCgAPgHNmQSG_ySHRiOVeF4Q | 8561 | 1556
+    UCgZw_Rxf1RYKDtQr9zdYuwg | 1796 | 938
+    UCgau4awdKG2ni2Ib4jvUqFA | 8228 | 3300
+    UCgcHsYmYWTmLBU034YVSSIA | 483 | 136
+    UCgmB8S3f8-9dR8alVUZuZxQ | 408 | 400
+    UCgvFsn6bRKqND1cW3HpzDrA | 4525 | 1740
+    UCh-Ftqf4si1HFVtDm7Y10yg | 526 | 470
+    UCh7UU4jFZWKzu1KxqDic_Og | 1639 | 1111
+    UCh8EqZyAUunyl1ryHeZAaSw | 3244 | 2193
+    UChkVOG0PqkXIHHmkBGG15Ig | 232 | 213
+    UChvSDcd3cPuvhA0R3FHBFJw | 2048 | 2032
+    UCi-pZ-VukgK9uzymsA0LNQA | 1674 | 1649
+    UCi5RJM_p1NajcGdBQfjyU4A | 1555 | 1230
+    UCiB6I_OMIYRUU6O3aGNxgjw | 718 | 597
+    UCiTJladOHCMkKndVBsn23VQ | 2778 | 2764
+    UCiTKi7Ahf3E2yMGpmIxSvgw | 7777 | 3084
+    UCigtuurEEt3QLwazM_9OvVA | 600 | 172
+    UCiiymOmMRMZV9GZSsfTX4qw | 463 | 378
+    UCj089h5WsDdh1q8t54K3ZCw | 1823 | 1596
+    UCjE2irgQvvNEX9GEv6fMrEw | 1205 | 324
+    UCjM_J6nYvaRx3rZMxkilwLw | 1775 | 9
+    UCjRo7YkneL44wPDUW-aQoww | 1014 | 398
+    UCjSkyrjqPeMwubZU0CnScXA | 1356 | 1028
+    UCjhkuC_Pi85wGjnB0I1ydxw | 2132 | 1336
+    UCjkSqbf8E4MybdYmfhlW10A | 1816 | 335
+    UCjuV53YnSHDfltUSGW3Q0KA | 1116 | 335
+    UCjvVn-oLzoY0aZhVvdQPSTQ | 753 | 253
+    UCjzcAEdtPjSo3hRrhVnVaQg | 1547 | 1009
+    UCkC-9P-VbzSNzsgMwtGdOXg | 675 | 362
+    UCkDNRaTUFuWBRDr7lDETSkw | 375 | 108
+    UCkP3cBG9m7nHSbOOEYugCLA | 111 | 109
+    UCkSEq4JuI5VxqWIrRY2-pew | 656 | 593
+    UCkZ3fSYruC0IXv6p34BHciQ | 640 | 297
+    UCkdzEoq1f5bFbV-pkRwhYRw | 1904 | 1777
+    UCksi8_CDUF0DbnLrgIoRrRg | 1039 | 641
+    UClO1l0P58Hi0Al3v8vRWmGw | 2390 | 1036
+    UClj2hzTR0gl9VfZ9V6CM3kw | 1980 | 1761
+    UCmN5AEULh0GsQ2mwNlyQG-A | 1789 | 1431
+    UCmNyt19w_SVXRik2I1X84dg | 1630 | 0
+    UCmgVL1Bh7oMIdUdLwIsCiGA | 13371 | 1169
+    UCmzLzI-ROdjxWtBOuJTelug | 1499 | 277
+    UCn7wWR5KnpX_N6ZaBNuyVYw | 1521 | 1023
+    UCnk0-FU1ybs9MpWg8g3yqMw | 4022 | 3937
+    UCnrsFEWCT3IHHc_J8YsVDAw | 817 | 586
+    UCo3KvUOtPnsijOhEcEf9nvg | 391 | 254
+    UCo4693Ony4slDY5hR0ny-bw | 250 | 250
+    UCo6utge9KpJI61gXe7ngUJQ | 1898 | 961
+    UCoBHyjPTvBxt87F6jfiEIEg | 1698 | 411
+    UCoKCF-pUbhJtSsSGs6JCLfQ | 550 | 544
+    UCoSKQ9e_DsYpFVsuUKaus9A | 447 | 59
+    UCoUN_yusGiLh9uwLN2xZuYw | 1272 | 1022
+    UCoVxi4FUUcO5Jyx1EtpERZw | 86 | 52
+    UCodzpCel9VT-Sc0K7eeHm-w | 1724 | 1063
+    UCol-Re86up3bOE6HRR6ePMQ | 5252 | 25
+    UCouZW6lGRZ6MaUk9w_ACztQ | 2034 | 1982
+    UCpDTqrpAxzNnZ7awX4J2HHA | 1174 | 344
+    UCpV9LpCg4uwYCQZ3qoEn_YQ | 3843 | 3781
+    UCq-b0dwW97YRZWgSCikWQRA | 6189 | 4032
+    UCq2ej2M1Fb62hZxfahZ536A | 1506 | 1453
+    UCq2rogaxLtQFrYG3X3KYNww | 1823 | 1129
+    UCq880QL0THPePYuGKV7PxZw | 41 | 28
+    UCqLv2nTsMB_FXtQRFNXjWhA | 761 | 532
+    UCqQ9P_ObrTQ0MhUnZffKkGA | 156 | 152
+    UCqZSdUJqd2T0oqr6BEA3ONw | 3437 | 3346
+    UCqmQ1b96-PNH4coqgHTuTlA | 1639 | 604
+    UCr78AIw8O_HGs2jMUAGEp_g | 1012 | 1004
+    UCrGy59kaH785Ac6KIl2y65A | 794 | 143
+    UCrb6U1FuOP5EZ7n7LfOJMMQ | 477 | 118
+    UCs-G8CXCziErSY1459e7U8A | 5437 | 593
+    UCs05VH8MBAaX_cNXlrYIZkA | 624 | 207
+    UCsE1D4wRSH0mZIwhazvyTUQ | 837 | 835
+    UCsFtUYhrGmOck_UeVPD-AJQ | 1317 | 710
+    UCsI9oTkm0H9GnK5K1fmFMug | 6244 | 3859
+    UCsLN1bEfDJoZOs8udTwHatQ | 1371 | 1330
+    UCscq7owVpBCr1w3LQO1aGEw | 1094 | 0
+    UCsdf_os0T0MizL_GRDYsLDQ | 1725 | 121
+    UCsekpwdMv9PBCOftuuKncfw | 4538 | 3842
+    UCsgW8jrCmWjcys7iZTl7wYQ | 361 | 357
+    UCskvXSvph6FlEZa5B6uJnVg | 162 | 106
+    UCt-LS-iOO2Aultxo2gtHA4g | 331 | 322
+    UCt8HsnMdQAuQUMDNNjSJdnw | 749 | 401
+    UCtIdmHlJYcToNr3o05Cv0Nw | 1624 | 35
+    UCtQFxktythX5mGgZm0Pag2Q | 242 | 145
+    UCtg17AAUcgsfmTZ7cOojgpA | 1035 | 364
+    UCthYpKoujTMmDX75fGr5o8A | 3242 | 2783
+    UCtikxfWPhyZS_9-kiS5dILA | 422 | 188
+    UCtnSmfVH1brwwMk8JYmYPvw | 578 | 527
+    UCtyFVwXiQUaZNrE_4fE30_A | 1362 | 848
+    UCu02GkFNrMRzwysT2SEmNrQ | 559 | 556
+    UCuR7hglVNuxnvQffSoOwrag | 269 | 39
+    UCuXKxMi1MAxPVZVT0bc976Q | 1399 | 247
+    UCucMlG7a_4kewYrXhTK_PKg | 2650 | 796
+    UCueJOpg1SG9mahPjhALlvJw | 942 | 319
+    UCurhHQ_5JN-QzLNuO52EwOQ | 3936 | 1577
+    UCuzRXB-EOz1FZx2l7xw2nQQ | 338 | 301
+    UCuziK4bUFRr3z62bE7FMDPQ | 1053 | 531
+    UCv1WDP5EiipMQ__C4Cg6aow | 1416 | 1401
+    UCvOXPxj9VHHUQjGWENjpceg | 2661 | 2620
+    UCvPGXnZmXrkPrdYKRZ0M1bg | 2676 | 1379
+    UCvwE_EBBDWM552Vd9v8m9Gg | 3088 | 2317
+    UCvx-64VlcyeDFBLwtR4G6vg | 785 | 693
+    UCvzg7eXwCmjn2kfJJHSJjKQ | 1122 | 350
+    UCw-SjGVT0HK7czJkLgdv3Fw | 592 | 261
+    UCwB2s-AVGQxYqrnWcVe79fg | 4563 | 3794
+    UCwIOCxPAbHdcQ7bgOneCu1Q | 683 | 269
+    UCwYBPCufK3m6J-2u6kcmgoQ | 650 | 270
+    UCwtBLZ8VGfchDTJ_cYZ5S1A | 11368 | 8857
+    UCwyiPnNlT8UABRmGmU0T9jg | 21328 | 20098
+    UCx0ZfHVgupjADCt7BH3G4IA | 304 | 205
+    UCx80Q7lPqzfWBRIrQ-97f3g | 218 | 64
+    UCxOGWb_OYoaz2V3QclJT3YA | 403 | 218
+    UCxQdpLijLxJTXUgmM03xT0g | 1098 | 1031
+    UCxU1a-2vec6ljU43I0F2Jwg | 5688 | 606
+    UCxlEazKoCv2mNFiiVPOUESQ | 597 | 107
+    UCy4_zQ59zmS7zO4Dc6vbT_w | 1649 | 1139
+    UCyH9w3VhfZPdjH28VFeoHUA | 4850 | 4115
+    UCyHDQ5C6z1NDmJ4g6SerW8g | 73 | 45
+    UCyQpfuhftLvrmjxgEzVH78Q | 47230 | 21371
+    UCycuPgtpxdu_6-1nVXgzPmg | 258 | 198
+    UCyw8Tkb44AGA2eB8K9fRioQ | 3708 | 2368
+[Merge] frage1_kanal_whitelist: 279 gematcht, 148 nur Export, 0 nur Quelle
+[Sample] aktiv vor Kriegsbeginn (>= 1 Video in [2021-02-24, 2022-02-24)): 329 Kanaele
+[Check] ok: Medientyp-Datei ohne widerspruechliche Duplikate
+[Laden] Medientyp: 432 Kanaele (2 identische Duplikatzeilen entfernt), Rohcodes {1: 59, 2: 46, 3: 306, 4: 19, 5: 2}
+[Check] ok: nur bekannte Medientyp-Rohcodes
+[Merge] Medientyp-Excel: 424 gematcht, 3 nur Export, 8 nur Quelle
+[Ideologie] Baseline-Videos ohne Kriegsbezug mit IDEOLOGIE_I-Klassifikation: 4765 (353 Kanaele)
+[Merge] API-Abbruch (playlist_limit): 10 Kanaele, davon im Sample 10
+
+[Abdeckung] Videoebene (Anteil nicht fehlend bzw. = 1):
+    views: 99.90% nicht fehlend
+    likes: 99.48% nicht fehlend
+    kommentare: 77.96% nicht fehlend
+    politisch: 99.71% nicht fehlend
+    krieg: 95.71% nicht fehlend
+    topic_corona: 95.71% nicht fehlend
+    krieg_transkript: 4.64% nicht fehlend
+    pop_gesamt: 4.55% nicht fehlend
+    pos_russland: 3.87% nicht fehlend
+    pos_westpolitik: 3.75% nicht fehlend
+    politisch_klass = 1: 540511 (99.71%)
+    krieg_klass = 1: 518871 (95.71%)
+    topic_klass = 1: 518871 (95.71%)
+    pop_klass = 1: 25161 (4.64%)
+    pos_klass = 1: 24950 (4.60%)
+    transkript = 1: 37141 (6.85%)
+    baseline_stichprobe = 1: 2646 (0.49%)
+[Abdeckung] Kanaele je Sample-Kennzeichen und Medientyp:
+          sample_vorkrieg      sample_baseline      sample_whitelist     
+                      sum size             sum size              sum size
+medientyp                                                                
+-1                      0    3               0    3                0    3
+ 1                     40   60              42   60               44   60
+ 2                     35   44              37   44               38   44
+ 3                     16   19              18   19               16   19
+ 4                    132  301             213  301              181  301
+    Kanaele gesamt: 427, ohne Medientyp: 3, mit Ideologie-Baseline: 347
+
+[Check] ===== Konsistenzpruefungen (Codebuch) =====
+[Check] ok: 1a video_id in videos_roh eindeutig
+[Check] ok: 1b channel_id in kanaele_roh eindeutig
+[Check] ok: 2 jede channel_id aus videos_roh existiert in kanaele_roh
+[Check] ok: 3 dauer_sek > 180 fuer alle Videos
+[Check] 4 (nur Anzahl, Entscheidung 02.10.2026: Werte bleiben drin): 2242 positionsklassifizierte Videos vor Kriegsbeginn
+[Check] ok: 5 pop_klass = 0 => pop_gesamt = .
+[Check] 5 Hinweis: pop_klass = 1, aber pop_gesamt = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pop_klass = 0 => pop_volk = .
+[Check] 5 Hinweis: pop_klass = 1, aber pop_volk = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pop_klass = 0 => pop_antielite = .
+[Check] 5 Hinweis: pop_klass = 1, aber pop_antielite = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pop_klass = 0 => pop_manich = .
+[Check] 5 Hinweis: pop_klass = 1, aber pop_manich = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pop_klass = 0 => pop_emotion = .
+[Check] 5 Hinweis: pop_klass = 1, aber pop_emotion = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pos_klass = 0 => pos_russland = .
+[Check] 5 Hinweis: pos_klass = 1, aber pos_russland = . bei 3972 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 pos_klass = 0 => pos_westpolitik = .
+[Check] 5 Hinweis: pos_klass = 1, aber pos_westpolitik = . bei 4608 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
+[Check] ok: 5 politisch_klass = 0 => politisch = .
+[Check] ok: 5 krieg_klass = 0 => krieg = .
+[Check] ok: 5 topic_klass = 0 => topic_corona = .
+[Check] ok: 5 topic_klass = 0 => topic_migration = .
+[Check] ok: 5 topic_klass = 0 => topic_wirtschaft = .
+[Check] ok: 5 topic_klass = 0 => topic_energie = .
+[Check] ok: 5 krieg_klass = 0 => krieg_quelle leer
+[Check] ok: 5 pop_klass = 0 => krieg_transkript = .
+[Check] ok: 6 pop_baseline = Nachberechnung aus Baseline-Videos (max. Abweichung 0.00e+00, Toleranz 1e-09)
+[Export] videos_roh.dta: 542110 Zeilen, 42 Variablen
+[Export] kanaele_roh.dta: 427 Zeilen, 21 Variablen
+[Export] check_rohdaten.do geschrieben

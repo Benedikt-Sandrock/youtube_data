@@ -62,6 +62,11 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Populismus-/Haltung-Auswertung) siehe `outputs/segment_analysis/README.md`
   — Einstiegspunkt für jede neue Session, verlinkt Stand, offene TODOs und
   das laufend aktualisierte Ergebnis-Dokument.
+- `outputs/masterarbeit/` — Ergebnisse der Arbeitspakete aus
+  `.claude/plans/masterarbeit_strategie.md`, je AP ein Unterordner
+  (`apN_<thema>/`, Regressionsausgaben in `regression_results/`). Die
+  Eingangsdaten bleiben in `outputs/segment_analysis/`; Übersicht und Status in
+  `outputs/masterarbeit/README.md`.
 
 ## Code
 
@@ -118,6 +123,8 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Migrationsskripte der Store-Umstellung, Phase 3). Neue Ad-hoc-Skripte
   gehören ebenfalls hierher, nicht lose in `src/youtube_code/` (siehe
   `.claude/CLAUDE.md`).
+- `scripts/masterarbeit/` — AP-spezifische Auswertungsskripte für die
+  Arbeitspakete der Masterarbeit (`apN_<thema>.py`, siehe `README.md` dort).
 - `scripts/archive/` — abgelöste Root-level-Skripte.
 
 ## Backups

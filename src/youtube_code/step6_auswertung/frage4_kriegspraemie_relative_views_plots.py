@@ -62,7 +62,10 @@ und wuerde die ohnehin knappe Kriegsvideo-Stichprobe weiter verkleinern.
 
 Datenquelle: outputs/segment_analysis/channel_video_erfolg.csv (Video-Ebene, bereits Whitelist-
 gefiltert, aus prepare_success_metrics.py) + screening_state_store.get_state() (politics_final),
-gemerged ueber video_id.
+gemerged ueber video_id. lade_basisdaten(kanalquelle="kanon") liefert dieselbe Struktur fuer das
+volle kanonische Sample (russia_longitudinal_v1) direkt aus der video_registry - von diesem
+Skript selbst nicht genutzt, sondern von scripts/masterarbeit/ap2_marktanteil_stichprobenbias.py
+und scripts/adhoc/marktanteil_vergleich_279_vs_427.py (siehe _lade_basisdaten_kanon()).
 
 Wiederverwendete Bausteine (Reuse-Prinzip aus CLAUDE.md): baue_gruppe5_lokal() und glaette() werden
 als echter Import aus frage2_sensitivitaet_plots uebernommen (kein Duplikat) - analog zu
@@ -80,7 +83,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from youtube_code.config import OUTPUTS
+from youtube_code.config import OUTPUTS, SAMPLES
 from youtube_code.store.screening_state_store import get_state
 from youtube_code.store.video_registry import politics_topic_lookup
 from deskriptiv_aggregation import lade_medientyp, lade_ideologie
@@ -134,6 +137,11 @@ METRIKEN = {
 }
 
 PFAD_VIDEO_EBENE = OUTPUTS / "segment_analysis" / "channel_video_erfolg.csv"
+
+# Nur fuer lade_basisdaten(kanalquelle="kanon"): volles kanonisches Sample statt Whitelist.
+KANON_ANALYSIS_ID = "russia_longitudinal_v1"
+KANON_SAMPLE_PFAD = SAMPLES / KANON_ANALYSIS_ID / "channel_sample_provenance.csv"
+KANON_TOPIC = "russia_ukraine_war"
 PFAD_PLOTS = OUTPUTS / "segment_analysis" / "plots_frage4_kriegspraemie_relative_views"
 PFAD_METHODIK = PFAD_PLOTS / "kriegspraemie_relative_views_methodik.md"
 
@@ -150,13 +158,108 @@ GLAETTUNG_LOWESS_FRAC = 0.1
 # SCHRITT 1: Basisdaten
 # =========================================================
 
-def lade_basisdaten():
-    """Liest channel_video_erfolg.csv (Video-Ebene), ergaenzt medientyp/ideologie_gruppe/gruppe5
+def lade_kanon_kanalliste():
+    """channel_id's mit eligible_current_analysis == True aus der kanonischen Sample-Definition
+    (KANON_SAMPLE_PFAD, dieselbe Quelle/Bedingung wie frage1_stichprobe.py Stufe 0, aber OHNE
+    die Stufen 1/2 des Frage-1-Funnels - genau das ist der Unterschied zur Whitelist)."""
+    sample = pd.read_csv(KANON_SAMPLE_PFAD)
+    sample["channel_id"] = sample["channel_id"].astype(str)
+    kanon = sample[sample["eligible_current_analysis"] == True][["channel_id"]].drop_duplicates()
+    return kanon["channel_id"].tolist()
+
+
+def _lade_basisdaten_kanon():
+    """Baut dieselbe Video-Ebene-Struktur wie die Whitelist-Variante von lade_basisdaten(), aber
+    fuer das volle kanonische Sample (KANON_ANALYSIS_ID, 427 Kanaele, davon 367 mit gueltigem
+    gruppe5) direkt aus der video_registry statt aus channel_video_erfolg.csv:
+    video_registry.get_video_stats() + get_topic_relevance() fuer ist_kriegsvideo +
+    screening_state_store.get_state() fuer politics_final + politics_topic_lookup() fuer
+    ist_politics_topic + prepare_channel_scores.ergaenze_periodenspalten() fuer rel_monat/
+    rel_quartal. Videos ohne published_at oder view_count werden verworfen (Konsolenhinweis).
+
+    Uebernommen aus scripts/adhoc/marktanteil_vergleich_279_vs_427.py (2026-09-28, AP 2 der
+    Masterarbeit-Strategie), damit AP 2 und das Adhoc-Skript denselben Lader nutzen.
+
+    Anders als die Whitelist-Variante dedupliziert diese Variante lade_medientyp()/
+    lade_ideologie() defensiv auf channel_id: channel_classification_ideology.csv enthaelt fuer
+    3 channel_id's Duplikatzeilen, ein ungeschuetzter Merge wuerde jede Videozeile dieser Kanaele
+    verdoppeln. Der zentrale Fix in deskriptiv_aggregation.lade_ideologie() steht noch aus
+    (offener Punkt fuer AP 9) - die Whitelist-Variante bleibt bis dahin bewusst unveraendert,
+    damit bereits berichtete Zahlen reproduzierbar bleiben."""
+    from youtube_code.store import video_registry
+    from deskriptiv_plots import baue_gruppe5
+    from prepare_channel_scores import ergaenze_periodenspalten
+
+    channel_ids = lade_kanon_kanalliste()
+    print(f"[Kanon-Sample] {len(channel_ids)} Kanaele (eligible_current_analysis==True).")
+
+    stats = video_registry.get_video_stats(channel_ids=channel_ids)
+    stats["channel_id"] = stats["channel_id"].astype(str)
+    stats["video_id"] = stats["video_id"].astype(str)
+    stats["published_at"] = pd.to_datetime(
+        stats["published_at"], errors="coerce", utc=True
+    ).dt.tz_localize(None)
+
+    ohne_datum = stats["published_at"].isna()
+    if ohne_datum.any():
+        print(f"[Video-Stats] {int(ohne_datum.sum())} von {len(stats)} Videos ohne "
+              f"published_at -> verworfen.")
+        stats = stats[~ohne_datum]
+
+    ohne_views = stats["view_count"].isna()
+    if ohne_views.any():
+        print(f"[Video-Stats] {int(ohne_views.sum())} von {len(stats)} Videos ohne "
+              f"view_count -> verworfen.")
+        stats = stats[~ohne_views]
+
+    med = lade_medientyp().drop_duplicates(subset="channel_id", keep="first")
+    ideo = lade_ideologie().drop_duplicates(subset="channel_id", keep="first")
+    med["channel_id"] = med["channel_id"].astype(str)
+    ideo["channel_id"] = ideo["channel_id"].astype(str)
+
+    df = stats.merge(med, on="channel_id", how="left").merge(ideo, on="channel_id", how="left")
+    df = baue_gruppe5(df)
+    print(f"[Gruppe5] {df['channel_id'].nunique()} von {len(channel_ids)} Kanon-Kanaelen mit "
+          f"gueltigem gruppe5.")
+
+    relevanz = video_registry.get_topic_relevance(topic=KANON_TOPIC,
+                                                  video_ids=df["video_id"].tolist())
+    relevante_ids = set(relevanz.loc[relevanz["is_relevant"] == 1, "video_id"])
+    df["ist_kriegsvideo"] = df["video_id"].isin(relevante_ids).astype(int)
+
+    df = ergaenze_periodenspalten(df)
+
+    state = get_state()[["video_id", "politics_final"]]
+    state["video_id"] = state["video_id"].astype(str)
+    df = df.merge(state, on="video_id", how="left")
+
+    topic_map = politics_topic_lookup(df["video_id"].tolist())
+    df["ist_politics_topic"] = df["video_id"].map(topic_map)
+
+    df = df[(df[SPALTE_PERIODE] >= PERIODE_MIN) & (df[SPALTE_PERIODE] <= PERIODE_MAX)]
+    print(f"[Basisdaten Kanon] {len(df)} Videos, {df['channel_id'].nunique()} Kanaele im Fenster "
+          f"{SPALTE_PERIODE} in [{PERIODE_MIN}, {PERIODE_MAX}].")
+    return df
+
+
+def lade_basisdaten(kanalquelle="whitelist"):
+    """Video-Ebene-Basisdaten fuer die Marktanteils-/Kriegspraemien-Skripte.
+
+    kanalquelle="whitelist" (Default, alle bestehenden Aufrufe): liest channel_video_erfolg.csv
+    (Video-Ebene, 279er-Frage-1-Whitelist), ergaenzt medientyp/ideologie_gruppe/gruppe5
     (dieselben Bausteine wie frage2_sensitivitaet_plots.py) sowie politics_final aus
     screening_state_store.get_state() (Merge ueber video_id, Left-Join - Videos ohne
     screening_state-Eintrag bekommen politics_final = NaN) UND ist_politics_topic aus
     video_registry.politics_topic_lookup() (seit 2026-09-08, deutlich hoehere Abdeckung - siehe
-    Moduldocstring), filtert auf PERIODE_MIN/PERIODE_MAX."""
+    Moduldocstring), filtert auf PERIODE_MIN/PERIODE_MAX.
+
+    kanalquelle="kanon": volles kanonisches Sample direkt aus der video_registry, siehe
+    _lade_basisdaten_kanon()."""
+    if kanalquelle == "kanon":
+        return _lade_basisdaten_kanon()
+    if kanalquelle != "whitelist":
+        raise ValueError(f"Unbekannte kanalquelle {kanalquelle!r} (erlaubt: 'whitelist', 'kanon').")
+
     df = pd.read_csv(PFAD_VIDEO_EBENE)
     df["channel_id"] = df["channel_id"].astype(str)
     df["video_id"] = df["video_id"].astype(str)
