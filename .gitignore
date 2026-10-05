@@ -1,6 +1,7 @@
 .venv/
 .idea/
 __pycache__
+.claude/settings.local.json
 /project_videos/code/downloads/
 .env
 /data/raw/channel_metadata.json
@@ -11,16 +12,59 @@ __pycache__
 /youtube_data.egg-info/
 /data/transcripts/all_transcripts_backup.csv
 /scripts/old/transcript_analysis/id_files_done/
-/data/raw/channel_metadata_total.json
-/data/raw/video_metadata_total.jsonl
-/data/raw/video_metadata_detailed_total.json
-/outputs/activity_over_time/
-/src/youtube_code/outcome_analysis/gaa.csv
-/outputs/llm/gemini/results/
-/outputs/llm/gemini/classification_41/
-/outputs/llm/gemini/classification_42/
-/outputs/llm/gemini/results_merged/all_results_merged_411.xlsx
+/data/archive/raw/channel_metadata_total.json
+/data/archive/raw/video_metadata_total.jsonl
+/data/archive/raw/video_metadata_detailed_total.jsonl
+/outputs/archive/activity_over_time/
+/src/youtube_code/archive/outcome_analysis/gaa.csv
+/outputs/archive/llm/gemini/results/
+/outputs/archive/llm/gemini/classification_41/
+/outputs/archive/llm/gemini/classification_42/
+/outputs/archive/llm/gemini/results_merged/all_results_merged_411.xlsx
 /scripts/downloads/
 /data/samples/**/*.json
 /data/samples/**/*.csv
-/outputs/llm/gemini/nahost_descriptive_figures/
+/outputs/archive/llm/gemini/nahost_descriptive_figures/
+/data/archive/channel_lists/archive/party_identification/channel_identification/
+/src/youtube_code/transcript_analysis/id_files_done/
+/data/raw/videos_total.json
+/data/transcripts/all_transcripts.csv
+/data/transcripts/all_transcripts_2.csv
+/data/transcripts/all_transcripts_segments.csv
+/data/archive/raw/video_metadata_detailed_total.jsonl
+/data/samples/archive/archive_russia/videos_wo_shorts_description.jsonl
+/data/samples/archive/russia/fdescription_training_sample_42.xlsx
+/outputs/archive/llm/title_classification/run*
+/outputs/archive/llm/description_classification/
+/outputs/segment_analysis/*.csv
+/outputs/archive/segment_analysis/plots/
+/outputs/archive/sample_feasibility/
+/outputs/archive/pilot/
+# Phase 4e: LLM-Ergebnisse konsolidiert nach outputs/llm_results/
+# (outputs/llm/longitudinal/ existiert seitdem nicht mehr).
+/outputs/llm_results/
+/data/samples/archive/russia/batches_longitudinal/
+/data/samples/archive/russia/classification/
+
+# Phase 0b: lokale Sicherungskopien (Restrukturierung) - nie tracken
+/_backups/
+
+# Phase 5: zentrale SQLite-Stores (data/store/) - zu groß für Git, nie tracken.
+# Sidecar-Dateien (WAL-Modus) koennen jederzeit entstehen.
+/data/store/*.sqlite
+/data/store/*.sqlite-wal
+/data/store/*.sqlite-shm
+/data/archive/raw/neue_kanaele_video_metadata_detailed.jsonl
+/data/archive/raw/sample_50k_channels_russia_ukraine.json
+/outputs/segment_analysis/
+/outputs/archive/
+/scripts/adhoc/output/
+/src/youtube_code/archive/
+/data/exploration/
+/data/samples/russia/
+
+# Store-Verzeichnis komplett ausschliessen: neben den *.sqlite-Dateien liegen
+# dort auch manuelle Sicherungen (*.bak_*, *_backup_*.csv) im GB-Bereich.
+/data/store/
+# Validierungs-Outputs (Datendateien, ~245 MB)
+/outputs/validation/

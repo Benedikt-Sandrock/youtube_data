@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[3]
 DATA = ROOT / "data"
 
 RAW = DATA / "raw"
+STORE = DATA / "store"
 CHANNEL_LISTS = DATA / "channel_lists"
 TRANSCRIPTS = DATA / "transcripts"
 SAMPLES = DATA / "samples"
@@ -20,7 +21,11 @@ LLM = OUTPUTS / "llm"
 
 OUTPUT_GEMINI = LLM / "gemini"
 VALIDATION = OUTPUTS / "validation"
-REPORTS = OUTPUTS / "reports"
-GRAPHS = OUTPUTS / "graphs"
-ACTIVITY = OUTPUTS / "activity_over_time"
+# Ergebnisse der Arbeitspakete aus .claude/plans/masterarbeit_strategie.md,
+# je AP ein Unterordner (z. B. MASTERARBEIT_OUTPUTS / "ap1_selektion")
+MASTERARBEIT_OUTPUTS = OUTPUTS / "masterarbeit"
 
+ADHOC_OUTPUT = ROOT / "scripts" / "adhoc" / "output"
+MASTERARBEIT_SCRIPTS = ROOT / "scripts" / "masterarbeit"
+
+SRC = ROOT / "src" / "youtube_code"

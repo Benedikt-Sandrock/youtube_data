@@ -1,0 +1,38 @@
+Du erhältst das Transkript eines deutschen YouTube-Videos. Analysiere es anhand der folgenden Kriterien.
+
+1. VIDEO-TYP:
+Bestimme, ob es sich um ein Reaction-Video handelt. Erlaubte Werte: "Reaction" oder "Standard".
+
+2. POLITISCHE IDEOLOGIE (Skala 0 bis 10):
+Bewerte die Position des Creators auf einer Skala von 0 (extrem links) bis 10 (extrem rechts).
+- Neutral/ausgewogen = 5.0. Unpolitisches Video = -1.0.
+
+!!! WICHTIGER DIAGNOSTISCHER UNTERSCHIED (Ideologie vs. Populismus) !!!
+Unterscheide strikt zwischen populistischer Rhetorik (Systemkritik) und der tatsächlichen politischen Ideologie (vorgeschlagene Lösungen):
+- Systemkritik, Anti-Establishment-Rhetorik, pauschales Misstrauen gegenüber Institutionen/Medien und die Aufteilung in "die Elite da oben vs. das Volk" sind reine Merkmale von POPULISMUS, nicht von linker oder rechter Ideologie.
+- Bestimme die IDEOLOGIE (Links vs. Rechts) ausschließlich anhand konkreter Inhalte und Werte
+
+Skala (Orientierungspunkte):
+0.0–2.0 = klar links bis extrem links
+3.0–4.0 = moderat bis leicht links
+5.0     = neutral, ausgewogen oder nicht eindeutig einordenbar
+6.0–7.0 = leicht bis moderat rechts
+8.0–10.0 = klar bis extrem rechts
+
+- Bei gemischten Signalen: folge dem dominierenden Bereich, setze NICHT automatisch 5.0.
+- Wenn die im Video behandelten Themen vollständig unpolitisch/ideologiefrei sind (z. B. reines Gaming, Kochvideo, Lifestyle ohne gesellschaftlichen Bezug), setze den Score zwingend auf -1.0. Wenn das Video ein vollständig neutraler Bericht über politische Ereignisse ist, setze den Score auf 5.0.
+
+
+3. POPULISMUS (Skala 0 bis 10):
+Bewerte den Populismusgrad basierend auf dem "ideational approach".
+WICHTIG: Reine Sachkritik an Institutionen, Politikern oder Gesetzen ist KEIN Populismus. Populismus erfordert zwingend eine moralisierende Abwertung und die Aufteilung der Welt in zwei homogene, antagonistische Gruppen.
+
+Skala (Orientierungspunkte):
+0.0 = Keinerlei populistische Kommunikation. (Entweder komplett unpolitisch oder rein sachliche, differenzierte Kritik an Institutionen/Prozessen ohne moralisierendes Framing).
+2.0 = Erste populistische Tendenzen. (Die Kritik an Institutionen verlässt punktuell die Sachebene. Es gibt vereinzelte, moralisierende Spitzen oder ein leichtes "Wir gegen Die"-Gefühl, das aber nicht den Kern der Argumentation bildet).
+4.0 = Latenter Populismus / Wiederkehrende populistische Kritik. (Institutionen oder Medien werden regelmäßig als abgehoben oder bürgerfern geframed. Die Kritik wechselt wiederholt von der Sachebene in ein pauschalisierendes Muster, bleibt aber noch moderat im Ton).
+6.0 = Manifestierter Populismus / Deutliches Establishment-vs-Bürger-Framing. (Die Argumentation baut aktiv auf dem Gegensatz zwischen "den Bürgern" und "den Institutionen/Eliten" auf. Institutionen wird systematisch unterstellt, nicht im Sinne des Volkes zu handeln).
+8.0 = Starker Populismus / Ausgeprägtes Volk-vs-Elite-Narrativ. (Dominantes Weltbild im Video. "Die Elite/Das System" wird als homogen, egoistisch und grundlegend korrupt dargestellt, während "das Volk" als die einzig moralisch reine Instanz inszeniert wird).
+10.0 = Totaler Populismus / Verschwörungsideologisches Eliten-Narrativ. (Das gesamte Video basiert ausschließlich auf der Prämisse einer fundamental korrupten, böswilligen Elite, die das Volk aktiv betrügt, unterdrückt oder manipuliert. Jegliche Sachlichkeit fehlt).
+
+Hier ist das Transkript:

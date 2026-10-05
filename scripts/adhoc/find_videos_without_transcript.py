@@ -1,0 +1,99 @@
+import json
+from youtube_code.utils import load_json, merge_channel_name, save_json
+from youtube_code.config import RAW, OUTPUT_GEMINI, TRANSCRIPTS
+import pandas as pd
+
+
+# df = pd.read_json("../party_identification/keyword_videos_50k_channels.json")
+# df2 = pd.read_json("../conflict_over_time/keyword_videos_50k_channels.json")
+#
+# ids1 = set(df["video_id"].to_list())
+# ids2 = set(df2["video_id"].to_list())
+#
+# intersection = ids1 & ids2
+# total = ids1 | ids2
+# only1 = ids1 - ids2
+# only2 = ids2 - ids1
+# print(len(intersection), len(total), len(only1), len(only2))
+
+# df = pd.read_json("keyword_videos_50k_channels.json")
+df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+df3 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+df2 = pd.concat([df2, df3])
+print(len(df2))
+# ids = df["video_id"].to_list()
+# print(len(ids))
+# df2 = df2[df2["video_id"].isin(ids)]
+# print(len(df2))
+#
+# df2.to_csv("keyword_videos_50k_channels.csv", index=False)
+
+df2 = df2[df2["status"] != "OK"]
+print(len(df2))
+vids = df2["video_id"].to_list()
+
+df  = pd.read_json(RAW/"video_metadata_total.jsonl", lines= True)
+df = pd.merge(df2, df[["video_id", "channel_id"]], on = "video_id", how = "left")
+df.to_csv("videos_wo_transcript.csv", index=False)
+
+#
+#kw = load_json("keyword_videos_50k_channels.json")
+# kw = set(v["channel_id"] for v in kw)
+#
+# data = load_json("sampled_50k_channels.json")
+# print(len(data))
+#
+# data = [v for v in data if v["channel_id"] in kw]
+# print(len(data))
+#
+# #save_json("relevant_sampled_50k_channels.json", data)
+# video_ids = [v["video_id"] for v in data]
+#
+# df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+# df2 = pd.read_csv(TRANSCRIPTS / "all_transcripts_2.csv")
+# df =pd.concat([df, df2])
+#
+# ids = set(df["video_id"].to_list())
+# print(len(ids))
+#
+# video_ids = set(video_ids)
+# print(len(video_ids))
+#
+# inter = video_ids & ids
+# print(len(inter))
+# rest = video_ids - ids
+# print(len(rest), rest)
+# df = df[df["video_id"].isin(video_ids)]
+#
+# print(len(df))
+
+
+
+
+# kw = pd.read_json("keyword_videos_50k_channels.json")
+# print(len(kw))
+# kw = kw.groupby("channel_title", group_keys=False).apply(
+#     lambda x: x.sample(n=100, random_state=42) if len(x) > 100 else x
+# ).reset_index()
+# print(len(kw))
+#
+# video_ids = kw["video_id"].to_list()
+#
+# kw_max100 = load_json("keyword_videos_50k_channels.json")
+#
+# kw_max100 = [v for v in kw_max100 if v["video_id"] in video_ids]
+# print(len(kw_max100))
+# with open("kw_vids.json", "w", encoding = "utf-8") as f:
+#     json.dump(kw_max100, f, ensure_ascii = False, indent = 2)
+
+
+# df = pd.read_csv(TRANSCRIPTS / "all_transcripts.csv")
+# #
+# # ids = [v["video_id"] for v in kw]
+# #
+# df = df[df["video_id"].isin(video_ids)]
+# #
+# print(len(df))
+# df = df[df["status"] =="OK"]
+# print(len(df))
+# df.to_csv("transcripts_combined_max100.csv", index = False)

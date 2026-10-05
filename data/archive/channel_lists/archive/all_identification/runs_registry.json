@@ -1,0 +1,155 @@
+{
+  "20260630_111000": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2023-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:10:34"
+  },
+  "20260630_111134": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:11:50"
+  },
+  "20260630_111217": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2023-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:12:36"
+  },
+  "20260630_111315": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:13:32"
+  },
+  "20260630_111411": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T11:14:28"
+  },
+  "20260630_225240": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T22:52:54"
+  },
+  "20260630_225317": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-06-30T22:53:43"
+  },
+  "20260701_162148": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:22:28"
+  },
+  "20260701_162327": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2023-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:23:47"
+  },
+  "20260701_162355": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2023-01-01",
+    "search_end": "2024-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:24:11"
+  },
+  "20260701_162442": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2024-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-01T16:25:09"
+  },
+  "20260702_203504": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:36:07"
+  },
+  "20260702_203720": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:37:41"
+  },
+  "20260702_203800": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2025-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-02T20:38:29"
+  },
+  "20260705_000728": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2025-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:08:05"
+  },
+  "20260705_000854": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2021-01-01",
+    "search_end": "2022-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:09:11"
+  },
+  "20260705_001039": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2022-01-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-07-05T00:11:20"
+  }
+}
