@@ -16,7 +16,7 @@ ausschließlich über die passenden Module in `src/youtube_code/store/` (nie
 
 | Store | Modul | Inhalt |
 | --- | --- | --- |
-| `data/store/video_registry.sqlite` | `video_registry.py` | zentrale Video-/Kanal-Metadaten-Registry, inkl. Kanal-Metadaten (`channels`), Sprachklassifikation (`language_classification`), Such-Provenienz (`search_runs`/`video_search_hits`) sowie Keyword-basierter Themen-Relevanz (`video_topic_relevance`, fünf Themen inkl. Ukraine-Krieg-Bezug, siehe `step3_topic_relevance/`) — alle laufen live mit den Collection-/Klassifikationsskripten mit, keine separate Migration nötig |
+| `data/store/video_registry.sqlite` | `video_registry.py` | zentrale Video-/Kanal-Metadaten-Registry, inkl. Kanal-Metadaten (`channels`), Sprachklassifikation (`language_classification`), Such-Provenienz (`search_runs`/`video_search_hits`) sowie Keyword-basierter Themen-Relevanz (`video_topic_relevance`, fünf Themen inkl. Ukraine-Krieg-Bezug, siehe `step3_topic_relevance/`) sowie das Video-Format je Video (`video_format`: short/long/live, siehe `step1_sample/channel_video_formats.py`) — alle laufen live mit den Collection-/Klassifikationsskripten mit, keine separate Migration nötig |
 | `data/store/transcripts.sqlite` | `transcript_store.py` | heruntergeladene Transkripte |
 | `data/store/screening_state.sqlite` | `screening_state_store.py` | longitudinaler Politik-Screening-Status |
 | `data/store/llm_runs.sqlite` | `llm_run_store.py` | Registry aller eingereichten LLM-Batch-Jobs |
@@ -95,7 +95,9 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Energie; `classify_topic_relevance.py`, Keyword-Quelle `topic_keywords.py`,
   Boilerplate-Filter `boilerplate.py`), schreibt in die Tabelle
   `video_topic_relevance` in `video_registry.sqlite` (siehe `README.md` dort
-  für Details).
+  für Details). Außerdem `news_show_patterns.py`: kanalspezifische
+  Titel-Regex zur Markierung ganzer Nachrichtensendungen bzw. thematischer
+  Sondersendungen (long-Videos).
 - `src/youtube_code/step4_transcript_download/` — COMPLETE_PROCESS.md
   Schritt 4: Zielauswahl für den Transkript-Download (`select_targets.py`,
   drei Konfigurationen: Baseline/Zell-Auffüllung/Kriegszeitraum) und der

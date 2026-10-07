@@ -35,6 +35,12 @@ Modes:
                           looked up again, and the lookup stops once the /videos tab (newest
                           first) has passed the window start - so the quota cost scales with
                           the number of NEW in-window videos, not with the channel's total.
+                          The enumeration itself is lazy, so the older tab pages behind the
+                          window start are not fetched either.
+                          NOTE: the /videos tab contains NO Shorts and NO livestreams - this
+                          mode therefore never finds those. For Shorts/livestreams and a
+                          per-video format flag see channel_video_formats.py (the yt-dlp
+                          enumeration itself lives in youtube_code/utils/ytdlp.py).
                           Quota-safe: results are saved after every channel, a quota error
                           keeps the partial result of the current channel, and a status file
                           next to the channel list (<list>_status.csv) lets a follow-up run
@@ -73,13 +79,12 @@ from typing import Tuple
 import json
 import os
 
-import yt_dlp
-
 from settings_variables import published_before_analysis, published_after_analysis
 from youtube_code.config import API_KEY, API_KEY_C, RAW, CHANNEL_LISTS, OUTPUTS, ADHOC_OUTPUT
 from youtube_code.utils import save_json
 from youtube_code.store import video_registry
 from youtube_code.store.video_registry import upsert_videos as _registry_upsert
+from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 
 # ─────────────────────────────────────────────
 # MODE SWITCH  ←  change this line to switch
@@ -152,9 +157,10 @@ TARGETED_SEARCH_YTDLP_STATUS_FILE = str(TARGETED_SEARCH_YTDLP_CHANNEL_INPUT).rsp
 
 # videos().list erlaubt max. 50 IDs pro Aufruf.
 YTDLP_LOOKUP_BATCH_SIZE = 50
-# Abbruch der Nachschlage-Schleife, sobald so viele aufeinanderfolgende
-# 50er-Batches komplett vor TARGETED_PUBLISHED_AFTER liegen (/videos-Tab ist
-# neueste zuerst sortiert) - 2 statt 1 als Puffer gegen einzelne Ausreisser.
+# Abbruch der Nachschlage-Schleife (und des Blaetterns im /videos-Tab), sobald
+# so viele aufeinanderfolgende 50er-Batches komplett vor
+# TARGETED_PUBLISHED_AFTER liegen (/videos-Tab ist neueste zuerst sortiert) -
+# 2 statt 1 als Puffer gegen einzelne Ausreisser.
 YTDLP_EARLY_STOP_BATCHES = 2
 
 # Language-classification settings
@@ -254,29 +260,10 @@ def get_channel_videos(channel_id: str, published_after: str, published_before: 
     return videos
 
 
-def list_channel_video_ids_ytdlp(channel_id: str) -> list[str]:
-    """
-    Enumerate all video IDs yt-dlp can reach on a channel's public /videos tab via flat
-    (metadata-only) playlist extraction - no per-video downloads, no per-video requests.
-
-    This reaches much further back into a channel's history than playlistItems.list does
-    for very large channels (verified: found videos from over a year before playlistItems
-    stopped paginating for the same channel). The upload-date guess yt-dlp can attach in
-    flat mode is unreliable and deliberately NOT used here - only the IDs are taken; the
-    real publishedAt is looked up afterwards via the Data API.
-    """
-    url = f"https://www.youtube.com/channel/{channel_id}/videos"
-    ydl_opts = {
-        "extract_flat": True,
-        "quiet": True,
-        "no_warnings": True,
-        "skip_download": True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-
-    entries = (info or {}).get("entries") or []
-    return [e["id"] for e in entries if e and e.get("id")]
+# Die yt-dlp-Aufzaehlung des /videos-Tabs liegt seit der Einfuehrung von
+# channel_video_formats.py in youtube_code/utils/ytdlp.py
+# (iter_channel_video_id_batches, lazy in 50er-Bloecken) und wird oben
+# importiert.
 
 
 class YtdlpQuotaExceeded(Exception):
@@ -298,8 +285,8 @@ def get_channel_videos_via_ytdlp(channel_id: str, published_after: str,
                                  published_before: str) -> tuple[list[dict], int]:
     """
     Fetch all videos for a channel within [published_after, published_before] that are NOT
-    yet in the registry, by first enumerating video IDs via yt-dlp
-    (list_channel_video_ids_ytdlp), then looking up the real publishedAt of the unknown IDs
+    yet in the registry, by enumerating video IDs via yt-dlp in lazy batches
+    (iter_channel_video_id_batches), looking up the real publishedAt of the unknown IDs
     in batches of YTDLP_LOOKUP_BATCH_SIZE via videos().list - 1 quota unit per call,
     regardless of batch size. Videos outside the window, or no longer retrievable
     (deleted/private), are silently dropped.
@@ -309,7 +296,9 @@ def get_channel_videos_via_ytdlp(channel_id: str, published_after: str,
         taken from the registry) and not returned - the return value is only NEW videos.
       - The /videos tab lists newest first. Once YTDLP_EARLY_STOP_BATCHES consecutive
         batches lie entirely before published_after, the rest (older) is skipped instead of
-        looking up the channel's entire history.
+        looking up the channel's entire history - and since the enumeration is lazy, the
+        older tab pages are not even fetched from YouTube (saves time, e.g. ~40% of the
+        pages for tagesschau with a window starting 2021).
 
     On a quota error, raises YtdlpQuotaExceeded carrying the partial result collected so far.
     Returns (new_videos, number_of_videos().list_calls).
@@ -319,22 +308,20 @@ def get_channel_videos_via_ytdlp(channel_id: str, published_after: str,
     verified to cover as little as 0-300 of tens of thousands of videos for these channels)
     both fail to reach the window.
     """
-    video_ids = list_channel_video_ids_ytdlp(channel_id)
-    if not video_ids:
-        return [], 0
-
     bekannt_df = video_registry.get_video_rows_for_channels([channel_id])
     bekannt = {
         vid: pub for vid, pub in zip(bekannt_df["video_id"], bekannt_df["published_at"])
         if isinstance(pub, str) and pub[:1].isdigit()
     }
-    print(f"  yt-dlp: {len(video_ids)} IDs, davon {sum(v in bekannt for v in video_ids)} bereits in Registry")
 
     videos: list[dict] = []
     n_lookup = 0
     alte_batches = 0
-    for i in range(0, len(video_ids), YTDLP_LOOKUP_BATCH_SIZE):
-        batch = video_ids[i:i + YTDLP_LOOKUP_BATCH_SIZE]
+    n_ids = n_bekannt = 0
+    stopp = False
+    for batch in iter_channel_video_id_batches(channel_id, "videos", YTDLP_LOOKUP_BATCH_SIZE):
+        n_ids += len(batch)
+        n_bekannt += sum(v in bekannt for v in batch)
         daten = [bekannt[v] for v in batch if v in bekannt]
         unbekannt = [v for v in batch if v not in bekannt]
 
@@ -366,11 +353,13 @@ def get_channel_videos_via_ytdlp(channel_id: str, published_after: str,
         if daten and max(daten) < published_after:
             alte_batches += 1
             if alte_batches >= YTDLP_EARLY_STOP_BATCHES:
-                print(f"  Fenster-Anfang erreicht nach {i + len(batch)} von {len(video_ids)} IDs -> Stopp")
+                stopp = True
                 break
         else:
             alte_batches = 0
 
+    print(f"  yt-dlp: {n_ids} IDs gelesen, davon {n_bekannt} bereits in Registry"
+          f" -> {'Fenster-Anfang erreicht, Stopp' if stopp else 'Tab-Ende erreicht'}")
     return videos, n_lookup
 
 

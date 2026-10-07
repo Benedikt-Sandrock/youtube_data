@@ -4,12 +4,20 @@
 [Check] ok: video_id in der Registry eindeutig
 [Laengenfilter] Dauer >= 181 s: 542110 von 1085159 Videos (422 Kanaele mit >= 1 Video)
 [Merge] video_details.topic_categories (politisch): 540511 gematcht, 1599 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[russia_ukraine_war]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[corona_pandemic]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[migration]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[economy_general]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[energy]: 518871 gematcht, 23239 nur Export, 0 nur Quelle
-[Merge] transcript_store: 37141 Videos mit Transkript (status OK)
+[Merge] video_topic_relevance[russia_ukraine_war]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[politics_general]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[corona_pandemic]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[migration]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[economy_general]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[energy]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[climate]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[gender]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[mideast]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[iran]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[eu]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[usa]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[education]: 542110 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] transcript_store: 37459 Videos mit Transkript (status OK)
 [Laden] POPULISMUS_P: 115361 Segmentzeilen aus 14 Runs; Test-Runs ausgeschlossen: ['run_0006', 'run_0007', 'run_0008', 'run_0009'] (160 Zeilen)
 [Laden] POPULISMUS_P: 257 Segmente in mehreren Runs (58 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
 [Laden] POPULISMUS_P: nach Segment-Dedup 114944 Segmente, 36864 Videos, davon ungueltig (parse_error/leer): 0
@@ -469,18 +477,29 @@
     likes: 99.48% nicht fehlend
     kommentare: 77.96% nicht fehlend
     politisch: 99.71% nicht fehlend
-    krieg: 95.71% nicht fehlend
-    topic_corona: 95.71% nicht fehlend
+    krieg: 100.00% nicht fehlend
+    topic_politik: 100.00% nicht fehlend
+    topic_corona: 100.00% nicht fehlend
+    topic_migration: 100.00% nicht fehlend
+    topic_wirtschaft: 100.00% nicht fehlend
+    topic_energie: 100.00% nicht fehlend
+    topic_klima: 100.00% nicht fehlend
+    topic_gender: 100.00% nicht fehlend
+    topic_nahost: 100.00% nicht fehlend
+    topic_iran: 100.00% nicht fehlend
+    topic_eu: 100.00% nicht fehlend
+    topic_usa: 100.00% nicht fehlend
+    topic_bildung: 100.00% nicht fehlend
     krieg_transkript: 4.64% nicht fehlend
     pop_gesamt: 4.55% nicht fehlend
     pos_russland: 3.87% nicht fehlend
     pos_westpolitik: 3.75% nicht fehlend
     politisch_klass = 1: 540511 (99.71%)
-    krieg_klass = 1: 518871 (95.71%)
-    topic_klass = 1: 518871 (95.71%)
+    krieg_klass = 1: 542110 (100.00%)
+    topic_klass = 1: 542110 (100.00%)
     pop_klass = 1: 25161 (4.64%)
     pos_klass = 1: 24950 (4.60%)
-    transkript = 1: 37141 (6.85%)
+    transkript = 1: 37459 (6.91%)
     baseline_stichprobe = 1: 2646 (0.49%)
 [Abdeckung] Kanaele je Sample-Kennzeichen und Medientyp:
           sample_vorkrieg      sample_baseline      sample_whitelist     
@@ -499,6 +518,19 @@ medientyp
 [Check] ok: 2 jede channel_id aus videos_roh existiert in kanaele_roh
 [Check] ok: 3 dauer_sek > 180 fuer alle Videos
 [Check] 4 (nur Anzahl, Entscheidung 02.10.2026: Werte bleiben drin): 2242 positionsklassifizierte Videos vor Kriegsbeginn
+[Check] ok: 5 topic_klass = 1 => alle topic_* gesetzt
+[Check] 5 Hinweis: topic_politik klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_corona klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_migration klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_wirtschaft klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_energie klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_klima klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_gender klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_nahost klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_iran klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_eu klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_usa klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
+[Check] 5 Hinweis: topic_bildung klassifiziert bei 542110 Videos, davon mit topic_klass = 0: 0
 [Check] ok: 5 pop_klass = 0 => pop_gesamt = .
 [Check] 5 Hinweis: pop_klass = 1, aber pop_gesamt = . bei 483 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
 [Check] ok: 5 pop_klass = 0 => pop_volk = .
@@ -515,13 +547,22 @@ medientyp
 [Check] 5 Hinweis: pos_klass = 1, aber pos_westpolitik = . bei 4608 Videos (klassifiziert, Dimension nicht kodierbar/thematisiert)
 [Check] ok: 5 politisch_klass = 0 => politisch = .
 [Check] ok: 5 krieg_klass = 0 => krieg = .
-[Check] ok: 5 topic_klass = 0 => topic_corona = .
-[Check] ok: 5 topic_klass = 0 => topic_migration = .
-[Check] ok: 5 topic_klass = 0 => topic_wirtschaft = .
-[Check] ok: 5 topic_klass = 0 => topic_energie = .
 [Check] ok: 5 krieg_klass = 0 => krieg_quelle leer
+[Check] ok: 5 krieg_core gleiche Missings wie krieg und krieg_core = 1 => krieg = 1
+[Check] ok: 5 topic_politik_core gleiche Missings wie topic_politik und topic_politik_core = 1 => topic_politik = 1
+[Check] ok: 5 topic_corona_core gleiche Missings wie topic_corona und topic_corona_core = 1 => topic_corona = 1
+[Check] ok: 5 topic_migration_core gleiche Missings wie topic_migration und topic_migration_core = 1 => topic_migration = 1
+[Check] ok: 5 topic_wirtschaft_core gleiche Missings wie topic_wirtschaft und topic_wirtschaft_core = 1 => topic_wirtschaft = 1
+[Check] ok: 5 topic_energie_core gleiche Missings wie topic_energie und topic_energie_core = 1 => topic_energie = 1
+[Check] ok: 5 topic_klima_core gleiche Missings wie topic_klima und topic_klima_core = 1 => topic_klima = 1
+[Check] ok: 5 topic_gender_core gleiche Missings wie topic_gender und topic_gender_core = 1 => topic_gender = 1
+[Check] ok: 5 topic_nahost_core gleiche Missings wie topic_nahost und topic_nahost_core = 1 => topic_nahost = 1
+[Check] ok: 5 topic_iran_core gleiche Missings wie topic_iran und topic_iran_core = 1 => topic_iran = 1
+[Check] ok: 5 topic_eu_core gleiche Missings wie topic_eu und topic_eu_core = 1 => topic_eu = 1
+[Check] ok: 5 topic_usa_core gleiche Missings wie topic_usa und topic_usa_core = 1 => topic_usa = 1
+[Check] ok: 5 topic_bildung_core gleiche Missings wie topic_bildung und topic_bildung_core = 1 => topic_bildung = 1
 [Check] ok: 5 pop_klass = 0 => krieg_transkript = .
 [Check] ok: 6 pop_baseline = Nachberechnung aus Baseline-Videos (max. Abweichung 0.00e+00, Toleranz 1e-09)
-[Export] videos_roh.dta: 542110 Zeilen, 42 Variablen
+[Export] videos_roh.dta: 542110 Zeilen, 63 Variablen
 [Export] kanaele_roh.dta: 427 Zeilen, 21 Variablen
 [Export] check_rohdaten.do geschrieben

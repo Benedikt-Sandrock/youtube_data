@@ -12,6 +12,10 @@ Zusaetzlich die Keyword-basierte Themen-Relevanz je Video (video_topic_relevance
 fuenf Themen inkl. Ukraine-Krieg-Bezug, siehe youtube_code.step3_topic_relevance)
 - nicht zu verwechseln mit der YouTube-API-eigenen Spalte
 video_details.topic_relevant_topic_ids.
+Ausserdem das Video-Format je Video (video_format: short/long/live), abgeleitet
+aus den kanaleigenen Format-Playlists UUSH/UULF/UULV bzw. den yt-dlp-Kanal-Tabs
+/shorts, /videos, /streams - befuellt von
+youtube_code/step1_sample/channel_video_formats.py.
 Alle vier laufen seit der Anbindung der Collection-Skripte (video_identification.py,
 channel_all_videos.py, get_channel_metadata()/get_video_metadata() in
 youtube_code.utils.io) live mit, statt nur per Einmal-Migration befuellt zu
@@ -154,6 +158,24 @@ CREATE TABLE IF NOT EXISTS video_topic_relevance (
 )
 """
 
+# Format je Video (Short / normales Video / Livestream). Die YouTube Data API
+# hat kein isShort-Feld - das Format stammt aus der Herkunfts-Playlist (UUSH =
+# Shorts, UULF = long-form, UULV = Livestreams) bzw. dem yt-dlp-Kanal-Tab
+# (/shorts, /videos, /streams), festgehalten in source. Eigene Tabelle statt
+# Spalte in videos, weil ein Format-Lauf neu klassifizieren koennen soll
+# (siehe _VIDEO_FORMAT_UPSERT_SQL), waehrend videos COALESCE(alt, neu) folgt.
+_VIDEO_FORMAT_SCHEMA = """
+CREATE TABLE IF NOT EXISTS video_format (
+    video_id    TEXT PRIMARY KEY,
+    channel_id  TEXT,
+    format      TEXT,
+    source      TEXT,
+    observed_at TEXT
+)
+"""
+
+VIDEO_FORMATS = ("short", "long", "live")
+
 # channel_id hat (anders als video_id) keinen PRIMARY KEY und damit ohne
 # diesen Index keinerlei Index - jede channel_id-gefilterte Abfrage
 # (v.a. get_videos_with_text(), Grundlage von classify_topic_relevance.py)
@@ -162,6 +184,7 @@ CREATE TABLE IF NOT EXISTS video_topic_relevance (
 # Laufzeitfaktor - deutlich teurer als die Python-seitige Klassifikation.
 _INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_videos_channel_id ON videos(channel_id)",
+    "CREATE INDEX IF NOT EXISTS idx_video_format_channel_id ON video_format(channel_id)",
 ]
 
 _UPSERT_SQL = """
@@ -282,6 +305,19 @@ ON CONFLICT(video_id, topic) DO UPDATE SET
     classified_at = COALESCE(excluded.classified_at, video_topic_relevance.classified_at)
 """
 
+# Wie _TOPIC_RELEVANCE_UPSERT_SQL gewinnt der NEUE Wert: ein spaeterer
+# Format-Lauf (z.B. nach einer Korrektur der Playlist-Zuordnung) soll eine
+# bestehende Zuordnung ueberschreiben koennen.
+_VIDEO_FORMAT_UPSERT_SQL = """
+INSERT INTO video_format (video_id, channel_id, format, source, observed_at)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(video_id) DO UPDATE SET
+    channel_id = COALESCE(excluded.channel_id, video_format.channel_id),
+    format = COALESCE(excluded.format, video_format.format),
+    source = COALESCE(excluded.source, video_format.source),
+    observed_at = COALESCE(excluded.observed_at, video_format.observed_at)
+"""
+
 
 def _ensure_video_columns(con) -> None:
     """
@@ -323,6 +359,7 @@ def _connect() -> sqlite3.Connection:
     con.execute(_LANGUAGE_SCHEMA)
     con.execute(_CHANNELS_SCHEMA)
     con.execute(_TOPIC_RELEVANCE_SCHEMA)
+    con.execute(_VIDEO_FORMAT_SCHEMA)
     _ensure_video_columns(con)
     for stmt in _INDEXES:
         con.execute(stmt)
@@ -419,6 +456,24 @@ def upsert_video_details(records) -> int:
     (tags, topic_relevant_topic_ids, topic_categories) werden als JSON-Text
     gespeichert.
     """
+    rows = _build_detail_rows(records)
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_DETAILS_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def _build_detail_rows(records) -> list:
+    """
+    Baut die Zeilen-Tupel fuer video_details aus einer Liste von Video-Dicts.
+    Geteilt von upsert_video_details() und write_channel_format_result().
+    """
     rows = []
     for r in records:
         vid = r.get("video_id")
@@ -439,16 +494,7 @@ def upsert_video_details(records) -> int:
             _to_json(r.get("topic_categories")),
             r.get("location_description"),
         ))
-    if not rows:
-        return 0
-
-    con = _connect()
-    try:
-        con.executemany(_DETAILS_UPSERT_SQL, rows)
-        con.commit()
-    finally:
-        con.close()
-    return len(rows)
+    return rows
 
 
 def upsert_search_runs(records) -> int:
@@ -633,6 +679,76 @@ def upsert_topic_relevance(records) -> int:
     return len(rows)
 
 
+def _build_format_rows(records) -> list:
+    """
+    Baut die (video_id, channel_id, format, source, observed_at)-Tupel fuer
+    video_format. Zeilen ohne video_id oder mit unbekanntem format (nicht in
+    VIDEO_FORMATS) werden uebersprungen.
+    """
+    rows = []
+    for r in records:
+        vid = r.get("video_id")
+        fmt = r.get("format")
+        if not vid or fmt not in VIDEO_FORMATS:
+            continue
+        rows.append((
+            str(vid).strip(),
+            r.get("channel_id"),
+            fmt,
+            r.get("source"),
+            r.get("observed_at"),
+        ))
+    return rows
+
+
+def upsert_video_formats(records) -> int:
+    """
+    Schreibt Format-Zuordnungen (Dicts mit video_id, channel_id, format in
+    VIDEO_FORMATS, source, observed_at) in video_format. Der NEUE Wert
+    gewinnt (siehe _VIDEO_FORMAT_UPSERT_SQL). Gibt die Anzahl geschriebener
+    Zeilen zurueck.
+    """
+    rows = _build_format_rows(records)
+    if not rows:
+        return 0
+
+    con = _connect()
+    try:
+        con.executemany(_VIDEO_FORMAT_UPSERT_SQL, rows)
+        con.commit()
+    finally:
+        con.close()
+    return len(rows)
+
+
+def write_channel_format_result(videos, details, formats) -> tuple:
+    """
+    Schreibt das Ergebnis eines vollstaendig abgefragten Kanals aus
+    channel_video_formats.py in EINER Transaktion: neue Videos (videos,
+    gleiches SQL wie upsert_videos), deren Detail-Felder (video_details, wie
+    upsert_video_details) und die Format-Zuordnungen (video_format, wie
+    upsert_video_formats). Entweder landet alles oder nichts in der DB - ein
+    Kanal ist damit nie nur halb eingetragen. Gibt die Zeilenzahlen
+    (videos, video_details, video_format) zurueck.
+    """
+    video_rows = _build_video_rows(videos)
+    detail_rows = _build_detail_rows(details)
+    format_rows = _build_format_rows(formats)
+
+    con = _connect()
+    try:
+        with con:  # commit bei Erfolg, rollback bei Exception
+            if video_rows:
+                con.executemany(_UPSERT_SQL, video_rows)
+            if detail_rows:
+                con.executemany(_DETAILS_UPSERT_SQL, detail_rows)
+            if format_rows:
+                con.executemany(_VIDEO_FORMAT_UPSERT_SQL, format_rows)
+    finally:
+        con.close()
+    return len(video_rows), len(detail_rows), len(format_rows)
+
+
 def export_jsonl(output_path, include_title: bool = False) -> int:
     """
     Schreibt einen vollstaendigen Snapshot der Registry als JSONL nach
@@ -751,6 +867,19 @@ def topic_relevance_count(topic=None) -> int:
             return con.execute("SELECT COUNT(*) FROM video_topic_relevance").fetchone()[0]
         return con.execute(
             "SELECT COUNT(*) FROM video_topic_relevance WHERE topic = ?", (str(topic),)
+        ).fetchone()[0]
+    finally:
+        con.close()
+
+
+def video_format_count(fmt=None) -> int:
+    """Anzahl Zeilen in video_format, optional auf ein format gefiltert."""
+    con = _connect()
+    try:
+        if fmt is None:
+            return con.execute("SELECT COUNT(*) FROM video_format").fetchone()[0]
+        return con.execute(
+            "SELECT COUNT(*) FROM video_format WHERE format = ?", (str(fmt),)
         ).fetchone()[0]
     finally:
         con.close()
@@ -1576,3 +1705,51 @@ def get_video_stats(channel_ids=None, video_ids=None):
         return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols)
     finally:
         con.close()
+
+
+def get_video_formats(channel_ids=None, video_ids=None):
+    """
+    Gibt video_format als DataFrame zurueck (video_id, channel_id, format,
+    source, observed_at) - vollstaendig, oder auf channel_ids bzw. (falls
+    channel_ids None ist) auf video_ids gefiltert.
+    """
+    import pandas as pd
+
+    out_cols = ["video_id", "channel_id", "format", "source", "observed_at"]
+    base_sql = f"SELECT {', '.join(out_cols)} FROM video_format"
+
+    if channel_ids is None and video_ids is None:
+        con = _connect()
+        try:
+            return pd.read_sql_query(base_sql, con)
+        finally:
+            con.close()
+
+    filter_col, filter_ids = ("channel_id", channel_ids) if channel_ids is not None else ("video_id", video_ids)
+    filter_ids = sorted({str(x) for x in filter_ids if x})
+    if not filter_ids:
+        return pd.DataFrame(columns=out_cols)
+
+    con = _connect()
+    try:
+        frames = []
+        for chunk in _chunks(filter_ids):
+            placeholders = ",".join("?" * len(chunk))
+            frames.append(pd.read_sql_query(
+                f"{base_sql} WHERE {filter_col} IN ({placeholders})",
+                con,
+                params=chunk,
+            ))
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=out_cols)
+    finally:
+        con.close()
+
+
+def video_format_lookup(video_ids) -> dict:
+    """
+    Gibt video_id -> format ('short' | 'long' | 'live') fuer die uebergebenen
+    video_ids zurueck. Videos ohne Format-Zuordnung fehlen im Dict (statt
+    None), da sie nie ueber channel_video_formats.py abgefragt wurden.
+    """
+    df = get_video_formats(video_ids=video_ids)
+    return dict(zip(df["video_id"], df["format"]))

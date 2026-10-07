@@ -118,6 +118,82 @@ def get_channel_metadata(channel_ids, youtube):
     print("Channel metadata saved.")
 
 
+def _video_api_parts(detailed: bool) -> str:
+    api_parts = "snippet,statistics,contentDetails"
+    if detailed:
+        api_parts += ",status,topicDetails,recordingDetails"
+    return api_parts
+
+
+def _video_item_to_record(item, detailed: bool) -> dict:
+    """
+    Wandelt ein Item aus videos().list in ein Registry-Dict um (Felder fuer
+    videos, im detailed-Fall zusaetzlich fuer video_details). Geteilt von
+    get_video_metadata() und fetch_video_metadata_records().
+    """
+    snippet = item.get("snippet", {})
+    content_details = item.get("contentDetails", {})
+    statistics = item.get("statistics", {})
+
+    video_data = {
+        "video_id": item["id"],
+        "title": snippet.get("title"),
+        "channel_title": snippet.get("channelTitle"),
+        "channel_id": snippet.get("channelId"),
+        "published_at": snippet.get("publishedAt"),
+        "duration": content_details.get("duration"),
+        "view_count": statistics.get("viewCount"),
+        "like_count": statistics.get("likeCount"),
+        "comment_count": statistics.get("commentCount"),
+    }
+
+    if detailed:
+        status = item.get("status", {})
+        topic_details = item.get("topicDetails", {})
+        recording_details = item.get("recordingDetails", {})
+
+        video_data.update({
+            "description": snippet.get("description"),
+            "tags": snippet.get("tags", []),  # list of strings
+            "category_id": snippet.get("categoryId"),
+            "default_language": snippet.get("defaultLanguage"),
+            "default_audio_language": snippet.get("defaultAudioLanguage"),
+            "live_broadcast_content": snippet.get("liveBroadcastContent"),
+
+            # Status information (text-labels)
+            "privacy_status": status.get("privacyStatus"),  # public, private, unlisted
+            "upload_status": status.get("uploadStatus"),
+            "license": status.get("license"),  # YouTube, creativeCommon
+
+            # Topic-metadata (Wikipedia-links / entities)
+            "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
+            "topic_categories": topic_details.get("topicCategories", []),  # Wikipedia-URLs
+
+            "location_description": recording_details.get("locationDescription"),
+        })
+    return video_data
+
+
+def fetch_video_metadata_records(video_ids, youtube_client, detailed=False) -> list:
+    """
+    Reiner Abruf-Teil von get_video_metadata(): fragt die uebergebenen
+    video_ids in 50er-Batches per videos().list ab und gibt die Registry-
+    Dicts zurueck - OHNE in die Registry zu schreiben und OHNE "schon
+    bekannt"-Filter. Anders als get_video_metadata() werden Fehler (v.a.
+    quotaExceeded) NICHT abgefangen, sondern weitergereicht, damit die
+    aufrufende Stelle einen unvollstaendigen Abruf erkennen und verwerfen
+    kann (Alles-oder-nichts pro Kanal in channel_video_formats.py).
+    Geloeschte/private IDs fehlen im Ergebnis einfach.
+    """
+    api_parts = _video_api_parts(detailed)
+    records = []
+    for batch in chunk_list(list(video_ids), 50):
+        response = youtube_client.videos().list(part=api_parts, id=",".join(batch)).execute()
+        records.extend(_video_item_to_record(item, detailed) for item in response.get("items", []))
+        time.sleep(0.1)
+    return records
+
+
 def get_video_metadata(video_ids, youtube_client, detailed = False):
     """
     Takes YouTube client and list of video IDs as input, fragt nur noch die
@@ -143,9 +219,7 @@ def get_video_metadata(video_ids, youtube_client, detailed = False):
           f"\nFor {y} video IDs, metadata already exists.")
 
     print(f"Requesting metadata for {len(video_ids_filtered)} video_files...")
-    api_parts = "snippet,statistics,contentDetails"
-    if detailed:
-        api_parts += ",status,topicDetails,recordingDetails"
+    api_parts = _video_api_parts(detailed)
 
     chunk = 1
     found_count = 0
@@ -158,49 +232,9 @@ def get_video_metadata(video_ids, youtube_client, detailed = False):
             response = request.execute()
             found_count += len(response.get("items", []))
 
-            batch_records = []
-            for item in response.get("items", []):
-                snippet = item.get("snippet", {})
-                content_details = item.get("contentDetails", {})
-                statistics = item.get("statistics", {})
-
-                video_data = {
-                    "video_id": item["id"],
-                    "title": snippet.get("title"),
-                    "channel_title": snippet.get("channelTitle"),
-                    "channel_id": snippet.get("channelId"),
-                    "published_at": snippet.get("publishedAt"),
-                    "duration": content_details.get("duration"),
-                    "view_count": statistics.get("viewCount"),
-                    "like_count": statistics.get("likeCount"),
-                    "comment_count": statistics.get("commentCount"),
-                }
-                batch_records.append(video_data)
-
-                if detailed:
-                    status = item.get("status", {})
-                    topic_details = item.get("topicDetails", {})
-                    recording_details = item.get("recordingDetails", {})
-
-                    video_data.update({
-                        "description": snippet.get("description"),
-                        "tags": snippet.get("tags", []),  # list of strings
-                        "category_id": snippet.get("categoryId"),
-                        "default_language": snippet.get("defaultLanguage"),
-                        "default_audio_language": snippet.get("defaultAudioLanguage"),
-                        "live_broadcast_content": snippet.get("liveBroadcastContent"),
-
-                        # Status information (text-labels)
-                        "privacy_status": status.get("privacyStatus"),  # public, private, unlisted
-                        "upload_status": status.get("uploadStatus"),
-                        "license": status.get("license"),  # YouTube, creativeCommon
-
-                        # Topic-metadata (Wikipedia-links / entities)
-                        "topic_relevant_topic_ids": topic_details.get("relevantTopicIds", []),
-                        "topic_categories": topic_details.get("topicCategories", []),  # Wikipedia-URLs
-
-                        "location_description": recording_details.get("locationDescription"),
-                    })
+            batch_records = [
+                _video_item_to_record(item, detailed) for item in response.get("items", [])
+            ]
 
             _registry_upsert(batch_records)
             if detailed:

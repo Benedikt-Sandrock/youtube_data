@@ -89,6 +89,47 @@ festen, keyword-haltigen Beschreibungszeile fälschlich zu 100 % als
 themenrelevant gelten. `learn_boilerplate()` läuft unabhängig davon, wie
 viele Themen klassifiziert werden, nur **einmal** pro geladenem DataFrame.
 
+## Nachrichtensendungs-Muster
+
+`news_show_patterns.py` markiert per kanalspezifischen Titel-Regex Videos, die
+eine **ganze allgemeine Nachrichtensendung** sind (z. B. „tagesschau 20:00 Uhr,
+07.10.2026“, „heute journal vom …“, euronews „Nachrichten des Tages“,
+Handelsblatt Morning Briefing, FAZ Frühdenker), damit sie von
+Einzelthemen-Videos getrennt werden können. Thematische Sondersendungen
+(„tagesthemen extra“, „ZDF spezial“, „BILD-Lagezentrum SPEZIAL“, ntv
+„Ukraine Update“ …) werden separat als `sondersendung` markiert.
+`classify_title(channel_id, title)` liefert `"nachrichtensendung"`,
+`"sondersendung"` oder `None`; `classify_frame(df)` dasselbe vektorisiert.
+Nur für long-Videos gedacht (`video_format.format = 'long'`).
+
+Muster sind am Titelanfang verankert, weil viele Kanäle den Sendungsnamen als
+Suffix an Einzelthemen-Clips hängen („… | ARD Morgenmagazin“, „… | DW
+Nachrichten“, „… | heute journal vom 07.05.2026“). Erarbeitet für die
+Kanalliste `data/channel_lists/video_formats/upload_starke_kanaele.csv`; DW
+Deutsch, WELT und phoenix haben keine erkennbaren Ganzsendungs-Titel und daher
+keine Einträge. Zusätzlich abgedeckt ist die Kanalliste
+`data/channel_lists/video_formats/alt_kanaele.csv` (Weltwoche, Kontrafunk,
+Deutschland Kurier, Hallo Meinung, Oli, Vermietertagebuch, DER AKTIONÄR TV,
+FinanzmarktWelt); deren übrige sechs Kanäle haben kein Ganzsendungs-Format.
+„<Leitthema> – Weltwoche Daily DE/CH“ zählt als Nachrichtensendung (per
+Transkript-Stichprobe bestätigt: ganze Mehr-Themen-Folgen), ebenso Titel mit
+„Hubis Bundeshaus“ („Hubi über <Thema>“ ohne Sendungsnamen bleibt
+Einzelthema). Für das
+Vermietertagebuch zählen Schlagzeilen-Ketten erst ab zwei „ + “
+(`PLUS_CHAIN_MIN = 2`); für einen Robustheitscheck `plus_chain_min=1` an
+`classify_title()`/`classify_frame()` übergeben. Bislang nur Modul, keine
+Tabelle in der Registry.
+
+**Offener Punkt: Talkshows.** Talkshows wie Markus Lanz, maischberger, maybrit
+illner, Caren Miosga, ntv Talk oder Presseclub werden nicht erkannt und
+zählen als Einzelthemen-Videos (`None`), obwohl sie oft mehrere Themen
+behandeln. Das betrifft ca. 1.900 long-Videos bzw. ~1 % der upload-starken
+Kanäle. Es wurde bewusst zurückgestellt, weil ganze Folgen sich zusätzlich
+über die Dauer erkennen lassen (Illner und Presseclub ca. 57 min, Lanz- und
+maischberger-Segmente ca. 20–30 min). Eine mögliche Erweiterung, eine eigene
+Kategorie `talkshow` über Sendungsnamen-Suffixe, ist im Modul-Docstring
+skizziert.
+
 ## Ausführung
 
 ```

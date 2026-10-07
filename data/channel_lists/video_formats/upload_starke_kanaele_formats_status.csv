@@ -1,0 +1,13 @@
+zeitpunkt,channel_id,status,n_short,n_long,n_live,abgeschnitten,fallback,n_neu,n_nicht_abrufbar,n_konflikte,n_api_aufrufe,fenster_von,fenster_bis,detail
+2026-10-06T17:14:09,UC5NOEUbkLheQcaaRldYW5GA,komplett,3409,18018,1789,"long,short,live","long,short,live",0,0,0,453,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T17:54:15,UCACdxU3VrJIJc7ujxtHWs1w,komplett,6,41597,323,"long,short","long,short",1614,0,0,483,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:01:57,UCwyiPnNlT8UABRmGmU0T9jg,komplett,486,16154,5102,"long,short,live","long,short,live",417,0,0,439,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:03:06,UCeqKIgPQfNInOswGRWt48kQ,komplett,1959,6384,1380,,,0,0,0,220,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:04:17,UCMIgOXM2JEQ2Pv2d0_PVfcg,komplett,1094,5709,17,"short,live","short,live",0,0,0,150,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:24:24,UCZMsvbAhhRblVGXmEXW8TSA,fehler,,,,,,,,,554,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,<HttpError 500 when requesting https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2Cstatistics%2CcontentDetails%2Cstatus%2CtopicDetails%2CrecordingDetails&id=rmx8uJPlGO4%2C69rVEnAV6zw%2C_Hd
+2026-10-06T18:32:12,UC4zcMHyrT_xyWlgy5WGpFFQ,komplett,1938,17265,917,"long,short,live","long,short,live",46,0,0,440,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:33:24,UCSeil5V81-mEGB1-VNR7YEA,komplett,2753,6571,1630,,,0,0,0,249,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:41:36,UCcPcua2PF7hzik2TeOBx3uw,komplett,1458,20252,36,"long,short","long,short",1,0,0,428,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T18:49:05,UCMpW4tdyZUid2Ka9_FuDDhQ,komplett,1733,17945,3,"long,short,live","long,short,live",0,0,0,425,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
+2026-10-06T19:02:57,UCZMsvbAhhRblVGXmEXW8TSA,abgebrochen_quota,,,,,,,,,284,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=UULFZMsvbAhhRblVGXmEXW8TSA&maxResults=50&pageToken=EAAaH1BUOkNKUnVJaEEzTmpFNE5qa3h
+2026-10-07T11:29:00,UCZMsvbAhhRblVGXmEXW8TSA,komplett,2073,13960,4083,"long,short,live","long,short,live",3230,0,0,582,2021-01-01T00:00:00Z,2026-06-30T23:59:59Z,
