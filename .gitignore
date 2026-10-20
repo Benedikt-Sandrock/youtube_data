@@ -71,3 +71,9 @@ __pycache__
 # Validierungs-Outputs (Datendateien, ~245 MB)
 /outputs/validation/
 /src/youtube_data.egg-info/
+/data/claude_classification/angebot/codierung/
+/data/claude_classification/angebot/batches/
+/data/claude_classification/angebot/archiv_v13/
+*.png
+
+
