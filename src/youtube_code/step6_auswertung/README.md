@@ -75,6 +75,12 @@ youtube_code/step6_auswertung/
     marktanteil_rohdaten_plots.py        8i: Marktanteile aus dem Stata-Rohdatensatz
                                               (Medientyp x Ideologie, Populismus-
                                               Tertile; politische vs. Kriegsvideos)
+    kriegsvideos_zeitreihen_plots.py     8j: Views-Summe, Anzahl, Mittel/Median
+                                              der Kriegsvideos je Monat vs. alle und
+                                              politics_general-Videos (Rohdatensatz)
+    ereignis_aufmerksamkeit_plots.py     8k: Ereignisfenster (±6 Wochen) je Medientyp x
+                                              Ideologie: Angebot, Views-Anteil, kanalinterne
+                                              Nachfrage der Kriegsvideos (Stufe 1, deskriptiv)
     populismuspraemie_kriegsvideos_bericht.py 9: Populismus-/Haltungspraemie bei
                                               Kriegsvideos (.claude/Aufgaben.md TODO 2,
                                               MODUS = "populismus" | "stance")
@@ -699,7 +705,7 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    `export_stata_rohdaten.py`) statt `channel_video_erfolg.csv`/
    `lade_basisdaten()`. Anteil = Views der Gruppe / Views aller Gruppen der
    Klassifikation je `rel_monat` (−13 bis 51). Zwei Umfänge je Grafik
-   (links `politisch == ja` inkl. Kriegsvideos, rechts `krieg == ja`), zwei
+   (links `politisch == ja` inkl. Kriegsvideos, rechts Kriegsvideos; seit 13.10.2026 `rel_russia_ukraine_war_cw == ja` = nur Titel, Population `min_dauer == ja`), zwei
    Klassifikationen: (1) ÖRR, traditionelle Medien, alternative Medien
    links/mitte/rechts nach `ideo_gesellschaft_baseline` (Schnitte ±0,5;
    Ideologie jetzt aus dem Vorkriegsfenster), (2) Tertile von `pop_baseline`
@@ -708,6 +714,34 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    und `marktanteil_methodik.md` (inkl. Phasenmitteln) nach
    `outputs/segment_analysis/plots_marktanteil_rohdaten/`. Aufruf:
    `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_plots`.
+8j. **`kriegsvideos_zeitreihen_plots.py`** (neu, 2026-10-14): deskriptive
+   Zeitreihen der Russland-Ukraine-Videos aus `videos_roh.dta`, noch ohne
+   Gruppentrennung. Je Kalendermonat (`monat`, 01/2021–06/2026, seit 14.10.2026 `format == long` statt `min_dauer == ja`)
+   Gesamtviews, Anzahl Videos sowie Mittelwert/Median der Views; Kriegsvideos
+   (`rel_russia_ukraine_war_<def>`) als dicke Linie, alle Videos und
+   `rel_politics_general_<def>` als dünne Vergleichslinien. Summe/Anzahl: links
+   absolut (log. Achse), rechts Anteil von Kriegs- und politics_general-Videos an
+   allen Videos. Mittel/Median nur bei ≥ 20 Videos im Monat. Ereignisse a–i
+   (`EREIGNISSE`: Kriegsbeginn, Zeitenwende-Rede, Butscha, schwere Waffen,
+   Gas-Alarmstufe, Nord Stream, Trump–Selenskyj, Reichweitenfreigabe,
+   Trump–Putin-Gipfel) als dünne vertikale Linien mit Kürzel, Erläuterung in der
+   Fußzeile; Monatswerte in der Monatsmitte gezeichnet. Je Definition
+   (`core` = Haupt, `cw` = Robustheit) 3 PNGs, dazu `kriegsvideos_zeitreihen_monat.csv`
+   und `kriegsvideos_zeitreihen_methodik.md` (Phasenmittel) nach
+   `outputs/segment_analysis/plots_kriegsvideos_zeitreihen/`. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.kriegsvideos_zeitreihen_plots`.
+8k. **`ereignis_aufmerksamkeit_plots.py`** (neu, 2026-10-14): Stufe 1 der
+   Ereignisanalyse (deskriptiv). Ereignisse aus
+   `kriegsvideos_zeitreihen_plots.EREIGNISSE`, a–d als „Schockphase 2022“
+   zusammengefasst; Fenster −6 bis +6 Wochen. Je Ereignis × Gruppe
+   (Medientyp × Ideologie aus `marktanteil_rohdaten_plots.bilde_gruppen()`) × Woche:
+   Anteil Kriegsvideos an Uploads (Angebot), an Views (Views-Anteil) und der
+   kanalinterne Nachfrage-Faktor (Kriegsvideo vs. Median der Nicht-Kriegsvideos
+   desselben Kanals in derselben Woche). Long-Videos, `rel_russia_ukraine_war_core`.
+   Schreibt 3 PNGs, `ereignis_wochen.csv` und `ereignis_aufmerksamkeit.md`
+   (Vorher/Nachher-Tabelle, Stichwort-Abdeckung je Ereignis) nach
+   `outputs/segment_analysis/ereignis_aufmerksamkeit/`. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.ereignis_aufmerksamkeit_plots`.
 9. **`populismuspraemie_kriegsvideos_bericht.py`**: Antwort auf TODO 2 aus
    `.claude/Aufgaben.md` ("Populismusprämie" — erhalten populistische
    Kriegsvideos innerhalb eines Kanals mehr Aufrufe als weniger populistische?),
@@ -1187,18 +1221,29 @@ Abschnitt 10 oben und `.claude/plans/schockfenster_bericht.md`).
 
 Erzeugt den Stata-Rohdatensatz nach `docs/codebuch_rohdatensatz.md` in
 `outputs/stata_rohdaten/` (`videos_roh.dta`, `kanaele_roh.dta`,
-`export_log.txt`, `check_rohdaten.do`). Liest ausschließlich aus den Stores
+`export_log.txt`, `check_rohdaten.do`) - seit 13.10.2026 der
+**Hauptdatensatz** des Projekts (enthält auch alles aus dem früheren
+`videos_kriegspraemie.dta`): alle Videos ohne Längenfilter (Kennzeichen
+`min_dauer`, für LLM-Analysen Pflicht), Videoformat (`format`,
+`format_klass`, `format_derived`), Titel-Topics `rel_<topic>_core/_cw`,
+`news_show`/`special_show`/`pk_sitzung`, `titel`, `post_war`, `monat`. Seit 14.10.2026 zusätzlich die Kanaltypologie (`kanaltyp*`, `sample_kern`). Details und
+entfallene Variablen: letzter Abschnitt des Codebuchs. Liest ausschließlich aus den Stores
 (Original-Runs); bricht bei einem Verstoß gegen die Konsistenzprüfungen des
 Codebuchs ab. Steuerung nur über den CONFIG-Block:
 
 | Parameter | Bedeutung |
 |---|---|
 | `ANALYSIS_ID` / `KANAL_SAMPLE_PFAD` | Kanal-Sample (wie `prepare_channel_scores.py`) |
-| `MIN_DAUER_SEK` | Längenfilter der Video-Population (`MIN_VIDEO_DURATION_SECONDS` = 181, also > 180 s) |
+| `MIN_DAUER_SEK` | Schwelle für `min_dauer` (`MIN_VIDEO_DURATION_SECONDS` = 181); kein Filter mehr, aber alle Kanalgrößen (Baselines, `sample_vorkrieg`, `n_videos`) nutzen nur `min_dauer == 1` |
 | `VORKRIEG_START`, `VORKRIEG_MIN_VIDEOS` | `sample_vorkrieg` = Whitelist UND ≥ n Videos in [24.02.2021, 24.02.2022) |
 | `MEDIENTYP_PFAD`, `MEDIENTYP_UMKODIERUNG` | Rohcodes der Excel → Codebuch-Kodierung (3 ↔ 4 getauscht, Typ 5 → ÖRR) |
-| `TOPICS`, `KRIEG_TOPIC` | Themen aus `video_topic_relevance` → Exportvariablen (alle Themen aus `TOPIC_KEYWORDS`, Labels von dort; fehlt ein Thema in `TOPICS`, bricht `main()` ab); je Thema und für `krieg` zusätzlich `<name>_core` (nur core-Stichworte) |
+| `REL_SPALTEN`, `KRIEG_TOPIC` | Titel-Topics `rel_<topic>_core/_cw` für alle Themen aus `TOPIC_KEYWORDS` (live per `KW_RE`); `video_topic_relevance[KRIEG_TOPIC]` nur intern für die Ideologie-Baseline |
+| `FORMAT_LISTEN_DIR`, `FORMAT_FENSTER` | Formatlauf-Statusdateien (`*_formats_status.csv`) und Format-Fenster → `format_klass`, `format_status` |
+| `FORMAT_LISTEN` | Drei Kanallisten mit geprüften Sendungsmustern (1 `upload_starke_kanaele.csv`, 2 `alt_kanaele.csv`, 3 `weitere_kanaele.csv`) → `format_liste`; nur dort `news_show`/`special_show`/`pk_sitzung`, sonst `.`; ein Kanal darf nur in einer Liste stehen (sonst Abbruch) |
+| `FORMAT_AUSSCHLUSS_LONG` | Kanäle (WELT), deren Videos ohne Format im Fenster per Ausschluss `long` werden (`format_derived`) |
 | `API_ABBRUCH_PFAD` | Kanäle mit Flag `playlist_limit` (nachgescrapt) → `api_abbruch` |
+| `KANALTYP_PFAD`, `KANALTYP_LABELS` | Manuelle Kanaltypologie (`data/external/kanal_typologie.csv`, nur Whitelist) → `kanaltyp` (11 = A1 … 34 = C4), `kanaltyp_gruppe`, `kanaltyp_subtyp`, `kanaltyp_org`, `kanaltyp_sicher`; Prüfung 8: gesetzt genau bei `sample_whitelist = 1` |
+| `SAMPLE_KERN_TYPEN`, `SAMPLE_KERN_AUSSCHLUSS` | `sample_kern` = Kanaltyp in A1/A2/A5/B1/B2/B3/C1 ohne Einzelausschlüsse (Kurbel TV) |
 | `KANAL_HINWEISE` | Freitext je Kanal für `kanal_hinweis` |
 | `BASELINE_TOLERANZ` | Toleranz für Prüfung 6 (Baseline-Nachberechnung) |
 
@@ -1220,6 +1265,8 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.s
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.schockfenster_bericht
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.export_stata_rohdaten
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_plots
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.kriegsvideos_zeitreihen_plots
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.ereignis_aufmerksamkeit_plots
 ```
 
 `prepare_success_metrics.py` importiert `GRANULARITAETEN`/

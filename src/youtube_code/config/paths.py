@@ -25,7 +25,8 @@ VALIDATION = OUTPUTS / "validation"
 # je AP ein Unterordner (z. B. MASTERARBEIT_OUTPUTS / "ap1_selektion")
 MASTERARBEIT_OUTPUTS = OUTPUTS / "masterarbeit"
 
-ADHOC_OUTPUT = ROOT / "scripts" / "adhoc" / "output"
+ADHOC_OUTPUT = ROOT / "scripts" / "adhoc" / "outputs"
+STATA_OUTPUT = OUTPUTS / "stata_rohdaten"
 MASTERARBEIT_SCRIPTS = ROOT / "scripts" / "masterarbeit"
 
 SRC = ROOT / "src" / "youtube_code"

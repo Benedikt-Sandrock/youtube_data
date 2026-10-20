@@ -9,7 +9,10 @@ Themen (Stand 2026-10-05), jeweils mit core + wide:
                         youtube_code.new_analysis.feasibility Zeilen 99-113)
     politics_general    Politik allgemein (Parteien, Institutionen, Wahlen,
                         Spitzenpolitiker) - nur zur Abgrenzung "politisch",
-                        kein Kontrastthema
+                        kein Kontrastthema. v2 (2026-10-14): + Oesterreich
+                        (Parteien, Institutionen, Spitzenpolitiker) und
+                        Parlamentsbetrieb ("62. Sitzung", Ausschuss, Plenum,
+                        Fragestunde, Abgeordnete)
     corona_pandemic     Corona/Pandemie (unveraendert)
     migration           Migration (unveraendert)
     economy_general     Wirtschaftspolitik (unveraendert)
@@ -107,6 +110,15 @@ _POLITICS_CORE = r"""
     | \blandtag\w* | bundestagswahl\w* | landtagswahl\w* | europawahl\w*
     | wahlkampf\w* | wahlprogramm\w* | parteitag\w* | gesetzentwurf\w*
     | misstrauensvotum | vertrauensfrage | regierungserklärung
+    # Oesterreich (ergaenzt 2026-10-14): Parteien und Institutionen
+    | \bfpö\b | \bövp\b | \bspö\b | \bneos\b | \bnationalrat\w* | landeshauptm\w*
+    | vizekanzler\w* | klubobm\w* | klubobfrau\w* | bundespräsident\w*
+    # Parlamentsbetrieb (ergaenzt 2026-10-14; v.a. Kanal "Deutscher Bundestag").
+    # "Aktuelle Stunde" ohne die gleichnamige WDR-Nachrichtensendung (dort als
+    # "WDR Aktuelle Stunde" oder Titel-Suffix "| / I Aktuelle Stunde").
+    | \b\d{1,3}\.\s*sitzung | ausschuss | plenar\w*
+    | (?<!wdr\s)(?<!\|\s)(?<!\bi\s)\baktuelle\s+stunde\b(?!\s*[|:-]?\s*wdr)
+    | regierungsbefragung | fragestunde | \babgeordnete\w*
 """
 _POLITICS_WIDE = r"""
     (?-i:\b[Dd]ie\s+Grünen\b) | (?-i:\b[Dd]ie\s+Linke\b) | \bdie\s+ampel\b | \bopposition\w*
@@ -114,6 +126,14 @@ _POLITICS_WIDE = r"""
     | wagenknecht | söder | faeser | lauterbach | steinmeier | pistorius
     | \bspahn\b | chrupalla | \bhöcke\b | kretschmer
     | politik\b | politisch\w* | verfassungsschutz | haushaltsdebatte
+    # Oesterreich (ergaenzt 2026-10-14): Spitzenpolitiker. "Kurz"/"Hofer"/
+    # "Stocker" bare sind Alltagswort bzw. haeufiger Nachname -> nur mit Vorname.
+    # "Budget 20xx" fuer die nach Name-Thema-Datum betitelten Nationalratsreden
+    # (Kanal "Oesterreich zuerst").
+    | kickl | nehammer | \bbabler\b | van\s*der\s*bellen | hafenecker | schnedlitz
+    | gewessler | \bkogler\b | edtstadler | meinl[- ]?reisinger | rendi[- ]?wagner
+    | mikl[- ]?leitner | doskozil | \bstrache\b | sebastian\s+kurz | norbert\s+hofer
+    | christian\s+stocker | \bbudget\s*20\d\d\b
 """
 
 # ============================================================
@@ -387,7 +407,7 @@ KW_RE = {
 # bisherige Version.
 KEYWORD_SET_VERSION = {
     "russia_ukraine_war": "ukr_core_wide_v1_2026-09-01",
-    "politics_general": "pol_core_wide_v1_2026-10-05",
+    "politics_general": "pol_core_wide_v2_2026-10-14",
     "corona_pandemic": "corona_core_wide_v1_2026-09-09",
     "migration": "migration_core_wide_v1_2026-09-09",
     "economy_general": "econ_core_wide_v1_2026-09-09",

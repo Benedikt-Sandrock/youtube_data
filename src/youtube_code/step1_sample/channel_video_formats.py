@@ -38,24 +38,46 @@ Ablauf pro Kanal:
      videos.list nachgeschlagen. Sobald YTDLP_EARLY_STOP_BATCHES Bloecke
      komplett vor dem Fensteranfang liegen, wird das Blaettern beendet.
   4. Konflikte (ID in zwei Formaten): Prioritaet live > short > long, gezaehlt.
-  5. Neue Videos (nicht in der Registry) werden per
+  5. Vollstaendigkeits-Pruefung des Fallbacks: Endet ein yt-dlp-Tab, BEVOR er
+     den Fensteranfang erreicht ("Tab-Ende erreicht"), ist das nur dann
+     plausibel, wenn der Kanal davor keine Videos dieses Formats hat. yt-dlp
+     kann die Aufzaehlung aber auch ohne Fehlermeldung zu frueh beenden
+     (WELT /videos am 07.10.2026: einmal 11.517, einmal 16.528 IDs, beide Male
+     endend etwa an der playlistItems-Grenze statt 2021). Daher: liegen in der
+     Registry mehr als YTDLP_GAP_TOLERANCE Videos dieses Kanals im Fenster, die
+     aelter als das aelteste Tab-Video sind und nach dem Lauf in KEINEM Format
+     stehen, gilt das Format als unvollstaendig.
+  6. Neue Videos (nicht in der Registry) werden per
      utils.io.fetch_video_metadata_records(detailed=True) abgefragt.
-  6. Schreiben: video_registry.write_channel_format_result() in EINER
-     Transaktion, danach Status-Zeile "komplett".
+  7. Schreiben: video_registry.write_channel_format_result() in EINER
+     Transaktion, danach Status-Zeile "komplett" - bzw. "unvollstaendig",
+     wenn Schritt 5 eine Luecke gefunden hat. Die Teil-Ergebnisse werden auch
+     dann geschrieben (sie sind korrekt, nur nicht vollstaendig); ein
+     Folgelauf fragt den Kanal erneut ab, weil nur "komplett" uebersprungen
+     wird.
 
 Quota-Abbruch (Alles-oder-nichts pro Kanal): Alle Ergebnisse eines Kanals
 liegen bis zum Schluss nur im Speicher. Bei einem Quota-Fehler wird der
 laufende Kanal verworfen (nichts im Store), als "abgebrochen_quota" in der
 Statusdatei vermerkt und das Skript beendet. Ein Folgelauf mit derselben
 Kanalliste und demselben Fenster ueberspringt alle "komplett"-Kanaele und
-fragt den Abbruchkanal komplett neu ab.
+fragt den Abbruchkanal komplett neu ab - ebenso alle Kanaele mit Status
+"fehler" oder "unvollstaendig".
 
 Ausgaben:
   - Statusdatei <liste>_formats_status.csv neben der Kanalliste (eine Zeile pro
     bearbeitetem Kanal; zum kompletten Neu-Durchlauf loeschen).
   - Report outputs/video_formats/<liste>_formats_report.md (bei DRY_RUN mit
     Suffix _dryrun): Formate je Kanal, neue Videos, Abbrueche/Fallbacks,
-    Registry-Videos ohne Format, Dauer-Plausibilitaet, HEAD-Validierung.
+    unvollstaendige Formate, Registry-Videos ohne Format, Dauer-
+    Plausibilitaet, HEAD-Validierung.
+
+Fenster aus der Kanalliste: PUBLISHED_AFTER = PUBLISHED_BEFORE = None liest
+das Fenster aus den Spalten fenster_von/fenster_bis der CSV-Kanalliste (so
+schreibt sie scripts/adhoc/zufallsstichprobe_videos.py als
+zufallsstichprobe_fehlende_formate.csv: Kanaele, deren Videos im
+Stichprobenzeitraum noch kein Format haben). Die Statusdatei ist pro Fenster
+gefuehrt, ein neues Sample-Fenster fragt die Kanaele also erneut ab.
 
 DRY_RUN = True: Alles wird abgefragt (kostet Quota), aber nichts in den Store
 oder die Statusdatei geschrieben - nur der Report.
@@ -85,7 +107,7 @@ import requests
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from youtube_code.config import API_KEY_C, CHANNEL_LISTS, OUTPUTS
+from youtube_code.config import API_KEY, CHANNEL_LISTS, OUTPUTS
 from youtube_code.store import video_registry
 from youtube_code.utils.io import chunk_list, fetch_video_metadata_records, get_channel_metadata
 from youtube_code.utils.ytdlp import iter_channel_video_id_batches
@@ -95,10 +117,24 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # ─────────────────────────────────────────────
 # Kanalliste: CSV mit "channel_id"-Spalte oder JSON (Liste von IDs bzw. Dicts
 # mit "channel_id").
-CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "alt_kanaele.csv"
+# Bisherige Listen: upload_starke_kanaele.csv, alt_kanaele.csv (je 06./07.10.2026
+# komplett). Aktuell: alle uebrigen Kanaele des Samples russia_longitudinal_v1
+# (scripts/adhoc/export_format_kanalliste_sample.py), Grundlage fuer format in
+# videos_roh.dta (step6_auswertung/export_stata_rohdaten.py).
+# Aktuell (14.10.2026): die 10 neuen Kanaele der BSW-Sample-Erweiterung
+# (.claude/plans/bsw_sample_erweiterung.md): bsw_kanaele.csv.
+# Aktuell (16.10.2026): Kanaele mit fehlenden Formaten in der Zufallsstichprobe
+# (scripts/adhoc/zufallsstichprobe_videos.py), Fenster aus der Liste
+# (PUBLISHED_AFTER = PUBLISHED_BEFORE = None).
+CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_formate.csv"
 
-PUBLISHED_AFTER = "2021-01-01T00:00:00Z"
-PUBLISHED_BEFORE = "2026-06-30T23:59:59Z"
+# Zeitfenster als ISO-String mit Z (Ende inklusive). Beide None = Fenster aus
+# den Spalten fenster_von/fenster_bis der Kanalliste (muessen fuer alle Zeilen
+# gleich sein), z.B. bei der von scripts/adhoc/zufallsstichprobe_videos.py
+# erzeugten Liste zufallsstichprobe_fehlende_formate.csv.
+# Bisher (Sample-Listen): "2021-01-01T00:00:00Z" bis "2026-06-30T23:59:59Z".
+PUBLISHED_AFTER = None
+PUBLISHED_BEFORE = None
 
 DRY_RUN = False
 
@@ -123,10 +159,17 @@ UPLOADS_CAP_THRESHOLD = 19_500
 # videos.list-Aufrufe UND das Abrufen der aelteren Tab-Seiten.
 YTDLP_EARLY_STOP_BATCHES = 2
 
+# Vollstaendigkeits-Pruefung (siehe Moduldocstring, Schritt 5): so viele
+# Registry-Videos im Fenster duerfen aelter als das aelteste Video eines vor dem
+# Fensteranfang endenden yt-dlp-Tabs sein und trotzdem kein Format haben (z.B.
+# inzwischen geloeschte/private Videos), ohne dass das Format als unvollstaendig
+# gilt.
+YTDLP_GAP_TOLERANCE = 50
+
 STATUS_FILE = str(CHANNEL_INPUT).rsplit(".", 1)[0] + "_formats_status.csv"
 REPORT_DIR = OUTPUTS / "video_formats"
 
-YOUTUBE = build("youtube", "v3", developerKey=API_KEY_C)
+YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
 # Format -> (Playlist-Praefix, yt-dlp-Tab). Reihenfolge = aufsteigende
 # Prioritaet bei Konflikten (spaeter ueberschreibt frueher).
@@ -208,6 +251,23 @@ def load_channel_ids(path) -> list[str]:
     else:
         raise ValueError(f"Nicht unterstuetztes Format fuer CHANNEL_INPUT: {path}")
     return list(dict.fromkeys(ids))
+
+
+def window_from_list(path) -> tuple[str, str]:
+    """Zeitfenster aus den Spalten fenster_von/fenster_bis einer CSV-Kanalliste
+    (fuer PUBLISHED_AFTER = PUBLISHED_BEFORE = None). Bricht ab, wenn die
+    Spalten fehlen oder das Fenster nicht in allen Zeilen gleich ist."""
+    if not str(path).lower().endswith(".csv"):
+        sys.exit("PUBLISHED_AFTER/PUBLISHED_BEFORE = None geht nur mit einer CSV-Kanalliste.")
+    with open(path, "r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if not {"fenster_von", "fenster_bis"} <= set(reader.fieldnames or []):
+            sys.exit(f"{path} hat keine Spalten fenster_von/fenster_bis - "
+                     f"PUBLISHED_AFTER/PUBLISHED_BEFORE im Konfigurationsblock setzen.")
+        fenster = {(row["fenster_von"].strip(), row["fenster_bis"].strip()) for row in reader}
+    if len(fenster) != 1:
+        sys.exit(f"{path}: Kanalliste leer oder uneinheitliches Fenster {sorted(fenster)}.")
+    return fenster.pop()
 
 
 _STATUS_FIELDS = [
@@ -321,7 +381,7 @@ def uploads_total(channel_id: str) -> int:
     return (resp.get("pageInfo") or {}).get("totalResults") or 0
 
 
-def fetch_tab_window_ytdlp(channel_id: str, tab: str, known_pub: dict[str, str]) -> tuple[dict, list]:
+def fetch_tab_window_ytdlp(channel_id: str, tab: str, known_pub: dict[str, str]) -> tuple[dict, list, dict]:
     """
     yt-dlp-Fallback: blaettert den Kanal-Tab in 50er-Bloecken (neueste zuerst,
     iter_channel_video_id_batches) und bestimmt published_at aus der Registry
@@ -330,13 +390,18 @@ def fetch_tab_window_ytdlp(channel_id: str, tab: str, known_pub: dict[str, str])
     PUBLISHED_AFTER liegen, wird abgebrochen - die aelteren Tab-Seiten werden
     dann gar nicht mehr abgerufen.
     Gibt ({video_id: published_at} im Fenster, [Metadaten-Records neuer
-    Videos im Fenster]) zurueck.
+    Videos im Fenster], {"reached_start": bool, "oldest": str | None})
+    zurueck. reached_start=False heisst "Tab-Ende erreicht", bevor der
+    Fensteranfang erreicht wurde; ob das plausibel ist, prueft
+    process_channel() (Moduldocstring, Schritt 5). oldest ist das aelteste
+    published_at aller gelesenen Tab-Videos (auch ausserhalb des Fensters).
     """
     items: dict[str, str] = {}
     new_records: list[dict] = []
     alte_batches = 0
     n_ids = n_bekannt = 0
     stopp = False
+    oldest = None
     for batch in iter_channel_video_id_batches(channel_id, tab=tab):
         n_ids += len(batch)
         daten = []
@@ -357,6 +422,8 @@ def fetch_tab_window_ytdlp(channel_id: str, tab: str, known_pub: dict[str, str])
                     items[rec["video_id"]] = pub
                     new_records.append(rec)
 
+        if daten and (oldest is None or min(daten) < oldest):
+            oldest = min(daten)
         if daten and max(daten) < PUBLISHED_AFTER:
             alte_batches += 1
             if alte_batches >= YTDLP_EARLY_STOP_BATCHES:
@@ -365,8 +432,9 @@ def fetch_tab_window_ytdlp(channel_id: str, tab: str, known_pub: dict[str, str])
         else:
             alte_batches = 0
     print(f"    yt-dlp /{tab}: {n_ids} IDs gelesen, davon {n_bekannt} bereits bekannt"
-          f" -> {'Fensteranfang erreicht, Stopp' if stopp else 'Tab-Ende erreicht'}")
-    return items, new_records
+          f" -> {'Fensteranfang erreicht, Stopp' if stopp else 'Tab-Ende erreicht'}"
+          f", aeltestes Video {oldest[:10] if oldest else '-'}")
+    return items, new_records, {"reached_start": stopp, "oldest": oldest}
 
 
 def process_channel(channel_id: str, known_ids: set[str]) -> dict:
@@ -384,6 +452,7 @@ def process_channel(channel_id: str, known_ids: set[str]) -> dict:
     assigned: dict[str, dict] = {}   # video_id -> {"format", "source", "published_at"}
     new_records: dict[str, dict] = {}
     truncated, fallback = [], []
+    tab_ends: dict[str, str | None] = {}   # fmt -> aeltestes Tab-Video, wenn Tab vor Fensteranfang endete
     n_conflicts = 0
 
     # Gekappter Kanal: die Upload-Liste (und damit alle drei Format-Playlists)
@@ -408,9 +477,11 @@ def process_channel(channel_id: str, known_ids: set[str]) -> dict:
             truncated.append(fmt)
             print(f"    -> abgeschnitten, yt-dlp-Fallback ueber /{tab}")
             # Bereits per API gefundene IDs nicht erneut per videos.list nachschlagen
-            tab_items, tab_records = fetch_tab_window_ytdlp(
+            tab_items, tab_records, tab_info = fetch_tab_window_ytdlp(
                 channel_id, tab, {**known_pub, **res["items"]})
             fallback.append(fmt)
+            if not tab_info["reached_start"]:
+                tab_ends[fmt] = tab_info["oldest"]
             for vid, pub in tab_items.items():
                 found.setdefault(vid, (pub, f"ytdlp_{tab}"))
             for rec in tab_records:
@@ -439,6 +510,20 @@ def process_channel(channel_id: str, known_ids: set[str]) -> dict:
     ]
 
     in_window_known = {v for v, p in known_pub.items() if PUBLISHED_AFTER <= p <= PUBLISHED_BEFORE}
+
+    # Vollstaendigkeits-Pruefung (Moduldocstring, Schritt 5): Tab vor dem
+    # Fensteranfang zu Ende, aber die Registry kennt aeltere Videos im Fenster,
+    # die in keinem Format stehen -> Tab-Aufzaehlung vermutlich abgerissen.
+    incomplete: dict[str, str] = {}
+    for fmt, oldest in tab_ends.items():
+        luecke = [v for v in in_window_known
+                  if v not in assigned and (oldest is None or known_pub[v] < oldest)]
+        if len(luecke) > YTDLP_GAP_TOLERANCE:
+            incomplete[fmt] = (f"{fmt}: Tab endet {oldest[:10] if oldest else 'ohne Videos'}, "
+                               f"{len(luecke)} aeltere Registry-Videos ohne Format")
+    for detail in incomplete.values():
+        print(f"  !! UNVOLLSTAENDIG - {detail}")
+
     counts = Counter(f["format"] for f in formats)
     new_counts = Counter(assigned[v]["format"] for v in new_records)
     return {
@@ -449,6 +534,7 @@ def process_channel(channel_id: str, known_ids: set[str]) -> dict:
         "new_counts": new_counts,
         "truncated": truncated,
         "fallback": fallback,
+        "incomplete": incomplete,
         "n_conflicts": n_conflicts,
         "n_nicht_abrufbar": len(nicht_abrufbar),
         "n_registry_ohne_format": len(in_window_known - set(assigned)),
@@ -543,18 +629,25 @@ def write_report(channel_ids, results, aborted, head, durations) -> str:
         "",
         "## Formate je Kanal (dieser Lauf)",
         "",
-        "| Kanal | short | long | live | davon neu (s/l/live) | abgeschnitten -> yt-dlp | Konflikte "
-        "| nicht abrufbar | Registry im Fenster | Registry ohne Format |",
-        "| --- | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |",
+        "| Kanal | short | long | live | davon neu (s/l/live) | abgeschnitten -> yt-dlp | unvollstaendig "
+        "| Konflikte | nicht abrufbar | Registry im Fenster | Registry ohne Format |",
+        "| --- | ---: | ---: | ---: | --- | --- | --- | ---: | ---: | ---: | ---: |",
     ]
     for res in results:
         c, n = res["counts"], res["new_counts"]
         lines.append(
             f"| {titles.get(res['channel_id'], res['channel_id'])} | {c['short']} | {c['long']} | {c['live']} "
             f"| {n['short']}/{n['long']}/{n['live']} | {', '.join(res['fallback']) or '-'} "
+            f"| {', '.join(res['incomplete']) or '-'} "
             f"| {res['n_conflicts']} | {res['n_nicht_abrufbar']} | {res['n_registry_im_fenster']} "
             f"| {res['n_registry_ohne_format']} |"
         )
+    unvollstaendig = [(res["channel_id"], d) for res in results for d in res["incomplete"].values()]
+    if unvollstaendig:
+        lines += ["", "**Unvollstaendig** (yt-dlp-Tab endete vor dem Fensteranfang, Registry kennt "
+                  f"aeltere Videos ohne Format, Toleranz {YTDLP_GAP_TOLERANCE}; Status "
+                  "`unvollstaendig`, Folgelauf fragt erneut ab):", ""]
+        lines += [f"- {titles.get(cid, cid)}: {d}" for cid, d in unvollstaendig]
     lines += [
         "",
         "*Registry ohne Format*: Videos, die schon vor dem Lauf in der Registry im Fenster lagen, "
@@ -589,6 +682,13 @@ def write_report(channel_ids, results, aborted, head, durations) -> str:
 # Main
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
+    if (PUBLISHED_AFTER is None) != (PUBLISHED_BEFORE is None):
+        sys.exit("PUBLISHED_AFTER und PUBLISHED_BEFORE entweder beide setzen oder beide None.")
+    if PUBLISHED_AFTER is None:
+        PUBLISHED_AFTER, PUBLISHED_BEFORE = window_from_list(CHANNEL_INPUT)
+        print(f"Fenster aus Kanalliste: {PUBLISHED_AFTER} bis {PUBLISHED_BEFORE}")
+    if PUBLISHED_BEFORE < PUBLISHED_AFTER:
+        sys.exit("PUBLISHED_BEFORE liegt vor PUBLISHED_AFTER.")
     channel_ids = load_channel_ids(CHANNEL_INPUT)
     completed = set() if DRY_RUN else load_completed_channels()
     todo = [c for c in channel_ids if c not in completed]
@@ -641,7 +741,9 @@ if __name__ == "__main__":
             print(f"  gespeichert: {n_v} neue Videos, {n_f} Format-Zeilen")
             append_status({
                 "zeitpunkt": datetime.now().isoformat(timespec="seconds"),
-                "channel_id": cid, "status": "komplett",
+                "channel_id": cid,
+                "status": "unvollstaendig" if res["incomplete"] else "komplett",
+                "detail": "; ".join(res["incomplete"].values()),
                 "n_short": c["short"], "n_long": c["long"], "n_live": c["live"],
                 "abgeschnitten": ",".join(res["truncated"]), "fallback": ",".join(res["fallback"]),
                 "n_neu": len(res["new_records"]), "n_nicht_abrufbar": res["n_nicht_abrufbar"],

@@ -62,6 +62,11 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Populismus-/Haltung-Auswertung) siehe `outputs/segment_analysis/README.md`
   — Einstiegspunkt für jede neue Session, verlinkt Stand, offene TODOs und
   das laufend aktualisierte Ergebnis-Dokument.
+- `outputs/stata_rohdaten/` — **Hauptdatensatz** des Projekts:
+  `videos_roh.dta` (alle Videos der Sample-Kanäle, mit Views, Format, Titel-Topics
+  und LLM-Klassifikationen) und `kanaele_roh.dta`, erzeugt von
+  `src/youtube_code/step6_auswertung/export_stata_rohdaten.py`. Die Variablen
+  beschreibt `docs/codebuch_rohdatensatz.md`. LLM-Analysen nur mit `min_dauer == 1`.
 - `outputs/masterarbeit/` — Ergebnisse der Arbeitspakete aus
   `.claude/plans/masterarbeit_strategie.md`, je AP ein Unterordner
   (`apN_<thema>/`, Regressionsausgaben in `regression_results/`). Die
@@ -96,8 +101,9 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
   Boilerplate-Filter `boilerplate.py`), schreibt in die Tabelle
   `video_topic_relevance` in `video_registry.sqlite` (siehe `README.md` dort
   für Details). Außerdem `news_show_patterns.py`: kanalspezifische
-  Titel-Regex zur Markierung ganzer Nachrichtensendungen bzw. thematischer
-  Sondersendungen (long-Videos).
+  Titel-Regex zur Markierung ganzer Nachrichtensendungen (inkl.
+  Mehr-Themen-Teaser), thematischer Sondersendungen sowie Pressekonferenzen/
+  Parlamentsformate.
 - `src/youtube_code/step4_transcript_download/` — COMPLETE_PROCESS.md
   Schritt 4: Zielauswahl für den Transkript-Download (`select_targets.py`,
   drei Konfigurationen: Baseline/Zell-Auffüllung/Kriegszeitraum) und der

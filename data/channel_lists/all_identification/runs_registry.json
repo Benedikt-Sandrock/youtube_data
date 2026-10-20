@@ -97,5 +97,23 @@
     "search_end": "2026-01-01",
     "month_interval": 3,
     "executed_at": "2026-07-01T16:25:09"
+  },
+  "20261014_180404": {
+    "queries": [
+      "BSW"
+    ],
+    "search_start": "2023-07-01",
+    "search_end": "2024-07-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-14T18:04:22"
+  },
+  "20261014_180432": {
+    "queries": [
+      "BSW"
+    ],
+    "search_start": "2024-07-01",
+    "search_end": "2026-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-14T18:04:53"
   }
 }

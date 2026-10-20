@@ -71,6 +71,18 @@ Flag-/Spaltennamen, z. B. `ukr_core_title`) sowie eine `core`- und eine
   gewollt und werden über die `video_id` x `topic`-Struktur der Tabelle
   abgebildet, nicht durch gegenseitigen Ausschluss der Keyword-Sets
   verhindert.
+- **politics_general** v2 (`pol_core_wide_v2_2026-10-14`): ergänzt um
+  Österreich (core: FPÖ/ÖVP/SPÖ/NEOS, Nationalrat, Landeshauptmann,
+  Vizekanzler, Klubobmann, Bundespräsident; wide: Spitzenpolitiker wie Kickl,
+  Nehammer, Babler, Van der Bellen sowie `Budget 20xx` für die
+  Nationalratsreden) und Parlamentsbetrieb (core: `62. Sitzung`, Ausschuss,
+  Plenar…, Aktuelle Stunde, Fragestunde, Abgeordnete). Anlass: österreichische
+  Kanäle (OE24.TV, Krone, FPÖ TV, Österreich zuerst) und der Kanal
+  „Deutscher Bundestag“ waren in der Vergleichsgruppe „politisch, nicht
+  Krieg“ systematisch unterrepräsentiert. Die Store-Tabelle
+  `video_topic_relevance` ist für `politics_general` bis zu einem Neulauf mit
+  `NUR_FEHLENDE = False` noch auf v1; der Stata-Rohdatensatz (`rel_*`)
+  berechnet die Titel-Flags live und braucht nur einen Neu-Export.
 
 Titel und Beschreibung werden **getrennt** geprüft und per ODER verknüpft
 (`topic_keywords.is_relevant()` = `any(flags.values())` über alle Tiers eines
@@ -121,10 +133,18 @@ eine **ganze allgemeine Nachrichtensendung** sind (z. B. „tagesschau 20:00 Uhr
 Handelsblatt Morning Briefing, FAZ Frühdenker), damit sie von
 Einzelthemen-Videos getrennt werden können. Thematische Sondersendungen
 („tagesthemen extra“, „ZDF spezial“, „BILD-Lagezentrum SPEZIAL“, ntv
-„Ukraine Update“ …) werden separat als `sondersendung` markiert.
-`classify_title(channel_id, title)` liefert `"nachrichtensendung"`,
-`"sondersendung"` oder `None`; `classify_frame(df)` dasselbe vektorisiert.
-Nur für long-Videos gedacht (`video_format.format = 'long'`).
+„Ukraine Update“ …) werden separat als `sondersendung` markiert,
+Pressekonferenzen, Regierungsbefragungen/Fragestunden und ganze Sitzungstage
+des Bundestags als `pressekonferenz` (seit 14.10.2026; über das Format
+definiert, unabhängig von der Themenzahl, weil dort überwiegend Dritte
+sprechen). `classify_title(channel_id, title)` liefert `"nachrichtensendung"`,
+`"sondersendung"`, `"pressekonferenz"` oder `None` (Prüfreihenfolge
+SPECIAL → PRESSE → NEWS); `classify_frame(df)` dasselbe vektorisiert.
+
+Die Muster hängen nicht von der Dauer ab. **Teaser-Regel** (seit 14.10.2026):
+Auch kurze Videos/Shorts, deren Titel mehrere Meldungen aufzählt, gelten als
+`nachrichtensendung`. Geprüft ist das nur für die dritte Kanalliste (s. u.);
+die Muster der beiden älteren Listen sind nur auf long-Videos geprüft.
 
 Muster sind am Titelanfang verankert, weil viele Kanäle den Sendungsnamen als
 Suffix an Einzelthemen-Clips hängen („… | ARD Morgenmagazin“, „… | DW
@@ -138,7 +158,18 @@ FinanzmarktWelt); deren übrige sechs Kanäle haben kein Ganzsendungs-Format.
 „<Leitthema> – Weltwoche Daily DE/CH“ zählt als Nachrichtensendung (per
 Transkript-Stichprobe bestätigt: ganze Mehr-Themen-Folgen), ebenso Titel mit
 „Hubis Bundeshaus“ („Hubi über <Thema>“ ohne Sendungsnamen bleibt
-Einzelthema). Für das
+Einzelthema). Dritte Kanalliste `data/channel_lists/video_formats/weitere_kanaele.csv`
+(10 Kanäle, auf allen Formaten geprüft mit `scripts/adhoc/check_news_show_gruppe_a.py`,
+Bericht `scripts/adhoc/outputs/news_show_gruppe_a_check.md`): Nachrichtensendung bei
+Tichys Einblick (TE Wecker, per Transkript bestätigt), NIUS (nur „NIUS
+Schlagzeilen“; „| NIUS Live“-long-Videos sind laut Transkripten
+Einzelthema-Segmente), Achtung, Reichelt! (datierte Folgen), Meinungsmache
+(„Alle News“, „NEWS:“), Kronen Zeitung („A ++ B“, Krone zu Mittag),
+hessenschau („hessenschau vom <Datum>“), extra 3 (ganze Folgen und
+Halbfolgen) und Jung & Naiv (WIRTSCHAFTSBRIEFING, Aufwachen); `pressekonferenz`
+bei Jung & Naiv (BPK/RegPK), Deutscher Bundestag (Fragestunde, Befragung der
+Bundesregierung) und AfD-Fraktion (BUNDESTAG LIVE, Regierungsbefragung,
+Pressekonferenzen). Für das
 Vermietertagebuch zählen Schlagzeilen-Ketten erst ab zwei „ + “
 (`PLUS_CHAIN_MIN = 2`); für einen Robustheitscheck `plus_chain_min=1` an
 `classify_title()`/`classify_frame()` übergeben. Bislang nur Modul, keine

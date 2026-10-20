@@ -82,9 +82,10 @@ VIDEOS_INPUT_PATH = OUTPUTS / "segment_analysis" / "datenluecken_kanaluebersicht
 # Format wie TARGETED_CHANNEL_INPUT in channel_all_videos.py.
 # Aktuell: 17 Kanaele mit neuen Videos aus dem yt-dlp-Nachscraping (Test,
 # Teil 1, Teil 2), siehe scripts/adhoc/export_metadata_kanalliste_nachscraping.py.
-MISSING_METADATA_CHANNEL_INPUT = (
-    OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "metadata_nachscraping_kanaele.csv"
-)
+# Aktuell (14.10.2026): die 10 neuen Kanaele der BSW-Sample-Erweiterung
+# (.claude/plans/bsw_sample_erweiterung.md). Vorheriger Wert:
+# OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "metadata_nachscraping_kanaele.csv"
+MISSING_METADATA_CHANNEL_INPUT = CHANNEL_LISTS / "bsw_neue_kanaele.csv"
 # MISSING_METADATA_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
 YOUTUBE = build("youtube", "v3", developerKey=api_keys[0])

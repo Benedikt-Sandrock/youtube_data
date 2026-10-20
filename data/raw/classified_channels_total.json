@@ -12599,5 +12599,278 @@
     "defaultLanguage": "en",
     "country": "AU",
     "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC1mX9vuLOYf8fhaXS_KcDRg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IT",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC2Rw8lw08itJw5EwOhxYXZA",
+    "is_german": false,
+    "defaultLanguage": "id",
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC2_h-LYx4rEE3bsL7mZ6Udw",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.9
+  },
+  {
+    "channel_id": "UC6Wkh06cSGkCDIhkk_xHhUw",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UC6nUo8KFyKP7Hs2JcbPDctg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "CL",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UC6qnjAoknKc6nUwhxVYL_DA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCFhuQ228JMOO9A9TBAyRKqA",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 0.9
+  },
+  {
+    "channel_id": "UCHhEpKr14Yd2aTEbyz6gQDQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJ4RgvnVSTS2cLNG7Yib59Q",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCJdhI5r-WPakBfpyMh0VmwA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCKuGwI6tbbs4pkwdnYbZH_g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCLLXwOiIUbdHaRIX5e7wbJA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "HU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCMNfe5ziYK_EGUHKe7qx8Ww",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "HU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCOdZiWtPvW1PKaGTuxrouxA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "ID",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCTWw8VmZr4a7e4fTy9xC1fw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "HU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCWvzpSDlw4xdBzr25Tikh3A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "JP",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCZbNOg2fHR3jMpo27oqXDyg",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCZjFDJI4B4l16uujibduMFA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCagcrKRy2laLZ6u3MD9z4Zw",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCgJ0yIYRJT13BPtQdagWORA",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCgNOMos95uP2aZSTYrxfVpg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UChrRm6SHUzDqWMUZVYjuUjw",
+    "is_german": false,
+    "defaultLanguage": "ru",
+    "country": "UA",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCj3yI2w9rQtrmd2vuWFY9_g",
+    "is_german": false,
+    "defaultLanguage": "hu",
+    "country": "HU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCjq9ElqnV7Df6NLb4oDHKqQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "US",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UClCltwxFyAN1TK1HCm08J4A",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCmnhkW6_bMt8jA7ORiwJmjQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCmzGUw4-mmziFYGf71U7G0w",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "NP",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCn1WGUFqaCe1lvZd0toAUuQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IT",
+    "german_ratio": 0.1
+  },
+  {
+    "channel_id": "UCoeY_3tfwXV4GOhTSHcW39g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCqFOMVFuJvKLCLWE5CkUsbg",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCqrZ6xzgDgHvDdIQPoI22lQ",
+    "is_german": false,
+    "defaultLanguage": "en",
+    "country": "IN",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCrL3vhmQnFKNfdY_8yUBtcA",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCvJccofRTyuF9Rb1NjGcVcQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": null,
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCvbwd8YR3-I2czm4E1FMcyQ",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "HU",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCwiHP4wDCtFaWnraZnUK41g",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "GB",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCxeay89YP9XbhLNC3Zd_9cA",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 0.9
+  },
+  {
+    "channel_id": "UCxi2edl6w4Dr1-SK8CgnvKQ",
+    "is_german": true,
+    "defaultLanguage": null,
+    "country": "DE",
+    "german_ratio": 1.0
+  },
+  {
+    "channel_id": "UCyRyIFxfVGrHJLIFRyOaWMA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "PK",
+    "german_ratio": 0.0
+  },
+  {
+    "channel_id": "UCyic42CaC1FYypd0g72CCjA",
+    "is_german": false,
+    "defaultLanguage": null,
+    "country": "HU",
+    "german_ratio": 0.0
   }
 ]

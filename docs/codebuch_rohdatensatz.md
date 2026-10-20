@@ -1,11 +1,11 @@
 # Codebuch Rohdatensatz (Entwurf)
-Stand: 02.10.2026 · Zweck: Export aus Python → Stata, Grundlage für alle Do-Files (Blöcke 1–3, ggf. Lerntest)
+Stand: 02.10.2026, ergänzt 13.10. und 14.10.2026 (letzte Abschnitte) · Zweck: Export aus Python → Stata, Grundlage für alle Do-Files (Blöcke 1–3, ggf. Lerntest)
 
 ## Grundsätze
 - **Zwei Dateien**, Verknüpfung im Do-File über `merge m:1 channel_id`:
   - `videos_roh.dta` – eine Zeile pro Video
   - `kanaele_roh.dta` – eine Zeile pro Kanal
-- **Population Videos:** alle Videos aller Kanäle in `kanaele_roh.dta`, Dauer > 180 s (wie in allen bisherigen Analysen). Kein Zeitfenster-Filter im Export, das Analysefenster wird im Do-File gesetzt.
+- **Population Videos:** alle Videos aller Kanäle in `kanaele_roh.dta` (seit 13.10.2026 ohne Längenfilter, Kennzeichen `min_dauer`; siehe letzter Abschnitt). Kein Zeitfenster-Filter im Export, das Analysefenster wird im Do-File gesetzt.
 - **Population Kanäle:** alle Kanäle, für die Videos vorliegen; die Sample-Zugehörigkeit steht als Kennzeichen in der Datei (kein Vorab-Ausschluss).
 - **Keine Umformungen** im Export: keine Logs, keine Phasen, keine Aggregation über Videos. Ausnahme: die bereits festgelegte Regel `deskriptiv`-Segmente = 0 (ist Teil der Messung).
 - **Fehlende Werte:** `pandas.to_stata` schreibt NaN als `.` (keine erweiterten Missings wie `.a`). Daher gilt: Wert fehlt = `.`, **der Grund steht in einer eigenen Kennzeichenvariable** (`*_klass`, `*_verfuegbar`). Nie 0 als Ersatz für „fehlt“.
@@ -161,3 +161,97 @@ Umgesetzt in `src/youtube_code/step6_auswertung/export_stata_rohdaten.py`, Ausga
 - **`baseline_stichprobe`** ist die einzige Verwendung von `interval_index`; alle übrigen Zeitbezüge kommen aus `published_at`.
 - **`api_abbruch`** = 1 für die 10 Kanäle mit Flag `playlist_limit`; der Abbruch gilt durch das yt-dlp-Nachscraping (01.10.2026) als behoben, das Kennzeichen bleibt für Robustheitschecks erhalten.
 - Zählwerte, die fehlen können (`pop_n_seg`, `pos_n_seg` …), werden als `long` mit `.` geschrieben; Kennzeichen als `byte` mit `.`; Wertelabels werden direkt in die `.dta` geschrieben.
+
+---
+
+## Änderungen 13.10.2026: `videos_roh` als Hauptdatensatz
+Gilt vor allen Abschnitten oben, wo sie abweichen. `videos_roh.dta` ersetzt damit auch `scripts/adhoc/output/kriegspraemie/videos_kriegspraemie.dta` (aus `step8_targeted_analysis/preparation.py`).
+
+**Population Videos:** alle Videos der Sample-Kanäle, **kein Längenfilter** mehr (vorher Dauer > 180 s). Stattdessen gibt es das Kennzeichen `min_dauer` (1 = `dauer_sek` ≥ 181; unbekannte Dauer → 0).
+- **LLM-Analysen (`pop_*`, `pos_*`, `krieg_transkript`) immer mit `if min_dauer == 1`.** Die Werte sind auch für ca. 11.400 kürzere Videos bzw. Videos ohne Dauer exportiert (roh). Kurze Ukraine-Clips aus einer alten Kriegsvideo-Liste hatten in AP 1 einen scheinbaren Rückgang des Populismus nach Kriegsbeginn erzeugt.
+- **Kanalgrößen unverändert auf `min_dauer == 1`:** `n_videos`, `erstes_video_ts`, `sample_vorkrieg`, `baseline_stichprobe`, `pop_baseline*`, `ideo_*_baseline`. Neu ist `n_videos_alle` (alle Längen); es ersetzt `n_videos_api`.
+
+**Topics nur aus dem Titel:** `rel_<topic>_core` (nur core-Liste = Hauptdefinition) und `rel_<topic>_cw` (core oder wide = Robustheit) für alle Themen in `topic_keywords.TOPIC_KEYWORDS`. Die Werte werden live aus den Regexen (`KW_RE`) berechnet und decken alle Videos ab; die Namen sind identisch mit `videos_kriegspraemie`. Ein fehlender Titel ergibt 0.
+- **Entfallen** sind `krieg`, `krieg_klass`, `krieg_quelle`, `krieg_core`, `topic_*`, `topic_*_core`, `topic_klass` und `topic_nur_titel` (Titel + Beschreibung aus `video_topic_relevance`, nur > 180 s). Intern wird `video_topic_relevance[russia_ukraine_war]` nur noch für den Kriegsausschluss in der Ideologie-Baseline gelesen, damit diese unverändert bleibt.
+- Mapping zu `videos_kriegspraemie`: `rel_russia_ukraine_war_core` ↔ früher ungefähr `krieg_core`, aber nur Titel.
+- **`rel_politics_general_*` ab Version v2 (2026-10-14):** Die Listen enthalten jetzt auch Österreich (Parteien, Nationalrat, Landeshauptmann, Spitzenpolitiker) und den Parlamentsbetrieb (`62. Sitzung`, Ausschuss, Fragestunde, Abgeordnete). Gegenüber v1 kommen titelbasiert ca. +11 k core- und +16 k cw-Treffer hinzu, v. a. bei OE24.TV, FPÖ TV, Krone und Deutscher Bundestag. Ein Export vor diesem Datum enthält noch v1.
+
+**Videoformat** (Tabelle `video_format`, `step1_sample/channel_video_formats.py`):
+- `format`: short/long/live; leer = nicht zugeordnet.
+- `format_quelle`: `api_UULF`/`api_UUSH`/`api_UULV`/`ytdlp_*`.
+- `format_klass` = 1, wenn der letzte Laufstatus des Kanals `komplett` ist (alle `data/channel_lists/video_formats/*_formats_status.csv`) **und** das Video im Format-Fenster [01.01.2021, 01.07.2026) liegt.
+- `format_derived` = 1: WELT-Videos ohne Format im Fenster, per Ausschluss als `long` gesetzt (yt-dlp `/videos` endet ca. Juli 2025, Shorts/Livestreams sind vollständig). Das betrifft sehr viele WELT-Videos (Teiltest 13.10.2026: 43.075 von 63.191) und kann gelöschte/private Videos einschließen. Robustheit: ohne `format_derived == 1`.
+- Kanalebene: `format_status` (letzter Status, `fehlt` = nie abgefragt) und `format_liste` (0 keine, 1 upload-starke Kanäle, 2 `alt_kanaele`, 3 `weitere_kanaele`, seit 14.10.2026).
+- **Stand Export 13.10.2026 (nach Formatlauf für alle 427 Kanäle):** 424 Kanäle `komplett`, OE24.TV `unvollstaendig` (Livestream-Tab endet zu früh, 73 ältere Videos ohne Format → alle OE24-Videos haben `format_klass` = 0, obwohl `format` fast überall gesetzt ist), WDR aktuell und ZyproX `fehler` (Kanal gelöscht, 404). `format_klass` = 1 bei 1.043.754 von 1.093.796 Videos; davon 11.536 ohne Format (vermutlich gelöschte/private Videos). Der Formatlauf hat auch Videos ab 01.01.2021 in die Registry nachgetragen (vorher ab 24.02.2021); dadurch verschieben sich bei wenigen Kanälen `erstes_video_ts` und `n_videos`.
+- `live_typ` entfällt (war durchgehend `.`); Livestreams erkennt man jetzt über `format == "live"`.
+
+**Sendungen:** `news_show` (ganze Nachrichtensendung), `special_show` (Sondersendung/Themen-Update) und `pk_sitzung` (Pressekonferenz, Regierungsbefragung/Fragestunde oder ganzer Bundestags-Sitzungstag; seit 14.10.2026, nur Jung & Naiv, Deutscher Bundestag, AfD-Fraktion) per Titelmuster aus `step3_topic_relevance/news_show_patterns.py`. Die drei Kennzeichen schließen sich aus. Sie gelten nur für Kanäle mit geprüften Mustern (`format_liste` > 0), sonst `.`. **Teaser-Regel:** Auch Shorts/kurze Videos, deren Titel mehrere Meldungen aufzählt, zählen als `news_show`; die Muster hängen nicht von der Dauer ab. Für die Liste 3 (`weitere_kanaele.csv`, 10 Kanäle) sind die Muster auf allen Formaten geprüft, für die Listen 1 und 2 nur auf long-Videos. Für LLM-Variablen gilt ohnehin `min_dauer == 1`, Teaser sind nur für View-Analysen relevant. Hinweis NIUS: „| NIUS Live“-Videos sind bewusst `news_show = 0` (long = Einzelthema-Segmente).
+
+**Weitere Variablen:**
+- `titel` (strL)
+- `post_war` (1 = `upload_ts` ≥ 24.02.2022)
+- `monat` (`%tm`, UTC)
+
+Aus `videos_kriegspraemie` umbenannt bzw. verlagert:
+- `view_count`/`like_count`/`comment_count` → `views`/`likes`/`kommentare`
+- `duration_sec` → `dauer_sek`
+- `published_at` → `upload_ts`
+- `channel_title` → `kanal_name` (in `kanaele_roh`)
+- `alt_kanal` → `format_liste == 2` (in `kanaele_roh`)
+
+**Konsistenzprüfungen, angepasst:**
+- Prüfung 3: `min_dauer` = (`dauer_sek` ≥ 181) und `baseline_stichprobe = 1 ⇒ min_dauer = 1`.
+- Prüfung 7 zählt klassifizierte Videos mit `min_dauer = 0` sowie klassifizierte Videos außerhalb der Sample-Kanäle.
+- Neu: `rel_*_core = 1 ⇒ rel_*_cw = 1`; `format` ∈ {short, long, live, leer}; `format_derived = 1 ⇒ format = long`; `news_show`/`special_show`/`pk_sitzung` = `.` genau bei `format_liste = 0`; `news_show + special_show + pk_sitzung ≤ 1`.
+
+---
+
+## Änderungen 14.10.2026: Kanaltypologie (`kanaele_roh`)
+Manuelle Typologie der 279 Whitelist-Kanäle. Quelle: `data/external/kanal_typologie.csv`. Die Grenzfallprüfung vom 14.10.2026 (Kriterien, 22 Umcodierungen, dokumentierte Abweichungen) steht in `scripts/adhoc/outputs/kanal_typologie_grenzfaelle.md` (Skript `scripts/adhoc/kanal_typologie_grenzfaelle.py`). Nicht-Whitelist-Kanäle haben `.`.
+
+### Variablen
+| Variable | Typ | Inhalt | Codierung / Hinweis |
+|---|---|---|---|
+| `kanaltyp` | byte | Kanaltyp | Zehnerstelle = Gruppe, Einerstelle = Typ (11 = A1 … 34 = C4), Wertelabels mit Code und Kurzname; `.` = nicht Whitelist |
+| `kanaltyp_gruppe` | byte | Obergruppe | 1 = A Etablierte Medien, 2 = B Politisch-alternativ & Akteure, 3 = C Themenkanäle |
+| `kanaltyp_subtyp` | str | Subtyp | Freitext (ca. 230 Ausprägungen), nur deskriptiv, nicht als Analysevariable |
+| `kanaltyp_org` | str | Organisationsform | Freitext (Einzelperson, ÖRR, Privates Medienhaus, Anonym …), nur deskriptiv |
+| `kanaltyp_sicher` | byte | Sicherheit der Zuordnung | 1 = hoch, 2 = mittel, 3 = niedrig (nach Grenzfallprüfung keine `niedrig` mehr) |
+| `sample_kern` | byte | Kernstichprobe | 1 = `kanaltyp` ∈ {A1, A2, A5, B1, B2, B3, C1} und kein Einzelausschluss (Kurbel TV, umgewidmeter Kanal); Stand 14.10.2026: 174 Kanäle, davon 125 mit `sample_vorkrieg` |
+
+### Typen
+| Code | Typ | Definition | n (Whitelist) |
+|---|---|---|---|
+| A1 | ÖRR-Nachrichten | Nachrichtenkanäle öffentlich-rechtlicher Anstalten (tagesschau, ZDFheute, phoenix, Regional-Nachrichten) | 9 |
+| A2 | Private Nachrichten | Nachrichtenangebote privater Medienhäuser (TV, überregionale Presse, Boulevard) inkl. AT/CH | 20 |
+| A3 | Private Nachrichten regional/lokal | Lokal-/Regional-TV und Regionalzeitungen | 8 |
+| A4 | Auslandsrundfunk | Staatlicher/internationaler Auslandsrundfunk (DW, TRT, euronews) | 3 |
+| A5 | Magazin/Reportage/Doku | Magazin-, Reportage-, Doku- und Erklärformate etablierter Häuser inkl. funk | 17 |
+| A6 | Satire & Comedy | Politsatire, Kabarett, Comedy etablierter Häuser | 12 |
+| A7 | Unterhaltung/Sport/Kinder | Unterhaltungs-, Sport- und Kinderprogramm etablierter Häuser | 7 |
+| A8 | Senderhauptkanal Mischprogramm | Hauptkanäle von Sendern mit gemischtem Programm (ARD, WDR, SWR, HR, rbb, MDR), kein reines Nachrichtenangebot | 6 |
+| B1 | Alternative Portale | Alternative Nachrichten- und Meinungsportale: redaktionelle Marke oder mehrere Köpfe (inkl. Personality-Formate eines Portals) | 27 |
+| B2 | Einzelkommentatoren/Journalisten-Creator | Identifizierbare Einzelperson ohne politisches Mandat mit überwiegend politischem Kommentar, auch Aktivisten | 55 |
+| B3 | Anonyme Politikkanäle | Politischer Content ohne identifizierbare verantwortliche Person (Kompilationen, Clips, Demo-Livestreams) | 19 |
+| B4 | Parteien/Politiker/Organisationen | Absender ist Partei/Fraktion, Person mit politischem Amt/Mandat als Hauptrolle im Untersuchungszeitraum oder Organisation (NGO, Thinktank, Verband, Parlament) | 22 |
+| C1 | Wirtschaft & Finanzen | Wirtschaft/Finanzen als roter Faden, auch mit politischer Rahmung (Krisennarrative) | 28 |
+| C2 | Wissen/Bildung/Technik | Wissen, Bildung, Recht, Technik, Geschichte | 17 |
+| C3 | Unterhaltung/Reaction/Podcasts | Unterhaltung, Reaction, Streamer, Interview-Podcasts ohne politischen Schwerpunkt | 18 |
+| C4 | Lifestyle/Coaching/Esoterik | Lifestyle, Coaching, Esoterik, Alternativmedizin, Themenfremdes | 11 |
+
+### Zuordnungsregeln
+- Entscheidend ist der überwiegende Inhalt des Kanals (Titelstichprobe), nicht Name oder Selbstbeschreibung.
+- **B4 vs. B2:** Ausschlaggebend ist, wer sendet, nicht wofür jemand bekannt ist. Kurzzeitige Kandidaturen (Grosz, Otte 2022) reichen nicht für B4.
+- **B1 vs. B2:** redaktionelle Marke / mehrere Köpfe vs. Einzelperson. **B3:** keine identifizierbare Person.
+- **B2 vs. B3 (Präzisierung 15.10.2026, bisher nur in `data/external/channels.xlsx` umgesetzt):** Entscheidend ist das Format, nicht der Name im Impressum. Eigener Kommentar einer wiederkehrenden Person (Klarname oder festes Pseudonym/Künstlername) → B2; überwiegend neu verpacktes Fremdmaterial (Clips, Kompilationen, Aggregatoren, Demo-Livestreams) → B3, auch wenn ein Impressum eine Person nennt. Kanäle mit nur geringem Politikanteil gehen nach C3/C4. Umgesetzt: HABITAT, Meinungsmache, Politik & Co, Politik mit Kopf, Vindex - Shorts, Der kleine Nihilist, Der Schattenmacher, imp → B2; BOSS DELUXE, Neuste.news → C3; GELDDRUCKER → C4.
+- **C1 vs. B2:** Finanzbezug als roter Faden → C1; Politik ohne Finanzbezug → B2.
+
+### Hinweise für Analysen
+- **Abweichungen zu `medientyp`** sind gewollt und dokumentiert: Serge Menga (B2, `medientyp` Partei/Politiker; `medientyp` bewusst unverändert, damit Frage-1-Ergebnisse stabil bleiben), exxpressTV (B1, traditionell), Schweinfurter Nachrichten (A3, Creator), B4-Organisationen, Gysi-Kanäle und Peter Boehringer (B4, Creator). Die Kreuztabelle steht in `export_log.txt` (Prüfung 8).
+- **B3** hat nur 3 Kanäle mit `sample_vorkrieg` (ohne Kurbel TV). Für Vergleiche innerhalb von Kanälen vor/nach Kriegsbeginn ist B3 praktisch leer; geeignet ist es für Neueintritte und Marktanteile.
+- **Typen nicht vollständig exogen:** Die Zuordnung beruht auf Titeln aus dem gesamten Zeitraum. Kanäle, die sich erst nach 2022 politisiert haben (z. B. Krissy Rieger, mym by Simo), sind nach ihrem späteren Profil typisiert.
+- Oli, Olli und MENTALE FITNESS werden möglicherweise von einem Betreiber gespeist (`kanal_hinweis`).
+- Ideologisch ist die Typologie stark mit `ideo_*_baseline` verknüpft (B-Typen überwiegend rechts, A-Typen links). Typunterschiede sind daher nicht ohne Ideologiekontrolle als Medientyp-Effekt zu lesen.
+
+### Konsistenzprüfung 8 (neu)
+`kanaltyp` gesetzt genau bei `sample_whitelist = 1`; `kanaltyp_gruppe` = Zehnerstelle von `kanaltyp`; `sample_kern = 1 ⇒ kanaltyp` ∈ Kerntypen. Zusätzlich beim Laden: `channel_id` eindeutig, nur bekannte Typcodes und Sicherheitsstufen.

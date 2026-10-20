@@ -16,7 +16,7 @@ maßgebliche Quelle mehr.
 | `video_identification.py` | Stichwortsuche nach Videos/Kanälen für konfigurierte Suchbegriffe/Zeiträume (`settings_variables.py`); schreibt `search_runs`/`video_search_hits` | pro Suchlauf |
 | `channel_all_videos.py` | Für neu entdeckte Kanäle: Sprachklassifikation + alle Videos seit dem Analyse-Start abrufen; schreibt `language_classification` sowie Video-Kernfelder | pro neue Kanalgruppe |
 | `metadata_collection.py` | Detaillierte Video- und/oder Kanal-Metadaten für eine ID-Liste abrufen; schreibt `video_details` bzw. `channels`. Standardmäßig ein einmaliger Snapshot (bereits bekannte video_ids werden übersprungen, `view_count`/`like_count`/`comment_count` bleiben unverändert); mit `REFRESH_MODE = True` werden diese drei Spalten für die übergebene ID-Liste bewusst mit dem neu abgerufenen Wert überschrieben (siehe Docstring dort und `video_registry.refresh_video_stats()`). Mit `CHECK_CHANNELS_MODE = True` (seit 2026-09-10) statt einer fertigen Video-ID-Liste eine Kanalliste übergeben: `get_missing_metadata_for_channels()` prüft dann selbst, welche der in der Registry bereits bekannten Videos dieser Kanäle Metadaten fehlen (`view_count` bei `DETAILED = False`, `video_details`/`topic_categories` bei `DETAILED = True`) und fragt nur die fehlenden gezielt nach — keine Video-Discovery, für Kanäle ganz ohne bekanntes Video siehe `channel_all_videos.py` (`TARGETED_SEARCH`) | bei Bedarf |
-| `channel_video_formats.py` | Für eine Kanalliste (`CHANNEL_INPUT`, CSV/JSON mit `channel_id`) das Format jedes Videos im Fenster `PUBLISHED_AFTER`–`PUBLISHED_BEFORE` bestimmen: Short / normales Video / Livestream. Die Data API hat kein `isShort`-Feld, deshalb über die kanaleigenen Format-Playlists `UUSH<rest>` / `UULF<rest>` / `UULV<rest>` (aus `UC<rest>`); die drei Format-Playlists sind gefilterte Ansichten der auf die neuesten ~20.000 Uploads gekappten Upload-Liste und teilen sich diese Grenze (tagesschau: alle drei enden im Juli 2022). Meldet die Upload-Playlist `UU<rest>` ≥ `UPLOADS_CAP_THRESHOLD` Einträge, ergänzt yt-dlp jede Format-Playlist, die den Fensteranfang nicht erreicht, über die Tabs `/shorts`, `/videos`, `/streams`. Schreibt die Tabelle `video_format` und trägt bisher unbekannte Videos mit detaillierten Metadaten in `videos`/`video_details` nach. **Alles-oder-nichts pro Kanal**: ein Kanal wird erst nach vollständigem Abruf in einer Transaktion geschrieben; bei Quota-Abbruch wird er verworfen und im Folgelauf komplett neu abgefragt (Statusdatei `<liste>_formats_status.csv` neben der Kanalliste). Report: `outputs/video_formats/<liste>_formats_report.md` (inkl. HEAD-Validierung gegen `/shorts/<id>` und Dauer-Plausibilität). Erst mit `DRY_RUN = True` testen; danach `step3_topic_relevance` für die neuen Videos laufen lassen | pro Kanalliste |
+| `channel_video_formats.py` | Für eine Kanalliste (`CHANNEL_INPUT`, CSV/JSON mit `channel_id`) das Format jedes Videos im Fenster `PUBLISHED_AFTER`–`PUBLISHED_BEFORE` bestimmen: Short / normales Video / Livestream. Die Data API hat kein `isShort`-Feld, deshalb über die kanaleigenen Format-Playlists `UUSH<rest>` / `UULF<rest>` / `UULV<rest>` (aus `UC<rest>`); die drei Format-Playlists sind gefilterte Ansichten der auf die neuesten ~20.000 Uploads gekappten Upload-Liste und teilen sich diese Grenze (tagesschau: alle drei enden im Juli 2022). Meldet die Upload-Playlist `UU<rest>` ≥ `UPLOADS_CAP_THRESHOLD` Einträge, ergänzt yt-dlp jede Format-Playlist, die den Fensteranfang nicht erreicht, über die Tabs `/shorts`, `/videos`, `/streams`. Schreibt die Tabelle `video_format` und trägt bisher unbekannte Videos mit detaillierten Metadaten in `videos`/`video_details` nach. **Alles-oder-nichts pro Kanal**: ein Kanal wird erst nach vollständigem Abruf in einer Transaktion geschrieben; bei Quota-Abbruch wird er verworfen und im Folgelauf komplett neu abgefragt (Statusdatei `<liste>_formats_status.csv` neben der Kanalliste). Endet ein yt-dlp-Tab ohne Fehler vor dem Fensteranfang, obwohl die Registry ältere Videos ohne Format kennt, lautet der Status `unvollstaendig` statt `komplett` (siehe Hinweise unten). Report: `outputs/video_formats/<liste>_formats_report.md` (inkl. HEAD-Validierung gegen `/shorts/<id>` und Dauer-Plausibilität). Mit `PUBLISHED_AFTER = PUBLISHED_BEFORE = None` kommt das Fenster aus den Spalten `fenster_von`/`fenster_bis` der CSV-Kanalliste – so arbeitet die von `scripts/adhoc/zufallsstichprobe_videos.py` geschriebene Liste `data/channel_lists/video_formats/zufallsstichprobe_fehlende_formate.csv` (Kanäle, deren Videos im Stichprobenzeitraum noch kein Format haben; Workflow: Stichprobe → Formate abfragen → Stichprobe erneut ziehen). Erst mit `DRY_RUN = True` testen; danach `step3_topic_relevance` für die neuen Videos laufen lassen | pro Kanalliste |
 | `settings_variables.py` | Gemeinsame Konfiguration (Suchzeitraum, Suchbegriffe, Zielverzeichnis) für `video_identification.py`/`channel_all_videos.py` — kein eigenständiges Skript, wird per bare sibling import eingebunden | — |
 | `build_channel_provenance.py` | **Zentrales Sample-Definitions-Skript**: kombiniert Such-Provenienz, Sprachklassifikation, Kanal-Metadaten sowie Video-Registry-Lookups aus `video_registry.sqlite` zu einer Kanal-Provenienztabelle mit Eligibility-Flags. `QUERY_FILTER`/`SEARCH_PERIOD_FILTER` legen fest, welcher Ausschnitt der Suchhistorie "das Sample" für einen Lauf ist (z. B. alle über "CDU"/"SPD" im Zeitraum 24.02.2021–23.02.2022 gefundenen Kanäle); `ANALYSIS_ID` bestimmt den Output-Unterordner (`data/samples/<ANALYSIS_ID>/`), sodass verschiedene Läufe sich nie überschreiben | einmal je Sample-Definition |
 
@@ -47,6 +47,43 @@ maßgebliche Quelle mehr.
   ~18.000 statt ~30.000 IDs). Die Ausgabe `yt-dlp ...: N IDs gelesen ... ->
   Fensteranfang erreicht, Stopp` bzw. `Tab-Ende erreicht` zeigt, welcher Fall
   eintrat.
+- yt-dlp kann einen Tab auch **ohne** Exception zu früh beenden: WELT
+  `/videos` endete am 07.10.2026 einmal nach 11.517, einmal nach 16.528 IDs —
+  beide Male etwa an der playlistItems-Grenze (Juli 2025) statt im Jahr 2021.
+  `channel_video_formats.py` prüft deshalb jeden Tab, der vor dem
+  Fensteranfang endet: Kennt die Registry mehr als `YTDLP_GAP_TOLERANCE`
+  (50) ältere Videos dieses Kanals im Fenster, die in keinem Format stehen,
+  wird der Kanal als `unvollstaendig` statt `komplett` vermerkt (Detail in der
+  Statusdatei, eigene Spalte und Liste im Report). Die Teilergebnisse werden
+  trotzdem gespeichert, und ein Folgelauf fragt den Kanal erneut ab. Kanäle,
+  die vor dieser Prüfung als `komplett` vermerkt wurden, können trotzdem
+  unvollständig sein. Prüfen lässt sich das über die Spalte „Registry ohne
+  Format“ im Report.
+- Kanallisten für `channel_video_formats.py` in `data/channel_lists/video_formats/`:
+  `upload_starke_kanaele.csv` (10) und `alt_kanaele.csv` (14), beide
+  abgefragt am 06./07.10.2026, sowie `sample_russia_longitudinal_v1.csv` (403
+  übrige Sample-Kanäle; Whitelist-Kanäle zuerst, erzeugt von
+  `scripts/adhoc/export_format_kanalliste_sample.py`). Ihr Lauf liefert
+  `format` für `videos_roh.dta` (`step6_auswertung/export_stata_rohdaten.py`).
+  Grobe Quota-Schätzung: ~16.000 Einheiten für `playlistItems` plus
+  `videos.list` für neue Shorts, also mehrere Tage; der Folgelauf überspringt
+  `komplett`. Stand 14.10.2026: 400 von 403 `komplett`, 2 `fehler`,
+  1 `unvollstaendig` — für einen Folgelauf `CHANNEL_INPUT` wieder auf diese
+  Liste setzen. Vierte Liste: `bsw_kanaele.csv` (10 neue Kanäle der
+  BSW-Sample-Erweiterung, 14.10.2026 alle `komplett`), aktuell als
+  `CHANNEL_INPUT` gesetzt.
+- BSW-Sample-Erweiterung (14.10.2026, `.claude/plans/bsw_sample_erweiterung.md`):
+  Suchläufe `"BSW"` 2023-07-01–2024-07-01 und 2024-07-01–2026-01-01
+  (`settings_variables.py`). Neue Kanäle (deutsch, > 50.000 Abonnenten,
+  noch nicht im Sample) bestimmt `scripts/adhoc/bsw_neue_kanaele.py`. Es
+  holt dabei Kanal-Metadaten und Sprachklassifikation nach und schreibt
+  `data/channel_lists/bsw_neue_kanaele.csv`. Diese Liste ist aktuell als
+  `TARGETED_CHANNEL_INPUT` (`channel_all_videos.py`) und
+  `MISSING_METADATA_CHANNEL_INPUT` (`metadata_collection.py`) gesetzt.
+  Reihenfolge für künftige Suchbegriffe: erst Kanal-Metadaten (billig), dann
+  Filter > 50k, dann Sprache, dann Videos. Der Modus `NEW_CHANNELS` passt
+  nicht, weil er Kanäle überspringt, die über die Suchtreffer schon Videos in
+  der Registry haben.
 - `build_channel_provenance.py` liest ausschließlich aus dem Store — keine
   JSON-Zwischendateien, keine erneute Migration nötig. Vor einem echten Lauf
   erst mit `DRY_RUN = True` die gedruckte Übersicht prüfen.

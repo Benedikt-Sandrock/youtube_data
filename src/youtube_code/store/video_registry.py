@@ -49,6 +49,8 @@ import json
 import re
 import sqlite3
 
+from pandas import DataFrame
+
 from youtube_code.config import MIN_VIDEO_DURATION_SECONDS, STORE
 
 DB_PATH = STORE / "video_registry.sqlite"
@@ -1032,7 +1034,7 @@ def get_videos_for_channels(channel_ids) -> dict:
     return result
 
 
-def get_video_rows_for_channels(channel_ids):
+def get_video_rows_for_channels(channel_ids) -> DataFrame:
     """
     Gibt video_id/channel_id/published_at fuer ALLE in der Registry bekannten
     Videos der uebergebenen Kanaele zurueck - Verallgemeinerung von

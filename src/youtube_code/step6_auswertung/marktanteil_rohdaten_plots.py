@@ -21,9 +21,12 @@ Umfaenge
 --------
 - "politische Videos": politisch == "ja" (YouTube-topic_categories "Politics"),
   Kriegsvideos eingeschlossen.
-- "Kriegsvideos": krieg == "ja" (Stichwortklassifikation russia_ukraine_war,
-  Titel + Beschreibung), ungefiltert nach politisch (wie in den bisherigen
+- "Kriegsvideos": rel_russia_ukraine_war_cw == "ja" (Stichwortsuche
+  russia_ukraine_war, core+wide, seit 13.10.2026 NUR Titel - vorher Titel +
+  Beschreibung), ungefiltert nach politisch (wie in den bisherigen
   Marktanteils-Skripten).
+- Population: nur Videos mit min_dauer == "ja" (> 180 s), wie vor dem
+  Wegfall des Laengenfilters in videos_roh.
 
 Klassifikationen
 ----------------
@@ -165,10 +168,16 @@ def bilde_gruppen(k):
 
 
 def lade_videos():
+    # videos_roh hat seit 13.10.2026 keinen Laengenfilter mehr -> min_dauer
+    # setzt die bisherige Population (> 180 s) wieder her; "krieg" ist jetzt
+    # die Titel-Stichwortsuche rel_russia_ukraine_war_cw (core+wide)
     v = pd.read_stata(ROHDATEN_PFAD / "videos_roh.dta",
-                      columns=["video_id", "channel_id", "upload_ts", "views", "politisch", "krieg"])
-    for c in ["politisch", "krieg"]:
+                      columns=["video_id", "channel_id", "upload_ts", "views", "politisch",
+                               "rel_russia_ukraine_war_cw", "min_dauer"])
+    v = v.rename(columns={"rel_russia_ukraine_war_cw": "krieg"})
+    for c in ["politisch", "krieg", "min_dauer"]:
         v[c] = v[c].astype(str)
+    v = v[v["min_dauer"] == "ja"]
     v["rel_monat"] = relativ_periode(v["upload_ts"], pd.Timestamp(KRIEGSBEGINN), 1)
     n_ohne_views = int(v["views"].isna().sum())
     v = v[v["views"].notna() & v["rel_monat"].between(PERIODE_MIN, PERIODE_MAX)]
@@ -289,7 +298,9 @@ def schreibe_methodik(kanaele, grenzen, fallzahlen, phasen_tabellen, erzeugt):
         "Videoalter zwischen den Gruppen unterscheidet.",
         f"- Grafik: Punkte = Monatswerte, Linie = LOWESS (frac={GLAETTUNG_LOWESS_FRAC}, it=0).",
         "- Umfänge: politische Videos = `politisch == ja` (inkl. Kriegsvideos); "
-        "Kriegsvideos = `krieg == ja` (ohne zusätzlichen Politik-Filter).",
+        "Kriegsvideos = `rel_russia_ukraine_war_cw == ja` (Titel-Stichworte core+wide; vor dem "
+        "13.10.2026 Titel + Beschreibung), ohne zusätzlichen Politik-Filter. Nur Videos mit "
+        "`min_dauer == ja` (> 180 s).",
         "",
         "## Klassifikationen",
         "",

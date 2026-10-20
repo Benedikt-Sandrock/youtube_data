@@ -22,9 +22,9 @@ import pandas as pd
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import NoTranscriptFound
 
-from youtube_code.config import MIN_VIDEO_DURATION_SECONDS, OUTPUTS
+from youtube_code.config import OUTPUTS
 from youtube_code.store.transcript_store import attempted_video_ids, get_transcripts, upsert_transcripts
-from youtube_code.store.video_registry import duration_lookup, get_channel_map, get_videos_for_channels
+from youtube_code.store.video_registry import get_channel_map, get_videos_for_channels, video_format_lookup
 
 # =====================================================
 # CONFIGURATION (Defaults - als Funktionsparameter ueberschreibbar)
@@ -33,7 +33,9 @@ from youtube_code.store.video_registry import duration_lookup, get_channel_map, 
 STOP_WORD = "blocking"
 SPEED_DOWNLOAD = 0
 # VIDEO_LIST = "political_nonwar_ids.json"  # nur fuer den __main__-Block, muss .json sein
-VIDEO_LIST = OUTPUTS / "segment_analysis" / "abdeckung_politisch_nichtkrieg" / "download_liste1_zellen_ge3_krieg.json"
+# VIDEO_LIST = OUTPUTS / "segment_analysis" / "abdeckung_politisch_nichtkrieg" / "download_liste1_zellen_ge3_krieg.json"
+# VIDEO_LIST = OUTPUTS / "segment_analysis" / "abdeckung_politisch_nichtkrieg" / "download_liste2_zellen_1bis2_krieg.json"
+VIDEO_LIST = "ids_right.json"
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]
@@ -43,6 +45,11 @@ REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_gene
 # tatsaechlich existieren ("status" == "OK"), werden komplett uebersprungen.
 MIN_ATTEMPTS_FOR_CHANNEL_CHECK = 10
 MIN_AVAILABLE_REQUIRED = 2
+
+# Format-Filter: True = nur Videos mit format == "long" (video_registry.video_format)
+# abfragen, Videos ohne Format-Zuordnung werden verworfen; False = alle
+# uebergebenen Video-IDs abfragen (kein Format-/Laengenfilter).
+ONLY_LONG_FORMAT = True
 
 
 def get_transcript(video_id):
@@ -92,7 +99,7 @@ def download_transcripts(
     batch_size: int = BATCH_SIZE,
     speed_download: bool = SPEED_DOWNLOAD,
     confirm_speed: bool = True,
-    min_duration_seconds: int | None = MIN_VIDEO_DURATION_SECONDS,
+    only_long_format: bool = ONLY_LONG_FORMAT,
 ) -> pd.DataFrame:
     """
     Laedt Transkripte fuer video_ids herunter (bereits per transcript_store
@@ -111,11 +118,12 @@ def download_transcripts(
     programmatischen Aufruf (z.B. aus run_transcript_selection.py) auf False
     setzen, um den Prompt zu ueberspringen.
 
-    min_duration_seconds: letzte Absicherung (Default: MIN_VIDEO_DURATION_SECONDS
-    aus youtube_code.config) - video_ids unter dieser Laenge oder mit
-    unbekannter Dauer werden VOR jedem API-Call verworfen, unabhaengig davon,
-    ob der Aufrufer (select_targets.py oder eine eigene Liste) schon gefiltert
-    hat. min_duration_seconds=None deaktiviert die Pruefung.
+    only_long_format: letzte Absicherung (Default: ONLY_LONG_FORMAT) - bei True
+    werden VOR jedem API-Call alle video_ids verworfen, deren Format laut
+    video_registry.video_format nicht "long" ist (Shorts, Livestreams) oder
+    die noch keine Format-Zuordnung haben, unabhaengig davon, ob der Aufrufer
+    (select_targets.py oder eine eigene Liste) schon gefiltert hat. Bei False
+    werden alle uebergebenen video_ids abgefragt.
 
     Rueckgabewert: DataFrame (Spalten REQUIRED_COLUMNS) aller in diesem Aufruf
     verarbeiteten Zeilen (unabhaengig vom bereits erfolgten upsert_transcripts).
@@ -130,19 +138,18 @@ def download_transcripts(
     video_ids_sorted = [str(v) for v in video_ids]
     video_channel_map = dict(channel_map or {})
 
-    if min_duration_seconds is not None:
-        duration_by_id = duration_lookup(video_ids_sorted)
-        too_short_or_unknown = {
-            v for v in video_ids_sorted
-            if duration_by_id.get(v) is None or duration_by_id.get(v) < min_duration_seconds
-        }
-        if too_short_or_unknown:
-            video_ids_sorted = [v for v in video_ids_sorted if v not in too_short_or_unknown]
-            print(
-                f"\n⏱️ {len(too_short_or_unknown)} Video-IDs unter Mindestlaenge "
-                f"({min_duration_seconds}s) oder mit unbekannter Dauer verworfen - "
-                "kein Transkript-Download fuer diese IDs."
-            )
+    if only_long_format:
+        format_by_id = video_format_lookup(video_ids_sorted)
+        total_before = len(video_ids_sorted)
+        format_counts = pd.Series([format_by_id.get(v, "unbekannt") for v in video_ids_sorted]).value_counts()
+        video_ids_sorted = [v for v in video_ids_sorted if format_by_id.get(v) == "long"]
+        print(
+            f"\n🎞️ Format-Filter (nur 'long'): {len(video_ids_sorted)} von {total_before} Video-IDs behalten."
+            f"\n   Verworfen: {format_counts.get('short', 0)} short, {format_counts.get('live', 0)} live, "
+            f"{format_counts.get('unbekannt', 0)} ohne Format-Zuordnung - kein Transkript-Download fuer diese IDs."
+        )
+    else:
+        print("\nℹ️ Format-Filter deaktiviert (only_long_format=False) - alle Video-IDs werden abgefragt.")
 
     print("Loading already processed video IDs from transcript_store…")
     processed_video_ids = attempted_video_ids()
@@ -306,5 +313,7 @@ def download_transcripts(
 
 
 if __name__ == "__main__":
+    if not isinstance(ONLY_LONG_FORMAT, bool):
+        raise SystemExit(f"ONLY_LONG_FORMAT muss True oder False sein, nicht {ONLY_LONG_FORMAT!r}.")
     video_ids_sorted, channel_map = _load_video_list(VIDEO_LIST)
     download_transcripts(video_ids_sorted, channel_map=channel_map, confirm_speed=True)

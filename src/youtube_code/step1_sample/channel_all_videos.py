@@ -90,7 +90,7 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"  |  "TARGETED_SEARCH"  |  "TARGETED_SEARCH_YTDLP"
 # ─────────────────────────────────────────────
-MODE = "TARGETED_SEARCH_YTDLP"
+MODE = "TARGETED_SEARCH"
 
 # Ob zusaetzlich zur zentralen Registry (data/store/video_registry.sqlite,
 # immer geschrieben) noch eine JSON-Datei (VIDEOS_TOTAL_FILE) gepflegt wird.
@@ -121,7 +121,10 @@ CLASSIFIED_CHANNELS_FILE = RAW / "classified_channels_total.json"
 # Kanalliste: CSV mit "channel_id"-Spalte oder JSON (Liste von IDs oder von
 # Dicts mit "channel_id"). Standard: die 38 Kanaele ohne Baseline-Video aus
 # outputs/segment_analysis/baseline_still_missing_channels.csv.
-TARGETED_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
+# Aktuell (14.10.2026): die 10 neuen Kanaele der BSW-Sample-Erweiterung
+# (scripts/adhoc/bsw_neue_kanaele.py, .claude/plans/bsw_sample_erweiterung.md).
+# Vorheriger Wert: OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
+TARGETED_CHANNEL_INPUT = CHANNEL_LISTS / "bsw_neue_kanaele.csv"
 
 # Zeitfenster fuer die gezielte Suche. Aktuell 2021-01-01 bis Ende 2026Q2 =
 # der volle Beobachtungszeitraum des Quartals-Luecken-Screenings

@@ -56,8 +56,15 @@ Attempted-Filter, Kanal-Vorfilter, `STOP_WORD`-Notbremse, batchweises
 `upsert_transcripts`, randomisierte Sleeps).
 
 ```python
-download_transcripts(video_ids, channel_map=None, confirm_speed=True)
+download_transcripts(video_ids, channel_map=None, confirm_speed=True, only_long_format=True)
 ```
+
+`only_long_format` (Default: Konstante `ONLY_LONG_FORMAT = True`): letzte
+Absicherung vor jedem API-Call — es werden nur Video-IDs abgefragt, deren
+Format in `video_registry.video_format` `"long"` ist; Shorts, Livestreams und
+Videos ohne Format-Zuordnung werden verworfen (ersetzt die frühere
+181-s-Mindestlängen-Regel). Mit `only_long_format=False` werden alle
+übergebenen Video-IDs abgefragt.
 
 `confirm_speed`: bei `True` **und** `speed_download` wird wie im
 urspruenglichen Skript ein "Speed download activated. Continue? [y/N]"-Prompt

@@ -64,3 +64,15 @@ Target directory: "E:\PyhcarmProjects\youtube_data\data\channel_lists\all_identi
 Search from 2024-01-01 00:00:00 to 2026-01-01 00:00:00
 Search interval: 3 month(s)
 ------------------------------------------------------------
+Run ID: 20261014_180404
+Query: ['BSW']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2023-07-01 00:00:00 to 2024-07-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261014_180432
+Query: ['BSW']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2024-07-01 00:00:00 to 2026-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------

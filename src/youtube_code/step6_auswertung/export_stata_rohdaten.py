@@ -1,13 +1,25 @@
-"""Exportiert den Rohdatensatz fuer die Stata-Do-Files (Bloecke 1-3).
+"""Exportiert den Rohdatensatz fuer die Stata-Do-Files (Bloecke 1-3) - der
+Hauptdatensatz des Projekts (seit 13.10.2026; enthaelt auch alles aus dem
+frueheren scripts/adhoc/output/kriegspraemie/videos_kriegspraemie.dta).
 
 Verbindliche Spezifikation: docs/codebuch_rohdatensatz.md (inkl. Abschnitt
 "Entscheidungen zur Umsetzung"). Der Export bleibt so roh wie moeglich: keine
-Logs, keine Phasen, keine Aggregation ueber Videos auf Videoebene. Ausnahme:
-die Messregel "deskriptiv"-Segmente = 0 bei den Positionsskalen.
+Logs, keine Aggregation ueber Videos auf Videoebene. Ausnahmen: die Messregel
+"deskriptiv"-Segmente = 0 bei den Positionsskalen sowie die Hilfsvariablen
+post_war und monat.
+
+Population Videos: ALLE Videos der Sample-Kanaele, kein Laengenfilter. Das
+Kennzeichen min_dauer (dauer_sek >= 181) ersetzt den frueheren Filter:
+Analysen mit LLM-Klassifikationen (pop_*/pos_*) muessen auf min_dauer == 1
+einschraenken (AP-1-Befund, siehe Codebuch). Alle Kanalgroessen
+(n_videos, erstes_video_ts, sample_vorkrieg, baseline_stichprobe,
+pop_baseline, ideo_*_baseline) werden weiterhin nur aus Videos mit
+min_dauer == 1 berechnet und bleiben damit gegenueber dem Export mit Filter
+unveraendert.
 
 Ausgabe (AUSGABE_PFAD = outputs/stata_rohdaten/)
 ------------------------------------------------
-- videos_roh.dta   eine Zeile je Video (Sample-Kanaele, Dauer > 180 s)
+- videos_roh.dta   eine Zeile je Video (Sample-Kanaele, alle Laengen)
 - kanaele_roh.dta  eine Zeile je Kanal des Kanal-Samples
 - export_log.txt   Fallzahlen, Merge-Bilanzen, Abdeckung, Konsistenzpruefungen
 - check_rohdaten.do  Pruef-Do-File (describe, codebook, isid, merge-Bilanz)
@@ -19,9 +31,24 @@ Quellen (ausschliesslich die Stores bzw. ihre Zugriffsmodule)
 - Videos/Metriken/Dauer: video_registry.get_video_stats(channel_ids=...).
 - politisch: video_registry.politics_topic_lookup() (YouTube-topic_categories
   "Politics"), NICHT screening_state.politics_final.
-- krieg/topic_*: video_registry.get_topic_relevance() (Stichwortklassifikation
-  aus step3_topic_relevance, Titel + Beschreibung).
+- Titel: video_registry.get_video_metadata(min_duration_seconds=None).
+- rel_<topic>_core/_cw: Stichwortsuche NUR im Titel, live berechnet mit den
+  Regexen aus step3_topic_relevance.topic_keywords (KW_RE), fuer alle Themen
+  in TOPIC_KEYWORDS und alle Videos (wie frueher videos_kriegspraemie.dta).
+  video_topic_relevance (Titel + Beschreibung, nur Videos > 180 s) wird nur
+  noch intern fuer die Ideologie-Baseline (Ausschluss von Kriegsvideos)
+  gelesen und nicht exportiert.
+- format/format_quelle: video_registry.get_video_formats() (Tabelle
+  video_format, step1_sample/channel_video_formats.py); Laufstatus je Kanal
+  aus data/channel_lists/video_formats/*_formats_status.csv.
+- news_show/special_show/pk_sitzung: step3_topic_relevance.news_show_patterns
+  (Kategorien NEWS/SPECIAL/PRESSE), nur fuer Kanaele mit geprueften
+  Titelmustern (FORMAT_LISTEN, drei Listen), sonst '.'.
 - Kanalmetadaten: video_registry.get_channels().
+- Kanaltypologie (kanaltyp*, sample_kern): manuelle Codierung
+  data/external/kanal_typologie.csv (nur Whitelist-Kanaele; Typdefinitionen
+  im Codebuch, Grenzfaelle in scripts/adhoc/outputs/
+  kanal_typologie_grenzfaelle.md).
 - Transkript: transcript_store.has_transcript().
 - Baseline-Zugehoerigkeit: screening_state_store.get_state() (interval_index
   in BASELINE_INTERVAL_INDIZES) - wird NUR fuer baseline_stichprobe und die
@@ -54,9 +81,10 @@ import os
 import numpy as np
 import pandas as pd
 
-from youtube_code.config import OUTPUTS, EXTERNAL, SAMPLES, MIN_VIDEO_DURATION_SECONDS
+from youtube_code.config import CHANNEL_LISTS, OUTPUTS, EXTERNAL, SAMPLES, MIN_VIDEO_DURATION_SECONDS
 from youtube_code.store import llm_run_store, screening_state_store, transcript_store, video_registry
-from youtube_code.step3_topic_relevance.topic_keywords import TOPIC_KEYWORDS
+from youtube_code.step3_topic_relevance.news_show_patterns import NEWS, PRESSE, SPECIAL, classify_frame
+from youtube_code.step3_topic_relevance.topic_keywords import KW_RE, TIERS, TOPIC_KEYWORDS
 from youtube_code.step6_auswertung.prepare_channel_scores import (
     BASELINE_INTERVAL_INDIZES,
     EXCLUDE_DATASET_SUBSTRING,
@@ -86,7 +114,8 @@ API_ABBRUCH_PFAD = OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "auf
 
 AUSGABE_PFAD = OUTPUTS / "stata_rohdaten"
 
-# Population Videos: Dauer >= MIN_VIDEO_DURATION_SECONDS (181 s, d. h. > 180 s)
+# min_dauer = 1: Dauer >= MIN_VIDEO_DURATION_SECONDS (181 s, d. h. > 180 s).
+# Kein Filter mehr, nur Kennzeichen; Kanalgroessen nutzen nur min_dauer == 1.
 MIN_DAUER_SEK = MIN_VIDEO_DURATION_SECONDS
 # sample_vorkrieg: in der Frage-1-Whitelist UND >= 1 Video (> 180 s) in
 # [VORKRIEG_START, KRIEGSBEGINN)
@@ -100,25 +129,58 @@ MEDIENTYP_UMKODIERUNG = {1: 1, 2: 2, 3: 4, 4: 3, 5: 1}
 MEDIENTYP_LABELS = {1: "ÖRR", 2: "traditionelle Medien", 3: "Partei/Politiker",
                     4: "Creator & alternative Medien"}
 
-# Themen aus video_topic_relevance -> Exportvariable (krieg separat). Alle
-# Themen aus step3_topic_relevance.topic_keywords.TOPIC_KEYWORDS ausser dem
-# Krieg; Labels kommen von dort ("label"). Neues Thema in TOPIC_KEYWORDS ->
-# hier ergaenzen (main() bricht sonst ab).
-KRIEG_TOPIC = "russia_ukraine_war"
-TOPICS = {
-    "politics_general": "topic_politik",
-    "corona_pandemic": "topic_corona",
-    "migration": "topic_migration",
-    "economy_general": "topic_wirtschaft",
-    "energy": "topic_energie",
-    "climate": "topic_klima",
-    "gender": "topic_gender",
-    "mideast": "topic_nahost",
-    "iran": "topic_iran",
-    "eu": "topic_eu",
-    "usa": "topic_usa",
-    "education": "topic_bildung",
+# Kanaltypologie (manuell, 15+1 Typen in drei Gruppen; Definitionen im
+# Codebuch, Grenzfallentscheidungen in
+# scripts/adhoc/outputs/kanal_typologie_grenzfaelle.md). Codiert sind genau
+# die Whitelist-Kanaele, alle uebrigen bekommen '.'.
+# Numerischer Code: Zehnerstelle = Gruppe (1 A, 2 B, 3 C), Einerstelle = Typ.
+KANALTYP_PFAD = EXTERNAL / "kanal_typologie.csv"
+KANALTYP_LABELS = {
+    11: "A1 ÖRR-Nachrichten", 12: "A2 Private Nachrichten", 13: "A3 Private Nachrichten regional/lokal",
+    14: "A4 Auslandsrundfunk", 15: "A5 Magazin/Reportage/Doku", 16: "A6 Satire & Comedy",
+    17: "A7 Unterhaltung/Sport/Kinder", 18: "A8 Senderhauptkanal Mischprogramm",
+    21: "B1 Alternative Portale", 22: "B2 Einzelkommentatoren/Journalisten-Creator",
+    23: "B3 Anonyme Politikkanäle", 24: "B4 Parteien/Politiker/Organisationen",
+    31: "C1 Wirtschaft & Finanzen", 32: "C2 Wissen/Bildung/Technik",
+    33: "C3 Unterhaltung/Reaction/Podcasts", 34: "C4 Lifestyle/Coaching/Esoterik",
 }
+KANALTYP_CODES = {label.split()[0]: code for code, label in KANALTYP_LABELS.items()}
+KANALTYP_GRUPPE_LABELS = {1: "A Etablierte Medien", 2: "B Politisch-alternativ & Akteure", 3: "C Themenkanäle"}
+KANALTYP_SICHER_LABELS = {1: "hoch", 2: "mittel", 3: "niedrig"}
+# sample_kern: Typen mit moeglichst homogenem Nachrichten-/Meinungsangebot
+# (Entscheidung 14.10.2026; A3/A4/A8 bewusst draussen) ohne Einzelausschluesse
+SAMPLE_KERN_TYPEN = ["A1", "A2", "A5", "B1", "B2", "B3", "C1"]
+SAMPLE_KERN_AUSSCHLUSS = {
+    "UCAU09OnUvIPwe19RdrJBg0w": "Kurbel TV: umgewidmeter Kanal (vor Kriegsbeginn Retro-Filme)",
+}
+
+# Titel-Topics: je Thema aus TOPIC_KEYWORDS rel_<topic>_core (nur core-Liste =
+# Hauptdefinition) und rel_<topic>_cw (core ODER wide = Robustheit). Neue
+# Themen in TOPIC_KEYWORDS kommen automatisch dazu. Nur intern (Ausschluss
+# von Kriegsvideos aus der Ideologie-Baseline) wird zusaetzlich
+# video_topic_relevance[KRIEG_TOPIC] (Titel + Beschreibung) gelesen.
+KRIEG_TOPIC = "russia_ukraine_war"
+REL_SPALTEN = [f"rel_{t}_{v}" for t in TOPIC_KEYWORDS for v in ("core", "cw")]
+
+# Videoformat (step1_sample/channel_video_formats.py). Fenster wie dort
+# PUBLISHED_AFTER/PUBLISHED_BEFORE (nicht importiert, weil das Modul beim
+# Import einen API-Client baut) - ausserhalb gibt es kein Format.
+FORMAT_LISTEN_DIR = CHANNEL_LISTS / "video_formats"
+FORMAT_FENSTER = ("2021-01-01", "2026-07-01")
+# Kanallisten mit geprueften Sendungs-Titelmustern (news_show_patterns.py)
+# -> Code fuer kanaele_roh.format_liste. Nur fuer diese Kanaele werden
+# news_show/special_show/pk_sitzung berechnet (sonst .). Dateinamen duerfen
+# nicht auf _formats_status.csv enden (lade_format_status() liest per Glob);
+# ein Kanal darf nur in einer Liste stehen (lade_format_listen() prueft das).
+FORMAT_LISTEN = {"upload_starke_kanaele.csv": 1, "alt_kanaele.csv": 2, "weitere_kanaele.csv": 3}
+FORMAT_LISTEN_LABELS = {0: "keine", 1: "upload-starke Kanaele", 2: "alt_kanaele",
+                        3: "weitere Kanaele (Sendungsmuster)"}
+# WELT: yt-dlp-Fallback fuer /videos endet ca. Juli 2025 (siehe
+# step1_sample/README.md), Shorts (/shorts) und Livestreams (/streams) sind
+# aber vollstaendig -> Videos ohne Format im Fenster per Ausschluss "long"
+# (format_derived = 1; ggf. inkl. inzwischen geloeschter/privater Videos).
+# Regel uebernommen aus step8_targeted_analysis/preparation.py.
+FORMAT_AUSSCHLUSS_LONG = {"UCZMsvbAhhRblVGXmEXW8TSA"}
 
 # Manuelle Hinweise je Kanal (Freitext, kanal_hinweis). Typ-5-Kanaele werden
 # automatisch ergaenzt.
@@ -128,6 +190,13 @@ KANAL_HINWEISE = {
     "UCcoQ3WG2J_Xjwwyt-sJqh-w": "Achtung, Reichelt!; erstellt 07.04.2022; Format spaeter bei NIUS "
                                 "(UCQGqiGhMjc_p4lZEhSTb12g)",
     "UCsFtUYhrGmOck_UeVPD-AJQ": "WDR aktuell; Kanal laut yt-dlp am 01.10.2026 nicht mehr vorhanden",
+    "UCAU09OnUvIPwe19RdrJBg0w": "Kurbel TV; umgewidmeter Kanal (vor Kriegsbeginn Retro-Filme, danach "
+                                "Bundestagsreden-Clips), nicht in sample_kern",
+    "UCf4WJRXsgDEP7KH2eNGv8Hw": "Serge Menga; kanaltyp B2 (Kommentator ohne Mandat), medientyp bewusst "
+                                "unveraendert Partei/Politiker",
+    "UCqZSdUJqd2T0oqr6BEA3ONw": "Oli; Titelstil identisch mit Olli/MENTALE FITNESS, evtl. ein Betreiber",
+    "UCC6MaGWuQS-t7k0TBkA5ZXQ": "Olli; Titelstil identisch mit Oli/MENTALE FITNESS, evtl. ein Betreiber",
+    "UC5w2aXFKL_kLWSattQ6ekmQ": "MENTALE FITNESS; Titelstil identisch mit Oli/Olli, evtl. ein Betreiber",
 }
 
 # Toleranz fuer Pruefung 6 (pop_baseline vs. Nachberechnung aus videos_roh)
@@ -188,9 +257,11 @@ def lade_kanaele():
 
 def lade_videos(kanal_ids):
     v = video_registry.get_video_stats(channel_ids=kanal_ids)
+    titel = video_registry.get_video_metadata(channel_ids=kanal_ids, min_duration_seconds=None)
+    v = v.merge(titel[["video_id", "title"]].rename(columns={"title": "titel"}), on="video_id", how="left")
     v["upload_ts"] = zu_utc_naiv(v["published_at"])
     v["dauer_sek"] = video_registry._duration_seconds_series(v["duration"])
-    log(f"[Laden] Videos der Sample-Kanaele (vor Laengenfilter): {len(v)}")
+    log(f"[Laden] Videos der Sample-Kanaele (alle Laengen): {len(v)}, ohne Titel: {int(v['titel'].isna().sum())}")
     log(f"[Laden] ohne channel_id: {int(v['channel_id'].isna().sum())}, "
         f"ohne/unparsebares published_at: {int(v['upload_ts'].isna().sum())}, "
         f"ohne/unparsebare Dauer: {int(v['dauer_sek'].isna().sum())}")
@@ -281,41 +352,89 @@ def video_ideologie(ideo):
     ).reset_index()
 
 
-def video_themen(video_ids):
-    ergebnis = pd.DataFrame({"video_id": video_ids})
-    alle = {KRIEG_TOPIC: "krieg", **TOPICS}
-    for topic, name in alle.items():
-        t = video_registry.get_topic_relevance(topic, video_ids=video_ids)
-        t = t[["video_id", "is_relevant", "matched_keywords", "title_only"]].rename(
-            columns={"is_relevant": name, "matched_keywords": f"_kw_{name}", "title_only": f"_titel_{name}"})
-        ergebnis = ergebnis.merge(t, on="video_id", how="left")
-        merge_bilanz(f"video_topic_relevance[{topic}]", video_ids, t["video_id"])
+def titel_themen(v):
+    """rel_<topic>_core/_cw: Stichwortsuche nur im Titel, dieselben Regexe wie
+    step3_topic_relevance (fuer klassifizierte Videos identisch mit den
+    *_title-Eintraegen in video_topic_relevance.matched_keywords). Direkt
+    berechnet, weil video_topic_relevance Videos <= 180 s nicht abdeckt.
+    Fehlender Titel -> 0 (wie in preparation.py)."""
+    titel = v["titel"].fillna("")
+    for topic, cfg in TOPIC_KEYWORDS.items():
+        treffer = {t: titel.str.contains(KW_RE[f"{cfg['prefix']}_{t}"], na=False) for t in TIERS if t in cfg}
+        v[f"rel_{topic}_core"] = treffer["core"].astype(int)
+        v[f"rel_{topic}_cw"] = pd.concat(treffer.values(), axis=1).any(axis=1).astype(int)
+    return v
 
-    ergebnis["krieg_klass"] = ergebnis["krieg"].notna().astype(int)
-    ergebnis["topic_klass"] = ergebnis[list(TOPICS.values())].notna().all(axis=1).astype(int)
-    teil_klass = ergebnis[list(TOPICS.values())].notna().any(axis=1) & (ergebnis["topic_klass"] == 0)
-    if teil_klass.any():
-        log(f"[Merge] Achtung: {int(teil_klass.sum())} Videos nur fuer einen Teil der Vergleichsthemen klassifiziert")
-    # title_only ist eine Videoeigenschaft (Beschreibung fehlt) -> erstes
-    # vorhandenes Thema nehmen, da nicht alle Themen alle Videos abdecken
-    titel_spalten = [f"_titel_{n}" for n in alle.values()]
-    ergebnis["topic_nur_titel"] = ergebnis[titel_spalten].bfill(axis=1).iloc[:, 0]
 
-    # krieg_quelle: Trefferstufen der Stichwortsuche (z. B. ukr_core_title,
-    # ukr_wide_desc) - zeigt Titel/Beschreibung und core/wide
-    def stufen(kw):
-        if not isinstance(kw, str) or kw in ("", "[]"):
-            return ""
-        return ",".join(sorted(s.strip(' "[]') for s in kw.split(",")))
-    ergebnis["krieg_quelle"] = ergebnis["_kw_krieg"].map(stufen)
+def krieg_titel_beschreibung(video_ids):
+    """Nur intern: Kriegsbezug laut video_topic_relevance (Titel + Beschreibung,
+    nur Videos > 180 s) fuer den Ausschluss aus der Ideologie-Baseline - haelt
+    ideo_*_baseline identisch zum Export vor dem 13.10.2026."""
+    t = video_registry.get_topic_relevance(KRIEG_TOPIC, video_ids=video_ids)
+    merge_bilanz(f"video_topic_relevance[{KRIEG_TOPIC}] (nur intern)", video_ids, t["video_id"])
+    return dict(zip(t["video_id"], t["is_relevant"]))
 
-    # <name>_core: nur Treffer der core-Liste (Titel oder Beschreibung);
-    # . wo das Thema nicht klassifiziert ist
-    for topic, name in alle.items():
-        core = {f"{TOPIC_KEYWORDS[topic]['prefix']}_core_{ort}" for ort in ("title", "desc")}
-        treffer = ergebnis[f"_kw_{name}"].map(stufen).map(lambda s: bool(core & set(s.split(","))))
-        ergebnis[f"{name}_core"] = treffer.astype(float).where(ergebnis[name].notna())
-    return ergebnis.drop(columns=[c for c in ergebnis.columns if c.startswith("_")])
+
+def lade_format_status():
+    """Letzter Laufstatus je Kanal ueber alle *_formats_status.csv (komplett,
+    unvollstaendig, fehler, abgebrochen_quota, ...)."""
+    dateien = sorted(FORMAT_LISTEN_DIR.glob("*_formats_status.csv"))
+    status = pd.concat([pd.read_csv(d, usecols=["zeitpunkt", "channel_id", "status"]) for d in dateien])
+    status = status.sort_values("zeitpunkt").drop_duplicates("channel_id", keep="last")
+    log(f"[Laden] Format-Status aus {[d.name for d in dateien]}: {status['status'].value_counts().to_dict()}")
+    return dict(zip(status["channel_id"], status["status"]))
+
+
+def lade_format_listen():
+    """channel_id -> Code der Kanalliste (FORMAT_LISTEN). Bricht ab, wenn ein
+    Kanal in mehreren Listen steht."""
+    listen = {}
+    for datei, code in FORMAT_LISTEN.items():
+        for cid in pd.read_csv(FORMAT_LISTEN_DIR / datei)["channel_id"].astype(str):
+            if cid in listen and listen[cid] != code:
+                raise ValueError(f"Kanal {cid} steht in mehreren FORMAT_LISTEN ({listen[cid]} und {code})")
+            listen[cid] = code
+    log(f"[Laden] Kanallisten mit Sendungsmustern: {pd.Series(listen).value_counts().sort_index().to_dict()}")
+    return listen
+
+
+def video_format(v, format_status):
+    fmt = video_registry.get_video_formats(video_ids=v["video_id"].tolist())
+    merge_bilanz("video_format", v["video_id"], fmt["video_id"])
+    v = v.merge(fmt[["video_id", "format", "source"]].rename(columns={"source": "format_quelle"}),
+                on="video_id", how="left")
+    im_fenster = v["upload_ts"].between(pd.Timestamp(FORMAT_FENSTER[0]), pd.Timestamp(FORMAT_FENSTER[1]),
+                                        inclusive="left")
+    ausschluss = v["channel_id"].isin(FORMAT_AUSSCHLUSS_LONG) & v["format"].isna() & im_fenster
+    v.loc[ausschluss, "format"] = "long"
+    v["format_derived"] = ausschluss.astype(int)
+    log(f"[Format] per Ausschluss als long gesetzt (FORMAT_AUSSCHLUSS_LONG): {int(ausschluss.sum())} Videos")
+    komplett = v["channel_id"].map(format_status).eq("komplett")
+    v["format_klass"] = (komplett & im_fenster).astype(int)
+    log(f"[Format] format_klass = 1 (Kanal komplett, Video im Fenster {FORMAT_FENSTER[0]} bis "
+        f"< {FORMAT_FENSTER[1]}): {int(v['format_klass'].sum())} von {len(v)}; davon ohne Format: "
+        f"{int(((v['format_klass'] == 1) & v['format'].isna()).sum())}")
+    return v
+
+
+def video_sendungen(v, format_listen):
+    """news_show/special_show/pk_sitzung per Titelmuster (NEWS/SPECIAL/PRESSE
+    aus news_show_patterns.py); '.' fuer Kanaele ohne gepruefte Muster. Mehr-
+    Themen-Teaser (Shorts) zaehlen als news_show. Muster der Listen 1/2 sind
+    nur auf long-Videos geprueft, die der Liste 3 auf allen Formaten."""
+    geprueft = v["channel_id"].isin(format_listen)
+    sendung = classify_frame(v.loc[geprueft, ["channel_id", "titel"]].assign(titel=lambda d: d["titel"].fillna("")),
+                             title_col="titel")
+    v["news_show"] = (sendung == NEWS).astype(float).reindex(v.index)
+    v["special_show"] = (sendung == SPECIAL).astype(float).reindex(v.index)
+    v["pk_sitzung"] = (sendung == PRESSE).astype(float).reindex(v.index)
+    log(f"[Sendungen] Videos aus Kanaelen mit geprueften Mustern: {int(geprueft.sum())}, "
+        f"news_show = 1: {int(v['news_show'].sum())}, special_show = 1: {int(v['special_show'].sum())}, "
+        f"pk_sitzung = 1: {int(v['pk_sitzung'].sum())}")
+    liste = v.loc[geprueft, "channel_id"].map(format_listen).rename("format_liste")
+    log("[Sendungen] je Kanalliste (Summe = 1):\n"
+        + v.loc[geprueft, ["news_show", "special_show", "pk_sitzung"]].groupby(liste).sum().astype(int).to_string())
+    return v
 
 
 # =========================================================
@@ -338,10 +457,12 @@ def berechne_pop_baseline(videos):
 
 
 def berechne_ideo_baseline(videos, ideo_video):
-    """Ideologie nur aus Baseline-Fenster-Videos ohne Kriegsbezug
-    (krieg != 1 und krieg_transkript != 1); Segment -> Video -> Kanal."""
+    """Ideologie nur aus Baseline-Fenster-Videos mit min_dauer == 1 ohne
+    Kriegsbezug (Titel/Beschreibung laut video_topic_relevance != 1 und
+    krieg_transkript != 1); Segment -> Video -> Kanal."""
     basis = videos[(videos["im_baseline_fenster"] == 1)
-                   & (videos["krieg"] != 1)
+                   & (videos["min_dauer"] == 1)
+                   & (videos["_krieg_tb"] != 1)
                    & (videos["krieg_transkript"] != 1)][["video_id", "channel_id"]]
     b = basis.merge(ideo_video, on="video_id", how="inner")
     log(f"[Ideologie] Baseline-Videos ohne Kriegsbezug mit IDEOLOGIE_I-Klassifikation: {len(b)} "
@@ -368,17 +489,45 @@ def lade_medientyp():
     return med
 
 
+def lade_kanaltyp():
+    typ = pd.read_csv(KANALTYP_PFAD, dtype=str)
+    pruefe(not typ["channel_id"].duplicated().any(), "Kanaltypologie: channel_id eindeutig")
+    pruefe(typ["typ_code"].isin(list(KANALTYP_CODES)).all(), "Kanaltypologie: nur bekannte typ_code")
+    sicher = {v: k for k, v in KANALTYP_SICHER_LABELS.items()}
+    pruefe(typ["sicherheit"].isin(list(sicher)).all(), "Kanaltypologie: sicherheit nur hoch/mittel/niedrig")
+    out = pd.DataFrame({
+        "channel_id": typ["channel_id"],
+        "kanaltyp": typ["typ_code"].map(KANALTYP_CODES),
+        "kanaltyp_subtyp": typ["subtyp"],
+        "kanaltyp_org": typ["organisationsform"],
+        "kanaltyp_sicher": typ["sicherheit"].map(sicher),
+    })
+    out["kanaltyp_gruppe"] = out["kanaltyp"] // 10
+    log(f"[Laden] Kanaltypologie: {len(out)} Kanaele, "
+        f"Typen {typ['typ_code'].value_counts().sort_index().to_dict()}")
+    return out
+
+
 # =========================================================
 # Hauptablauf
 # =========================================================
 
-def baue_videos(kanal_ids):
-    alle = lade_videos(kanal_ids)
-    alle["_lang"] = alle["dauer_sek"] >= MIN_DAUER_SEK
-    v = alle[alle["_lang"]].copy()
-    log(f"[Laengenfilter] Dauer >= {MIN_DAUER_SEK} s: {len(v)} von {len(alle)} Videos "
-        f"({v['channel_id'].nunique()} Kanaele mit >= 1 Video)")
+def baue_videos(kanal_ids, format_status, format_listen):
+    v = lade_videos(kanal_ids)
+    v["min_dauer"] = (v["dauer_sek"] >= MIN_DAUER_SEK).astype(int)
+    log(f"[min_dauer] Dauer >= {MIN_DAUER_SEK} s: {int(v['min_dauer'].sum())} von {len(v)} Videos "
+        f"({v.loc[v['min_dauer'] == 1, 'channel_id'].nunique()} Kanaele mit >= 1 solchen Video); "
+        f"Dauer unbekannt (-> min_dauer = 0): {int(v['dauer_sek'].isna().sum())}")
     ids = v["video_id"].tolist()
+
+    # Zeitvariablen fuer den Vorher/Nachher-Vergleich
+    v["post_war"] = (v["upload_ts"] >= pd.Timestamp(KRIEGSBEGINN)).astype(int)
+    v["monat"] = v["upload_ts"].dt.to_period("M").dt.to_timestamp()
+
+    # Format, Titel-Topics, Sendungen
+    v = video_format(v, format_status)
+    v = titel_themen(v)
+    v = video_sendungen(v, format_listen)
 
     # Metriken
     v = v.rename(columns={"view_count": "views", "like_count": "likes", "comment_count": "kommentare"})
@@ -393,8 +542,8 @@ def baue_videos(kanal_ids):
     v["politisch"] = v["video_id"].map(pol).map({True: 1.0, False: 0.0})
     v["politisch_klass"] = v["politisch"].notna().astype(int)
 
-    # Themen
-    v = v.merge(video_themen(ids), on="video_id", how="left")
+    # Kriegsbezug Titel + Beschreibung - nur intern (Ideologie-Baseline)
+    v["_krieg_tb"] = v["video_id"].map(krieg_titel_beschreibung(ids))
 
     # Transkript
     mit_transkript = transcript_store.has_transcript(ids)
@@ -409,30 +558,33 @@ def baue_videos(kanal_ids):
     ideo = video_ideologie(lade_llm(PROMPT_IDEOLOGIE, None))
     for name, df in [("POPULISMUS_P", pop), ("POSITION_V1", pos), ("IDEOLOGIE_I", ideo)]:
         merge_bilanz(name, ids, df["video_id"])
-        kurz = set(df["video_id"]) & set(alle.loc[~alle["_lang"], "video_id"])
-        fremd = set(df["video_id"]) - set(alle["video_id"])
-        log(f"[Check] Pruefung 7 ({name}): klassifiziert, aber nicht im Export: {len(kurz) + len(fremd)} "
-            f"(Laengenfilter/Dauer fehlt: {len(kurz)}, nicht unter den Videos der Sample-Kanaele: {len(fremd)})")
+        kurz = set(df["video_id"]) & set(v.loc[v["min_dauer"] == 0, "video_id"])
+        fremd = set(df["video_id"]) - set(v["video_id"])
+        log(f"[Check] Pruefung 7 ({name}): klassifiziert mit min_dauer = 0 (im Export, fuer LLM-Analysen "
+            f"ausschliessen): {len(kurz)}; nicht unter den Videos der Sample-Kanaele (fehlen im Export): {len(fremd)}")
     v = v.merge(pop, on="video_id", how="left").merge(pos, on="video_id", how="left")
     for k in ["pop_klass", "pos_klass"]:
         v[k] = v[k].fillna(0).astype(int)
-    for s in ["pop_run", "pos_run", "krieg_quelle"]:
+    for s in ["pop_run", "pos_run"]:
         v[s] = v[s].fillna("")
 
-    # Baseline-Zugehoerigkeit (einzige Verwendung von interval_index)
+    # Baseline-Zugehoerigkeit (einzige Verwendung von interval_index); nur
+    # Videos mit min_dauer == 1, damit pop_baseline unveraendert bleibt
     state = screening_state_store.get_state(channel_ids=kanal_ids)
     merge_bilanz("screening_state", ids, state["video_id"])
     fenster = set(state.loc[state["interval_index"].isin(BASELINE_INTERVAL_INDIZES), "video_id"])
     v["im_baseline_fenster"] = v["video_id"].isin(fenster).astype(int)
-    v["baseline_stichprobe"] = ((v["im_baseline_fenster"] == 1) & (v["pop_klass"] == 1)).astype(int)
+    v["baseline_stichprobe"] = ((v["im_baseline_fenster"] == 1) & (v["pop_klass"] == 1)
+                                & (v["min_dauer"] == 1)).astype(int)
 
     v["abruf_ts"] = pd.NaT
-    v["live_typ"] = np.nan
 
-    return alle, v, ideo
+    return v, ideo
 
 
-def baue_kanaele(kanal_ids, alle, v, ideo_video):
+def baue_kanaele(kanal_ids, v_alle, ideo_video, format_status, format_listen):
+    # Kanalgroessen nur aus Videos mit min_dauer == 1 (wie vor dem 13.10.2026)
+    v = v_alle[v_alle["min_dauer"] == 1]
     k = pd.DataFrame({"channel_id": kanal_ids})
     meta = video_registry.get_channels(kanal_ids)
     merge_bilanz("channels (Kanalmetadaten)", kanal_ids, meta["channel_id"])
@@ -442,13 +594,18 @@ def baue_kanaele(kanal_ids, alle, v, ideo_video):
     meta["abonnenten"] = meta["abonnenten"].astype("float64")
     k = k.merge(meta, on="channel_id", how="left")
 
-    k["n_videos_api"] = k["channel_id"].map(alle.groupby("channel_id").size()).fillna(0)
+    k["n_videos_alle"] = k["channel_id"].map(v_alle.groupby("channel_id").size()).fillna(0)
     k["n_videos"] = k["channel_id"].map(v.groupby("channel_id").size()).fillna(0)
     k["erstes_video_ts"] = k["channel_id"].map(v.groupby("channel_id")["upload_ts"].min())
 
-    log("[Laengenfilter] Videos je Kanal vor/nach Filter (channel_id | vorher | nachher):")
+    log("[min_dauer] Videos je Kanal alle / min_dauer == 1 (channel_id | alle | min_dauer):")
     for z in k.itertuples():
-        log(f"    {z.channel_id} | {int(z.n_videos_api)} | {int(z.n_videos)}", nur_datei=True)
+        log(f"    {z.channel_id} | {int(z.n_videos_alle)} | {int(z.n_videos)}", nur_datei=True)
+
+    # Videoformat: letzter Laufstatus von channel_video_formats.py, Kanalliste
+    k["format_status"] = k["channel_id"].map(format_status).fillna("fehlt")
+    k["format_liste"] = k["channel_id"].map(format_listen).fillna(0)
+    log(f"[Format] format_status der Sample-Kanaele: {k['format_status'].value_counts().to_dict()}")
 
     # Sample-Kennzeichen
     whitelist = set(pd.read_csv(WHITELIST_PFAD)["channel_id"].astype(str))
@@ -468,11 +625,22 @@ def baue_kanaele(kanal_ids, alle, v, ideo_video):
     k["krit_creator"] = np.nan
     k["krit_korrektiv"] = np.nan
 
+    # Kanaltypologie und Kernstichprobe
+    typ = lade_kanaltyp()
+    merge_bilanz("Kanaltypologie", kanal_ids, typ["channel_id"])
+    k = k.merge(typ, on="channel_id", how="left")
+    kern_codes = [KANALTYP_CODES[t] for t in SAMPLE_KERN_TYPEN]
+    k["sample_kern"] = (k["kanaltyp"].isin(kern_codes) & (k["sample_whitelist"] == 1)
+                        & ~k["channel_id"].isin(SAMPLE_KERN_AUSSCHLUSS)).astype(int)
+    log(f"[Sample] sample_kern ({', '.join(SAMPLE_KERN_TYPEN)}, ohne {len(SAMPLE_KERN_AUSSCHLUSS)} "
+        f"Einzelausschluss): {int(k['sample_kern'].sum())} Kanaele, davon sample_vorkrieg "
+        f"{int(((k['sample_kern'] == 1) & (k['sample_vorkrieg'] == 1)).sum())}")
+
     # Baselines
     pop_b = berechne_pop_baseline(v)
     k = k.merge(pop_b, on="channel_id", how="left")
     k["sample_baseline"] = k["pop_baseline"].notna().astype(int)
-    k = k.merge(berechne_ideo_baseline(v, ideo_video), on="channel_id", how="left")
+    k = k.merge(berechne_ideo_baseline(v_alle, ideo_video), on="channel_id", how="left")
     for s in ["pop_baseline_n", "pop_baseline_nq", "ideo_baseline_n"]:
         k[s] = k[s].fillna(0)
 
@@ -501,7 +669,9 @@ def konsistenz(v, k):
     pruefe(not v["video_id"].duplicated().any(), "1a video_id in videos_roh eindeutig")
     pruefe(not k["channel_id"].duplicated().any(), "1b channel_id in kanaele_roh eindeutig")
     pruefe(v["channel_id"].isin(k["channel_id"]).all(), "2 jede channel_id aus videos_roh existiert in kanaele_roh")
-    pruefe((v["dauer_sek"] > 180).all(), "3 dauer_sek > 180 fuer alle Videos")
+    pruefe((v["min_dauer"] == (v["dauer_sek"] >= MIN_DAUER_SEK).astype(int)).all(),
+           f"3 min_dauer = 1 genau bei dauer_sek >= {MIN_DAUER_SEK} (unbekannte Dauer -> 0)")
+    pruefe((v.loc[v["baseline_stichprobe"] == 1, "min_dauer"] == 1).all(), "3 baseline_stichprobe = 1 => min_dauer = 1")
 
     vor = (v["pos_klass"] == 1) & (v["upload_ts"] < pd.Timestamp(KRIEGSBEGINN))
     log(f"[Check] 4 (nur Anzahl, Entscheidung 02.10.2026: Werte bleiben drin): "
@@ -511,16 +681,7 @@ def konsistenz(v, k):
         "pop_klass": ["pop_gesamt", "pop_volk", "pop_antielite", "pop_manich", "pop_emotion"],
         "pos_klass": ["pos_russland", "pos_westpolitik"],
         "politisch_klass": ["politisch"],
-        "krieg_klass": ["krieg"],
     }
-    # topic_klass = 1 heisst: ALLE Vergleichsthemen klassifiziert. Die Themen
-    # wurden in verschiedenen Laeufen ueber verschiedene Videomengen
-    # klassifiziert, daher hier nur die Richtung topic_klass = 1 => kein '.'
-    ganz = v["topic_klass"] == 1
-    pruefe(v.loc[ganz, list(TOPICS.values())].notna().all().all(), "5 topic_klass = 1 => alle topic_* gesetzt")
-    for w in TOPICS.values():
-        log(f"[Check] 5 Hinweis: {w} klassifiziert bei {int(v[w].notna().sum())} Videos, "
-            f"davon mit topic_klass = 0: {int((~ganz & v[w].notna()).sum())}")
     for kennz, werte in paare.items():
         for w in werte:
             pruefe(not (v.loc[v[kennz] == 0, w].notna()).any(), f"5 {kennz} = 0 => {w} = .")
@@ -528,14 +689,34 @@ def konsistenz(v, k):
             if leer:
                 log(f"[Check] 5 Hinweis: {kennz} = 1, aber {w} = . bei {leer} Videos "
                     f"(klassifiziert, Dimension nicht kodierbar/thematisiert)")
-    pruefe(not (v.loc[v["krieg_klass"] == 0, "krieg_quelle"] != "").any(), "5 krieg_klass = 0 => krieg_quelle leer")
-    for w in ["krieg", *TOPICS.values()]:
-        c = f"{w}_core"
-        pruefe((v[c].isna() == v[w].isna()).all() and not ((v[c] == 1) & (v[w] != 1)).any(),
-               f"5 {c} gleiche Missings wie {w} und {c} = 1 => {w} = 1")
     pruefe(not (v.loc[v["pop_klass"] == 0, "krieg_transkript"].notna()).any(), "5 pop_klass = 0 => krieg_transkript = .")
+    pruefe(all(((v[f"rel_{t}_core"] == 0) | (v[f"rel_{t}_cw"] == 1)).all() for t in TOPIC_KEYWORDS),
+           "5 rel_<topic>_core = 1 => rel_<topic>_cw = 1 (alle Themen)")
+    pruefe(v["format"].isin(["short", "long", "live"]).sum() == v["format"].notna().sum(),
+           "5 format nur short/long/live oder leer")
+    pruefe(((v["format_derived"] == 0) | (v["format"] == "long")).all(), "5 format_derived = 1 => format = long")
+    geprueft = v["channel_id"].isin(k.loc[k["format_liste"] > 0, "channel_id"])
+    pruefe(all((v[s].isna() == ~geprueft).all() for s in ["news_show", "special_show", "pk_sitzung"]),
+           "5 news_show/special_show/pk_sitzung = . genau fuer Kanaele ohne gepruefte Titelmuster (format_liste = 0)")
+    pruefe((v[["news_show", "special_show", "pk_sitzung"]].sum(axis=1) <= 1).all(),
+           "5 news_show + special_show + pk_sitzung <= 1 (Kategorien schliessen sich aus)")
+
+    # 8: Kanaltypologie
+    pruefe((k["kanaltyp"].notna() == (k["sample_whitelist"] == 1)).all(),
+           "8 kanaltyp gesetzt genau fuer sample_whitelist = 1")
+    pruefe((k["kanaltyp_gruppe"].dropna() == k["kanaltyp"].dropna() // 10).all(),
+           "8 kanaltyp_gruppe = Zehnerstelle von kanaltyp")
+    kern_codes = [KANALTYP_CODES[t] for t in SAMPLE_KERN_TYPEN]
+    pruefe(k.loc[k["sample_kern"] == 1, "kanaltyp"].isin(kern_codes).all(),
+           f"8 sample_kern = 1 => kanaltyp in {SAMPLE_KERN_TYPEN}")
+    abw = k[k["kanaltyp"].notna()]
+    log("[Check] 8 Hinweis kanaltyp x medientyp (Abweichungen dokumentiert in "
+        "scripts/adhoc/outputs/kanal_typologie_grenzfaelle.md):")
+    log(pd.crosstab(abw["kanaltyp"].astype(int).map(KANALTYP_LABELS),
+                    abw["medientyp"].fillna(-1).astype(int)).to_string())
 
     # 6: unabhaengige Nachberechnung aus den exportierten Videowerten
+    # (baseline_stichprobe enthaelt nur Videos mit min_dauer == 1)
     b = v[v["baseline_stichprobe"] == 1]
     q = (b["upload_ts"].dt.year - 2022) * 12 + (b["upload_ts"].dt.month - 2) - (b["upload_ts"].dt.day < 24).astype(int)
     nach = b.assign(q=q // 3).groupby(["channel_id", "q"])["pop_gesamt"].mean().groupby("channel_id").mean()
@@ -554,10 +735,20 @@ VIDEO_SPALTEN = {
     # Name: (Typ, Label)
     "video_id": ("str", "YouTube-Video-ID"),
     "channel_id": ("str", "YouTube-Kanal-ID"),
+    "titel": ("strL", "Videotitel"),
     "upload_ts": ("tc", "Veroeffentlichung (published_at), UTC"),
+    "monat": ("tm", "Veroeffentlichungsmonat (UTC)"),
+    "post_war": ("byte", "ab Kriegsbeginn 24.02.2022"),
     "abruf_ts": ("tc", "Abruf der Metriken, UTC (nicht gespeichert -> .)"),
-    "dauer_sek": ("long", "Videolaenge in Sekunden"),
-    "live_typ": ("byte", "0 regulaer, 1 Livestream, 2 Premiere (nicht erhoben -> .)"),
+    "dauer_sek": ("long", "Videolaenge in Sekunden; . = unbekannt"),
+    "min_dauer": ("byte", f"dauer_sek >= {MIN_VIDEO_DURATION_SECONDS} (Pflicht fuer LLM-Analysen)"),
+    "format": ("str", "Format short/long/live (leer = nicht zugeordnet)"),
+    "format_quelle": ("str", "Quelle Format (api_UULF/UUSH/UULV, ytdlp_*)"),
+    "format_klass": ("byte", "Kanal-Formatlauf komplett und Video im Format-Fenster"),
+    "format_derived": ("byte", "Format per Ausschluss als long gesetzt (nur WELT)"),
+    "news_show": ("byte", "ganze Nachrichtensendung (Titelmuster); . = ungeprueft"),
+    "special_show": ("byte", "Sondersendung/Themen-Update (Titelmuster); . = ungeprueft"),
+    "pk_sitzung": ("byte", "Pressekonferenz/Regierungsbefragung/Sitzung (Titelmuster); . = ungeprueft"),
     "views": ("double", "Aufrufe kumuliert (Stand Abruf)"),
     "likes": ("double", "Likes kumuliert; . = ausgeblendet"),
     "kommentare": ("double", "Kommentare kumuliert; . = deaktiviert"),
@@ -565,17 +756,10 @@ VIDEO_SPALTEN = {
     "komm_verfuegbar": ("byte", "Kommentare aktiv (1) / Feld fehlt (0)"),
     "politisch": ("byte", "politisch laut YouTube-topic_categories (Politics)"),
     "politisch_klass": ("byte", "topic_categories liegt vor"),
-    "krieg": ("byte", "Kriegsvideo (Stichworte Titel/Beschreibung)"),
-    "krieg_klass": ("byte", "Stichwortklassifikation Krieg liegt vor"),
-    "krieg_quelle": ("str", "Trefferstufen Stichwortsuche (ukr_core/wide_title/desc)"),
+    **{f"rel_{topic}_{variante}": ("byte", f"Titel-Treffer {cfg['label']} ({text})")
+       for topic, cfg in TOPIC_KEYWORDS.items()
+       for variante, text in (("core", "nur core"), ("cw", "core+wide"))},
     "krieg_transkript": ("byte", ">= 1 Segment mit ukraine_bezug (POPULISMUS_P)"),
-    "krieg_core": ("byte", "Kriegsvideo, nur core-Stichworte"),
-    **{name: ("byte", f"Thema {TOPIC_KEYWORDS[topic]['label']} (Stichworte, core+wide)")
-       for topic, name in TOPICS.items()},
-    **{f"{name}_core": ("byte", f"Thema {TOPIC_KEYWORDS[topic]['label']} (nur core-Stichworte)")
-       for topic, name in TOPICS.items()},
-    "topic_klass": ("byte", "Stichwortklassifikation ALLER Vergleichsthemen liegt vor"),
-    "topic_nur_titel": ("byte", "Stichwortsuche nur im Titel (Beschreibung fehlt)"),
     "pop_gesamt": ("double", "Populismus gesamt (Mittel volk/antielite/manich), 0-3"),
     "pop_volk": ("double", "Volkszentrismus 0-3"),
     "pop_antielite": ("double", "Antielitismus 0-3"),
@@ -601,7 +785,7 @@ KANAL_SPALTEN = {
     "channel_id": ("str", "YouTube-Kanal-ID"),
     "kanal_name": ("str", "Kanalname (Stand Abruf)"),
     "kanal_erstellt": ("tc", "Erstellungsdatum Kanal, UTC"),
-    "erstes_video_ts": ("tc", "aeltestes Video > 180 s im Datensatz, UTC"),
+    "erstes_video_ts": ("tc", "aeltestes Video mit min_dauer = 1 im Datensatz, UTC"),
     "abonnenten": ("double", "Abonnenten zum Abruf (deskriptiv)"),
     "kanal_hinweis": ("str", "Freitext Sonderfaelle"),
     "sample_vorkrieg": ("byte", "Whitelist und >= 1 Video im Jahr vor Kriegsbeginn"),
@@ -610,6 +794,12 @@ KANAL_SPALTEN = {
     "medientyp": ("byte", "Medientyp (1 ÖRR, 2 trad., 3 Partei, 4 Creator/alt.)"),
     "krit_creator": ("byte", "Kriterium Creator (Newman et al. 2025), . = offen"),
     "krit_korrektiv": ("byte", "Kriterium Korrektiv (Holt et al. 2019), . = offen"),
+    "kanaltyp": ("byte", "Kanaltyp (Typologie, nur Whitelist; . = nicht codiert)"),
+    "kanaltyp_gruppe": ("byte", "Kanaltyp-Gruppe (A etabliert, B pol.-alt., C Themen)"),
+    "kanaltyp_subtyp": ("str", "Kanaltyp Subtyp (Freitext, nur deskriptiv)"),
+    "kanaltyp_org": ("str", "Organisationsform (Freitext, nur deskriptiv)"),
+    "kanaltyp_sicher": ("byte", "Sicherheit der Typzuordnung"),
+    "sample_kern": ("byte", "Kernstichprobe (A1 A2 A5 B1 B2 B3 C1, ohne Ausschl.)"),
     "pop_baseline": ("double", "Baseline-Populismus (Video->Quartal->Kanal)"),
     "pop_baseline_n": ("long", "Anzahl Baseline-Videos"),
     "pop_baseline_nq": ("long", "Anzahl Baseline-Quartale"),
@@ -617,8 +807,10 @@ KANAL_SPALTEN = {
     "ideo_wirtschaft_baseline": ("double", "Ideologie wirtschaftl. -2 umvert. .. +2 marktlib."),
     "ideo_baseline_n": ("long", "Anzahl Ideologie-Baseline-Videos (ohne Krieg)"),
     "api_abbruch": ("byte", "vom ~20.000er-Playlist-Limit betroffen (nachgescrapt)"),
-    "n_videos_api": ("long", "abgerufene Videos (vor Laengenfilter)"),
-    "n_videos": ("long", "Videos nach Laengenfilter"),
+    "format_status": ("str", "letzter Status channel_video_formats.py (fehlt = nie)"),
+    "format_liste": ("byte", "Kanalliste Formatlauf mit geprueften Sendungsmustern"),
+    "n_videos_alle": ("long", "Videos im Datensatz (alle Laengen)"),
+    "n_videos": ("long", "Videos mit min_dauer = 1"),
 }
 
 DTYPES = {"byte": "Int8", "long": "Int32", "double": "float64", "str": "str"}
@@ -626,18 +818,22 @@ DTYPES = {"byte": "Int8", "long": "Int32", "double": "float64", "str": "str"}
 
 def exportiere(df, spalten, datei, wertelabels):
     df = df[list(spalten)].copy()
-    daten = {}
+    daten, strl = {}, []
     for name, (typ, _) in spalten.items():
         assert len(name) <= 32 and name.isascii(), name
-        if typ == "tc":
+        if typ in ("tc", "tm"):
             df[name] = pd.to_datetime(df[name])
-            daten[name] = "tc"
-        elif typ == "str":
+            daten[name] = typ
+        elif typ in ("str", "strL"):
             df[name] = df[name].fillna("").astype(str)
+            if typ == "strL":
+                # strL statt fester Breite: Titel enthalten Mehrbyte-Zeichen,
+                # str<n> wuerde die Datei um mehrere 100 MB aufblaehen
+                strl.append(name)
         else:
             df[name] = df[name].astype(DTYPES[typ])
     df.to_stata(AUSGABE_PFAD / datei, version=118, write_index=False, convert_dates=daten,
-                variable_labels={n: l for n, (_, l) in spalten.items()},
+                convert_strl=strl, variable_labels={n: l for n, (_, l) in spalten.items()},
                 value_labels=wertelabels)
     log(f"[Export] {datei}: {len(df)} Zeilen, {len(df.columns)} Variablen")
 
@@ -654,54 +850,68 @@ describe
 codebook, compact
 isid channel_id
 tab medientyp, missing
-tab1 sample_vorkrieg sample_baseline sample_whitelist api_abbruch
+tab kanaltyp medientyp, missing
+tab kanaltyp sample_vorkrieg if sample_whitelist == 1
+tab1 sample_vorkrieg sample_baseline sample_whitelist sample_kern api_abbruch format_liste
+tab format_status, missing
 
 use videos_roh.dta, clear
 describe
 codebook, compact
 isid video_id
-tab1 politisch_klass krieg_klass pop_klass pos_klass transkript baseline_stichprobe
+tab1 min_dauer post_war politisch_klass pop_klass pos_klass transkript baseline_stichprobe
+tab format format_klass, missing
+tab1 news_show special_show pk_sitzung, missing
+* LLM-Analysen (pop_*, pos_*) nur mit min_dauer == 1 (siehe Codebuch)
+tab pop_klass min_dauer
 
 merge m:1 channel_id using kanaele_roh.dta
 * Erwartung: keine Videos nur in master (_merge == 1); Kanaele nur in using
-* (_merge == 2) sind solche ohne Video > 180 s.
+* (_merge == 2) sind solche ganz ohne Video in der Registry.
 tab _merge
 assert _merge != 1
 """
 
 
 def main():
-    fehlend = set(TOPIC_KEYWORDS) - set(TOPICS) - {KRIEG_TOPIC}
-    if fehlend:
-        raise KonsistenzFehler(f"Themen aus TOPIC_KEYWORDS ohne Exportvariable in TOPICS: {sorted(fehlend)}")
     os.makedirs(AUSGABE_PFAD, exist_ok=True)
     kanal_ids = lade_kanaele()
-    alle, v, ideo_video = baue_videos(kanal_ids)
-    k = baue_kanaele(kanal_ids, alle, v, ideo_video)
+    format_status = lade_format_status()
+    format_listen = lade_format_listen()
+    v, ideo_video = baue_videos(kanal_ids, format_status, format_listen)
+    k = baue_kanaele(kanal_ids, v, ideo_video, format_status, format_listen)
 
     log("")
     log("[Abdeckung] Videoebene (Anteil nicht fehlend bzw. = 1):")
-    for s in ["views", "likes", "kommentare", "politisch", "krieg", *TOPICS.values(), "krieg_transkript",
+    for s in ["views", "likes", "kommentare", "politisch", "dauer_sek", "news_show", "krieg_transkript",
               "pop_gesamt", "pos_russland", "pos_westpolitik"]:
         log(f"    {s}: {v[s].notna().mean():.2%} nicht fehlend")
-    for s in ["politisch_klass", "krieg_klass", "topic_klass", "pop_klass", "pos_klass", "transkript",
-              "baseline_stichprobe"]:
+    for s in ["min_dauer", "post_war", "format_klass", "format_derived", "politisch_klass", "pop_klass",
+              "pos_klass", "transkript", "baseline_stichprobe", *REL_SPALTEN]:
         log(f"    {s} = 1: {int(v[s].sum())} ({v[s].mean():.2%})")
+    log("[Abdeckung] format (leer = nicht zugeordnet) x format_klass:")
+    log(pd.crosstab(v["format"].fillna("(leer)"), v["format_klass"]).to_string())
+    log("[Abdeckung] pop_klass x min_dauer:")
+    log(pd.crosstab(v["pop_klass"], v["min_dauer"]).to_string())
     log("[Abdeckung] Kanaele je Sample-Kennzeichen und Medientyp:")
     log(k.groupby(k["medientyp"].fillna(-1).astype(int))[["sample_vorkrieg", "sample_baseline", "sample_whitelist"]]
         .agg(["sum", "size"]).to_string())
     log(f"    Kanaele gesamt: {len(k)}, ohne Medientyp: {int(k['medientyp'].isna().sum())}, "
         f"mit Ideologie-Baseline: {int(k['ideo_gesellschaft_baseline'].notna().sum())}")
+    log("[Abdeckung] Kanaele je Kanaltyp (sample_vorkrieg, sample_kern):")
+    log(k[k["kanaltyp"].notna()].groupby(k["kanaltyp"].dropna().astype(int).map(KANALTYP_LABELS))
+        [["sample_vorkrieg", "sample_kern"]].agg(["sum", "size"]).to_string())
 
     konsistenz(v, k)
 
     ja_nein = {0: "nein", 1: "ja"}
     exportiere(v, VIDEO_SPALTEN, "videos_roh.dta",
-               {"live_typ": {0: "regulaer", 1: "Livestream", 2: "Premiere"},
-                **{s: ja_nein for s, (t, _) in VIDEO_SPALTEN.items() if t == "byte" and s != "live_typ"}})
+               {s: ja_nein for s, (t, _) in VIDEO_SPALTEN.items() if t == "byte"})
+    eigene = {"medientyp": MEDIENTYP_LABELS, "format_liste": FORMAT_LISTEN_LABELS,
+              "kanaltyp": KANALTYP_LABELS, "kanaltyp_gruppe": KANALTYP_GRUPPE_LABELS,
+              "kanaltyp_sicher": KANALTYP_SICHER_LABELS}
     exportiere(k, KANAL_SPALTEN, "kanaele_roh.dta",
-               {"medientyp": MEDIENTYP_LABELS,
-                **{s: ja_nein for s, (t, _) in KANAL_SPALTEN.items() if t == "byte" and s != "medientyp"}})
+               {**eigene, **{s: ja_nein for s, (t, _) in KANAL_SPALTEN.items() if t == "byte" and s not in eigene}})
     (AUSGABE_PFAD / "check_rohdaten.do").write_text(DO_FILE, encoding="utf-8")
     log("[Export] check_rohdaten.do geschrieben")
     schreibe_log()

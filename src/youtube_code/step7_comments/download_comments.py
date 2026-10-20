@@ -56,7 +56,7 @@ import pandas as pd
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from youtube_code.config import API_KEY, API_KEY_C, SAMPLES
+from youtube_code.config import API_KEY, API_KEY_C, SAMPLES, SRC
 from youtube_code.store.comment_store import attempted_video_ids, upsert_comment_status, upsert_comments
 from youtube_code.store.video_registry import comment_count_lookup
 
@@ -69,8 +69,8 @@ BATCH_SIZE = 20  # Anzahl Videos zwischen zwei Status-/Kommentar-Upserts
 SHUFFLE_SEED = None  # None = bei jedem Lauf neue Zufallsreihenfolge; int = reproduzierbare Reihenfolge
 
 # --- nur fuer den __main__-Block ---
-MODE = "channels_topic"  # "video_list" (VIDEO_LIST-JSON), "channels" (alle Videos aus CHANNEL_LIST_CSV) oder "channels_topic" (nur TOPIC-Videos aus CHANNEL_LIST_CSV)
-VIDEO_LIST = "request_comments.json"  # nur bei MODE="video_list"
+MODE = "video_list" # "video_list" (VIDEO_LIST-JSON), "channels" (alle Videos aus CHANNEL_LIST_CSV) oder "channels_topic" (nur TOPIC-Videos aus CHANNEL_LIST_CSV)
+VIDEO_LIST = SRC / "step4_transcript_download" / "ids_right.json" # nur bei MODE="video_list"
 CHANNEL_LIST_CSV = SAMPLES / "russia_longitudinal_v1" / "topic_channels_sample.csv"  # bei MODE="channels"/"channels_topic": CSV mit channel_id-Spalte
 TOPIC = "russia_ukraine_war"  # nur bei MODE="channels_topic": Topic aus video_topic_relevance (Kriegsvideos = ist_kriegsvideo in step6)
 INCLUDE_REPLIES = False
