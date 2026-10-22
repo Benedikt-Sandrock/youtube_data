@@ -4,6 +4,9 @@ import ast
 import numpy as np
 from youtube_code.store.video_registry import get_video_stats
 
+# === CONFIG ===
+
+
 results_pattern = "*results.xlsx"
 key_file = "schluessel.csv"
 directory = Path(".")   # "." = current directory
@@ -44,9 +47,14 @@ df["segment_weight"] = df["n_woerter"] / df["words_total"]
 # Rangfolgen für "größter Wert gewinnt" (höherer Rang = stärker)
 explicitness_rank = {"implizit": 1, "explizit": 2}
 status_rank = {"nicht_thematisiert": 0, "deskriptiv": 1, "bewertend": 2}
+intensitaet_rank = {"sachlich": 0, "abwertend": 1, "delegitimierung": 2}
 
 for col in ["themen", "krieg_aspekte", "estab_gegenstand"]:
     df[col] = df[col].apply(ast.literal_eval)
+
+inverse_intens = {n:w for w,n in intensitaet_rank.items()}
+df["estab_intensitaet"] = df["estab_intensitaet"].replace(inverse_intens)
+
 
 # Spalten, die auf Segmentebene klassifiziert wurden bzw. segmentspezifisch sind
 classification_vars = ["text", "kodierbar", "themen", "hauptthema", "krieg_bezug", "krieg_aspekte",
@@ -123,7 +131,7 @@ df_video["rus_score"] = video_weighted_mean("rus_score")
 df_video["estab_explizit"] = video_max_label("estab_explizit", explicitness_rank)
 df_video["estab_status"] = video_max_label("estab_status", status_rank)
 df_video["estab_score"] = video_weighted_mean("estab_score")
-df_video["estab_intensitaet"] = video_weighted_mean("estab_intensitaet")
+df_video["estab_intensitaet"] = video_max_label("estab_intensitaet", intensitaet_rank)
 
 estab_topic_dummies = multi_hot(df["estab_gegenstand"], "estab_gegenstand")
 df_video = df_video.join(estab_topic_dummies.groupby(df["video_id"]).max())
@@ -140,7 +148,16 @@ df_video = df_video.reset_index()
 print(f"Videos: {len(df_video)}, Variablen: {df_video.shape[1]}")
 print(df_video.filter(like = "thema_").mean())
 
-df_video.to_csv("video_results.csv", index = False)
+ids = df_video["video_id"].tolist()
+
+stats_df = get_video_stats(video_ids=ids)
+stats_ids = stats_df["video_id"].tolist()
+
+cols_to_use = stats_df.columns.difference(df_video.columns).tolist() + ["video_id"]
+df_video_stats = pd.merge(df_video, stats_df[cols_to_use], on = "video_id", how = "inner")
+print(len(stats_df), len(df_video_stats), len(df_video))
+
+df_video_stats.to_csv("video_results.csv", index = False)
 print(f"Description of thema_krieg_ukraine:"
       f"\n{df_video["thema_krieg_ukraine"].describe(percentiles = [x / 100 for x in range(5,100, 5)])}")
 
@@ -152,20 +169,6 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 1000)
 print(df)
-
-ids = df_video["video_id"].tolist()
-
-stats_df = get_video_stats(video_ids=ids)
-stats_ids = stats_df["video_id"].tolist()
-
-missing = [i for i in ids if i not in stats_ids]
-missing_df = df_video[df_video["video_id"].isin(missing)]
-missing_df.to_csv("missing_stats.csv", index = False)
-
-cols_to_use = stats_df.columns.difference(df_video.columns).tolist() + ["video_id"]
-df = pd.merge(df_video, stats_df[cols_to_use], on = "video_id", how = "inner")
-print(len(stats_df), len(df_video), len(df))
-
 
 
 

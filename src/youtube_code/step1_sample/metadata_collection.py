@@ -42,7 +42,7 @@ import pandas as pd
 from googleapiclient.discovery import build
 
 from youtube_code.utils import get_channel_metadata, get_video_metadata, load_json, refresh_video_stats
-from youtube_code.config import RAW, SAMPLES, API_KEY_C, API_KEY, CHANNEL_LISTS, OUTPUTS, ADHOC_OUTPUT
+from youtube_code.config import RAW, SAMPLES, API_KEY_C, API_KEY, CHANNEL_LISTS, OUTPUTS, ADHOC_OUTPUT, DATA
 from youtube_code.store import video_registry
 
 api_keys = [API_KEY_C, API_KEY]
@@ -64,7 +64,7 @@ REFRESH_MODE = False  # True = view/like/comment_count fuer VIDEOS_INPUT_PATH be
 # immer get_video_metadata(), nicht refresh_video_stats() - fuer Videos, die
 # noch NIE erfolgreich abgefragt wurden, macht der "schon bekannt"-Filter
 # keinen Unterschied, siehe Docstring dort).
-CHECK_CHANNELS_MODE = True
+CHECK_CHANNELS_MODE = False
 
 # VIDEOS_INPUT_PATH = SAMPLES / "russia_longitudinal_v1" / "identification_videos_missing_metadata.json"
 # VIDEOS_INPUT_PATH = RAW / "sample_50k_channels_russia_ukraine.json"
@@ -73,7 +73,7 @@ CHECK_CHANNELS_MODE = True
 # Ableitung aus video_registry, siehe .claude/CLAUDE.md).
 
 # VIDEOS_INPUT_PATH = OUTPUTS / "segment_analysis" / "datenluecken_kanaluebersicht" / "kategorie1_fehlender_topic_nur.csv"
-VIDEOS_INPUT_PATH = OUTPUTS / "segment_analysis" / "datenluecken_kanaluebersicht" / "kategorie1_fehlende_stats.csv"
+VIDEOS_INPUT_PATH = DATA / "claude_classification" / "angebot" / "missing_stats.csv"
 
 # VIDEOS_INPUT_PATH = ADHOC_OUTPUT / "frage1_2026h1_video_ids_to_refresh.csv"
 
@@ -85,7 +85,7 @@ VIDEOS_INPUT_PATH = OUTPUTS / "segment_analysis" / "datenluecken_kanaluebersicht
 # Aktuell (14.10.2026): die 10 neuen Kanaele der BSW-Sample-Erweiterung
 # (.claude/plans/bsw_sample_erweiterung.md). Vorheriger Wert:
 # OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "metadata_nachscraping_kanaele.csv"
-MISSING_METADATA_CHANNEL_INPUT = CHANNEL_LISTS / "bsw_neue_kanaele.csv"
+MISSING_METADATA_CHANNEL_INPUT = CHANNEL_LISTS / "new.csv"
 # MISSING_METADATA_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
 YOUTUBE = build("youtube", "v3", developerKey=api_keys[0])
