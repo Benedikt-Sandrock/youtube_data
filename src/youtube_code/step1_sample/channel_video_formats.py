@@ -126,7 +126,12 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # Aktuell (16.10.2026): Kanaele mit fehlenden Formaten in der Zufallsstichprobe
 # (scripts/adhoc/zufallsstichprobe_videos.py), Fenster aus der Liste
 # (PUBLISHED_AFTER = PUBLISHED_BEFORE = None).
-CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_formate.csv"
+# Aktuell (22.10.2026): Erweiterung der Datenbasis auf 2019-2020, zuerst der
+# Pilot (5 Kanaele), danach sample_2019_2020.csv (347 vor 2021 gegruendete
+# Sample-Kanaele); beide von scripts/adhoc/export_kanalliste_2019_2020.py,
+# Fenster 2019-01-01..2020-12-31 aus der Liste.
+# Vorheriger Wert: CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_formate.csv"
+CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "pilot_2019_2020.csv"
 
 # Zeitfenster als ISO-String mit Z (Ende inklusive). Beide None = Fenster aus
 # den Spalten fenster_von/fenster_bis der Kanalliste (muessen fuer alle Zeilen
@@ -136,7 +141,7 @@ CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_fo
 PUBLISHED_AFTER = None
 PUBLISHED_BEFORE = None
 
-DRY_RUN = False
+DRY_RUN = True
 
 # Anzahl Videos (je zur Haelfte Shorts / Nicht-Shorts) fuer die HEAD-Validierung
 # gegen https://www.youtube.com/shorts/<id>. 0 = aus. Kostet keine Quota.

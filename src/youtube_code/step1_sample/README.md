@@ -84,6 +84,7 @@ maßgebliche Quelle mehr.
   Filter > 50k, dann Sprache, dann Videos. Der Modus `NEW_CHANNELS` passt
   nicht, weil er Kanäle überspringt, die über die Suchtreffer schon Videos in
   der Registry haben.
+- Erweiterung auf 2019–2020 (22.10.2026, nur Metadaten): `scripts/adhoc/export_kanalliste_2019_2020.py` schreibt `data/channel_lists/video_formats/sample_2019_2020.csv` (347 vor 2021 gegründete Sample-Kanäle, Fenster 2019-01-01–2020-12-31 in `fenster_von`/`fenster_bis`) und die Pilotliste `pilot_2019_2020.csv` (5 Kanäle). `channel_video_formats.py` übernimmt Discovery, Format und Metadaten in einem Durchgang (Fenster aus der Liste). Stand: Pilot als `CHANNEL_INPUT` mit `DRY_RUN = True` gesetzt, noch nicht gelaufen.
 - `build_channel_provenance.py` liest ausschließlich aus dem Store — keine
   JSON-Zwischendateien, keine erneute Migration nötig. Vor einem echten Lauf
   erst mit `DRY_RUN = True` die gedruckte Übersicht prüfen.
