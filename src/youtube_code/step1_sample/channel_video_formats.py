@@ -79,7 +79,7 @@ zufallsstichprobe_fehlende_formate.csv: Kanaele, deren Videos im
 Stichprobenzeitraum noch kein Format haben). Die Statusdatei ist pro Fenster
 gefuehrt, ein neues Sample-Fenster fragt die Kanaele also erneut ab.
 
-DRY_RUN = True: Alles wird abgefragt (kostet Quota), aber nichts in den Store
+DRY_RUN = False: Alles wird abgefragt (kostet Quota), aber nichts in den Store
 oder die Statusdatei geschrieben - nur der Report.
 
 Nachgelagert: Fuer neu eingetragene Videos fehlt die Themen-Relevanz ->
@@ -131,7 +131,7 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # Sample-Kanaele); beide von scripts/adhoc/export_kanalliste_2019_2020.py,
 # Fenster 2019-01-01..2020-12-31 aus der Liste.
 # Vorheriger Wert: CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_formate.csv"
-CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "pilot_2019_2020.csv"
+CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "sample_2019_2020.csv"
 
 # Zeitfenster als ISO-String mit Z (Ende inklusive). Beide None = Fenster aus
 # den Spalten fenster_von/fenster_bis der Kanalliste (muessen fuer alle Zeilen
@@ -141,7 +141,7 @@ CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "pilot_2019_2020.csv"
 PUBLISHED_AFTER = None
 PUBLISHED_BEFORE = None
 
-DRY_RUN = True
+DRY_RUN = False
 
 # Anzahl Videos (je zur Haelfte Shorts / Nicht-Shorts) fuer die HEAD-Validierung
 # gegen https://www.youtube.com/shorts/<id>. 0 = aus. Kostet keine Quota.

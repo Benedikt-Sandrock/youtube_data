@@ -19,14 +19,15 @@ Die Anteile einer Klassifikation summieren sich je Monat zu 100 %. Monate mit
 
 Umfaenge
 --------
+- "alle Videos": kein Themenfilter (genereller Marktanteil).
 - "politische Videos": politisch == "ja" (YouTube-topic_categories "Politics"),
   Kriegsvideos eingeschlossen.
 - "Kriegsvideos": rel_russia_ukraine_war_cw == "ja" (Stichwortsuche
   russia_ukraine_war, core+wide, seit 13.10.2026 NUR Titel - vorher Titel +
   Beschreibung), ungefiltert nach politisch (wie in den bisherigen
   Marktanteils-Skripten).
-- Population: nur Videos mit min_dauer == "ja" (> 180 s), wie vor dem
-  Wegfall des Laengenfilters in videos_roh.
+- Population: nur Videos mit format == "long" (keine Shorts, keine Livestreams,
+  keine Videos ohne Formatzuordnung); vorher min_dauer == "ja" (> 180 s).
 
 Klassifikationen
 ----------------
@@ -50,8 +51,8 @@ Kanal-Samples (je Sample ein Satz Grafiken, siehe AP 2 Stichprobenbias)
   zeigt, ob eine Verschiebung auch ohne erst spaeter gestartete Kanaele besteht.
 
 Ausgabe nach OUTPUTS / "segment_analysis" / "plots_marktanteil_rohdaten":
-- marktanteil_<klassifikation>_<sample>.png  (links politische Videos, rechts
-  Kriegsvideos; Punkte = Monatswerte, Linie = LOWESS-Glaettung)
+- marktanteil_<klassifikation>_<sample>.png  (links alle Videos, Mitte politische
+  Videos, rechts Kriegsvideos; Punkte = Monatswerte, Linie = LOWESS-Glaettung)
 - marktanteil_monat.csv  (alle Monatswerte, Long-Format)
 - marktanteil_methodik.md  (Methodik, Fallzahlen, Phasenmittel)
 
@@ -100,6 +101,7 @@ PHASEN = {
 }
 
 UMFAENGE = {
+    "alle": ("Alle Videos", lambda v: pd.Series(True, index=v.index)),
     "politisch": ("Politische Videos", lambda v: v["politisch"] == "ja"),
     "krieg": ("Kriegsvideos", lambda v: v["krieg"] == "ja"),
 }
@@ -168,16 +170,16 @@ def bilde_gruppen(k):
 
 
 def lade_videos():
-    # videos_roh hat seit 13.10.2026 keinen Laengenfilter mehr -> min_dauer
-    # setzt die bisherige Population (> 180 s) wieder her; "krieg" ist jetzt
+    # videos_roh hat seit 13.10.2026 keinen Laengenfilter mehr -> format == "long"
+    # schliesst Shorts/Livestreams/unklassifizierte Videos aus; "krieg" ist jetzt
     # die Titel-Stichwortsuche rel_russia_ukraine_war_cw (core+wide)
     v = pd.read_stata(ROHDATEN_PFAD / "videos_roh.dta",
                       columns=["video_id", "channel_id", "upload_ts", "views", "politisch",
-                               "rel_russia_ukraine_war_cw", "min_dauer"])
+                               "rel_russia_ukraine_war_cw", "format"])
     v = v.rename(columns={"rel_russia_ukraine_war_cw": "krieg"})
-    for c in ["politisch", "krieg", "min_dauer"]:
+    for c in ["politisch", "krieg", "format"]:
         v[c] = v[c].astype(str)
-    v = v[v["min_dauer"] == "ja"]
+    v = v[v["format"] == "long"]
     v["rel_monat"] = relativ_periode(v["upload_ts"], pd.Timestamp(KRIEGSBEGINN), 1)
     n_ohne_views = int(v["views"].isna().sum())
     v = v[v["views"].notna() & v["rel_monat"].between(PERIODE_MIN, PERIODE_MAX)]
@@ -233,7 +235,7 @@ def glaette(x, y):
 
 def plotte(anteile_je_umfang, klass_key, sample_label, dateiname):
     cfg = KLASSIFIKATIONEN[klass_key]
-    fig, achsen = plt.subplots(1, 2, figsize=(13, 5.2), sharey=True)
+    fig, achsen = plt.subplots(1, len(anteile_je_umfang), figsize=(5.2 * len(anteile_je_umfang), 5.2), sharey=True)
     for ax, (umfang_key, anteile) in zip(achsen, anteile_je_umfang.items()):
         for gruppe, farbe in zip(cfg["gruppen"], cfg["farben"]):
             r = anteile[anteile["gruppe"] == gruppe].sort_values("rel_monat")
@@ -299,8 +301,8 @@ def schreibe_methodik(kanaele, grenzen, fallzahlen, phasen_tabellen, erzeugt):
         f"- Grafik: Punkte = Monatswerte, Linie = LOWESS (frac={GLAETTUNG_LOWESS_FRAC}, it=0).",
         "- Umfänge: politische Videos = `politisch == ja` (inkl. Kriegsvideos); "
         "Kriegsvideos = `rel_russia_ukraine_war_cw == ja` (Titel-Stichworte core+wide; vor dem "
-        "13.10.2026 Titel + Beschreibung), ohne zusätzlichen Politik-Filter. Nur Videos mit "
-        "`min_dauer == ja` (> 180 s).",
+        "13.10.2026 Titel + Beschreibung), ohne zusätzlichen Politik-Filter; alle Videos = "
+        "kein Themenfilter. Nur Videos mit `format == long` (keine Shorts/Livestreams).",
         "",
         "## Klassifikationen",
         "",

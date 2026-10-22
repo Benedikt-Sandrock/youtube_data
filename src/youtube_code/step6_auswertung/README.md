@@ -74,7 +74,7 @@ youtube_code/step6_auswertung/
                                               rohe statt normierte Werte)
     marktanteil_rohdaten_plots.py        8i: Marktanteile aus dem Stata-Rohdatensatz
                                               (Medientyp x Ideologie, Populismus-
-                                              Tertile; politische vs. Kriegsvideos)
+                                              Tertile; alle vs. politische vs. Kriegsvideos)
     kriegsvideos_zeitreihen_plots.py     8j: Views-Summe, Anzahl, Mittel/Median
                                               der Kriegsvideos je Monat vs. alle und
                                               politics_general-Videos (Rohdatensatz)
@@ -705,7 +705,7 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    `export_stata_rohdaten.py`) statt `channel_video_erfolg.csv`/
    `lade_basisdaten()`. Anteil = Views der Gruppe / Views aller Gruppen der
    Klassifikation je `rel_monat` (−13 bis 51). Zwei Umfänge je Grafik
-   (links `politisch == ja` inkl. Kriegsvideos, rechts Kriegsvideos; seit 13.10.2026 `rel_russia_ukraine_war_cw == ja` = nur Titel, Population `min_dauer == ja`), zwei
+   (links alle Videos, Mitte `politisch == ja` inkl. Kriegsvideos, rechts Kriegsvideos; seit 13.10.2026 `rel_russia_ukraine_war_cw == ja` = nur Titel; Population seit 22.10.2026 `format == long` statt `min_dauer == ja`), zwei
    Klassifikationen: (1) ÖRR, traditionelle Medien, alternative Medien
    links/mitte/rechts nach `ideo_gesellschaft_baseline` (Schnitte ±0,5;
    Ideologie jetzt aus dem Vorkriegsfenster), (2) Tertile von `pop_baseline`
