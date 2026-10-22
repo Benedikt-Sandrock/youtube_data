@@ -2,10 +2,11 @@ from pathlib import Path
 import pandas as pd
 import ast
 import numpy as np
+from youtube_code.store.video_registry import get_video_stats
 
 results_pattern = "*results.xlsx"
 key_file = "schluessel.csv"
-directory = Path(".")   # = current directory
+directory = Path(".")   # "." = current directory
 
 constant_vars = ["channel_id", "channel_title", "media_type", "medientyp", "published_at",
                  "datum_lokal", "phase", "hand", "pilot", "video_id"]
@@ -104,6 +105,11 @@ df_video["n_topics"] = topic_any.sum(axis = 1)   # Anzahl verschiedener Themen i
 df_video["n_hauptthemen"] = video_groups["hauptthema"].nunique()
 df_video["hauptthemen"] = video_groups["hauptthema"].agg(lambda x: sorted(x.dropna().unique()))
 
+# Gewichteter Anteil des Hauptthemas am Videos
+main_topic_dummies = multi_hot(df["hauptthema"], "main_topic")
+main_topic_share = main_topic_dummies.mul(df["segment_weight"], axis = 0).groupby(df["video_id"]).sum()
+df_video = df_video.join(main_topic_share)
+
 # 3. Krieg
 df_video["krieg_bezug"] = video_max_label("krieg_bezug", explicitness_rank)
 war_dummies = multi_hot(df["krieg_aspekte"], "krieg_aspekt")
@@ -135,7 +141,8 @@ print(f"Videos: {len(df_video)}, Variablen: {df_video.shape[1]}")
 print(df_video.filter(like = "thema_").mean())
 
 df_video.to_csv("video_results.csv", index = False)
-
+print(f"Description of thema_krieg_ukraine:"
+      f"\n{df_video["thema_krieg_ukraine"].describe(percentiles = [x / 100 for x in range(5,100, 5)])}")
 
 # ===== EVALUATION =====
 
@@ -145,6 +152,19 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 1000)
 print(df)
+
+ids = df_video["video_id"].tolist()
+
+stats_df = get_video_stats(video_ids=ids)
+stats_ids = stats_df["video_id"].tolist()
+
+missing = [i for i in ids if i not in stats_ids]
+missing_df = df_video[df_video["video_id"].isin(missing)]
+missing_df.to_csv("missing_stats.csv", index = False)
+
+cols_to_use = stats_df.columns.difference(df_video.columns).tolist() + ["video_id"]
+df = pd.merge(df_video, stats_df[cols_to_use], on = "video_id", how = "inner")
+print(len(stats_df), len(df_video), len(df))
 
 
 

@@ -34,6 +34,7 @@ N_SPALTEN = 3                    # Panels je Zeile (ganze Zahl >= 1)
 MIN_VIDEOS_PRO_WOCHE = 5         # Wochen mit weniger Videos je Medientyp werden nicht gezeichnet (>= 1)
 # Medientyp-Code -> (Label, Farbe); Schlüssel müssen in der Spalte "medientyp" vorkommen
 MEDIENTYPEN = {
+    "mainstream": ("Mainstream", "#1f77b4"),
     "oerr": ("Öffentlich-rechtlich", "#1f77b4"),
     "traditionell": ("Traditionell (privat/Verlage)", "#7f7f7f"),
     "alternativ_rechts": ("Alternativ-rechts", "#d62728"),
@@ -79,9 +80,10 @@ def main():
         raise SystemExit("N_SPALTEN und MIN_VIDEOS_PRO_WOCHE müssen >= 1 sein.")
 
     df = pd.read_csv(INPUT, parse_dates=["datum_lokal"])
+    df["medientyp"] = df["medientyp"].replace(["oerr", "traditionell"], "mainstream")
     fehlend = set(MEDIENTYPEN) - set(df["medientyp"].unique())
-    if fehlend:
-        raise SystemExit(f"Medientypen nicht in den Daten: {sorted(fehlend)}")
+    # if fehlend:
+    #     raise SystemExit(f"Medientypen nicht in den Daten: {sorted(fehlend)}")
     themen_cols = [c for c in df.columns if c.startswith("thema_")]
     df[themen_cols] = df[themen_cols].fillna(0.0)   # Thema nicht vergeben = Anteil 0
 

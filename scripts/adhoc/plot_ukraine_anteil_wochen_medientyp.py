@@ -34,6 +34,7 @@ UKRAINE_SCHWELLE = 0.5           # Video zählt als Ukraine-Video, wenn thema_kr
 MIN_VIDEOS_PRO_WOCHE = 5         # Wochen mit weniger Videos je Medientyp werden nicht gezeichnet (ganze Zahl >= 1)
 # Medientyp-Code -> (Label, Farbe); Schlüssel müssen in der Spalte "medientyp" vorkommen
 MEDIENTYPEN = {
+    "mainstream": ("Mainstream", "#1f77b4"),
     "oerr": ("Öffentlich-rechtlich", "#1f77b4"),
     "traditionell": ("Traditionell (privat/Verlage)", "#7f7f7f"),
     "alternativ_rechts": ("Alternativ-rechts", "#d62728"),
@@ -48,9 +49,10 @@ def main():
         raise SystemExit("MIN_VIDEOS_PRO_WOCHE muss >= 1 sein.")
 
     df = pd.read_csv(INPUT, parse_dates=["datum_lokal"])
+    df["medientyp"] = df["medientyp"].replace(["oerr", "traditionell"], "mainstream")
     fehlend = set(MEDIENTYPEN) - set(df["medientyp"].unique())
-    if fehlend:
-        raise SystemExit(f"Medientypen nicht in den Daten: {sorted(fehlend)}")
+    # if fehlend:
+    #     raise SystemExit(f"Medientypen nicht in den Daten: {sorted(fehlend)}")
 
     start = pd.Timestamp(KRIEGSBEGINN)
     df["woche_idx"] = (df["datum_lokal"] - start).dt.days // 7   # floor: Tage vor Kriegsbeginn -> negative Wochen
