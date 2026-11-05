@@ -62,7 +62,7 @@ SAMPLES = [1, 2, 3, 4, 5]              # Werte aus sample, die ins Sample kommen
 OHNE_AUSLAND = True                    # True = Kanaele mit foreign == 1 ausschliessen
 
 START = "2022-01-06"                   # erster Tag (inkl.), muss ein Wochenbeginn sein (s. WOCHEN_ANKER)
-ENDE = "2022-10-26"                    # letzter Tag (inkl.), muss ein Wochenende sein
+ENDE = "2023-01-04"                    # letzter Tag (inkl.), muss ein Wochenende sein
 WOCHEN_ANKER = "2022-02-24"            # Beginn einer Woche (Kriegsbeginn, Do), wie in ziehung_angebotsstudie.py
 ZEITZONE = "Europe/Berlin"             # Datum der Videos in Ortszeit
 
