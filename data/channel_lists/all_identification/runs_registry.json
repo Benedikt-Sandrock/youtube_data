@@ -115,5 +115,104 @@
     "search_end": "2026-01-01",
     "month_interval": 3,
     "executed_at": "2026-10-14T18:04:53"
+  },
+  "20261027_084411": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2020-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-27T08:44:31"
+  },
+  "20261027_084439": {
+    "queries": [
+      "CDU"
+    ],
+    "search_start": "2020-01-01",
+    "search_end": "2021-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-27T08:44:56"
+  },
+  "20261027_084543": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2020-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-27T08:46:01"
+  },
+  "20261027_084608": {
+    "queries": [
+      "SPD"
+    ],
+    "search_start": "2020-01-01",
+    "search_end": "2021-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-27T08:46:25"
+  },
+  "20261028_091037": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2020-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:10:57"
+  },
+  "20261028_091107": {
+    "queries": [
+      "FDP"
+    ],
+    "search_start": "2020-01-01",
+    "search_end": "2021-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:11:29"
+  },
+  "20261028_091155": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2020-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:12:08"
+  },
+  "20261028_091258": {
+    "queries": [
+      "Die Grünen"
+    ],
+    "search_start": "2020-01-01",
+    "search_end": "2021-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:13:19"
+  },
+  "20261028_091339": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2020-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:13:55"
+  },
+  "20261028_091422": {
+    "queries": [
+      "Die Linke"
+    ],
+    "search_start": "2020-01-01",
+    "search_end": "2021-01-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:14:35"
+  },
+  "20261028_091515": {
+    "queries": [
+      "AfD"
+    ],
+    "search_start": "2019-01-01",
+    "search_end": "2019-07-01",
+    "month_interval": 3,
+    "executed_at": "2026-10-28T09:15:27"
   }
 }

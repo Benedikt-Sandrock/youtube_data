@@ -496,3 +496,5 @@ empfehlenswert, neue Kanäle dort ebenfalls einzutragen.
 | `src/youtube_code/store/screening_state_store.py` | Zugriffsschicht auf den State (`get_state()`, `get_state_with_text()` inkl. per Join nachgeladenem `channel_title`/`published_at`/`title`/`description`, `upsert_state_rows()`) |
 | `src/youtube_code/store/transcript_store.py` | Zugriffsschicht auf bereits versuchte/vorhandene Transkripte (`attempted_video_ids()`, `has_transcript()`) |
 | `src/youtube_code/step4_transcript_download/select_targets.py` | `select_baseline_targets()` — Video-IDs qualifizierender Kanäle abrufen (siehe Abschnitt 4 oben) |
+
+**Hinweis (23.10.2026):** Die Registry enthält für viele Kanäle jetzt auch Videos ab 2019 (Datenbasis-Erweiterung, `.claude/plans/datenbasis_2019_2020.md`). `activity_phases.py` liest die Upload-Historie aus der Registry; ein Neulauf kann Aktivitätsphasen und damit Baseline-Zuordnungen verschieben. Schritt 2 deshalb **nicht neu laufen lassen**; falls doch, vorher/nachher vergleichen, ob sich ein Baseline-Fenster ändert.

@@ -48,7 +48,7 @@ from youtube_code.step3_topic_relevance.topic_keywords import (
     is_relevant_vectorized,
 )
 from youtube_code.store import video_registry
-from youtube_code.config import SAMPLES
+from youtube_code.config import SAMPLES, CHANNEL_LISTS
 
 # ============================================================
 # CONFIG
@@ -65,11 +65,15 @@ TOPICS_TO_RUN = list(TOPIC_KEYWORDS.keys())
 # damit die Bereinigung der Beschreibung dieselbe ist wie bei einem Volllauf.
 # False = alle geladenen Videos neu klassifizieren (z.B. nach Aenderung
 # eines Keyword-Sets).
-NUR_FEHLENDE = False
+NUR_FEHLENDE = True
 
 # None = alle Kanaele in videos; sonst Liste von channel_ids.
-channel_path = SAMPLES / "russia_longitudinal_v1" / "channel_sample_provenance.csv"
-channels = pd.read_csv(channel_path, usecols=["channel_id"], dtype={"channel_id": "string"})["channel_id"].tolist()
+# Aktuell (23.10.2026): Erweiterung auf 2019-2020 - Hauptliste + Pilotkanaele
+# (.claude/plans/datenbasis_2019_2020.md). Vorheriger Wert:
+# SAMPLES / "russia_longitudinal_v1" / "channel_sample_provenance.csv"
+channel_paths = [CHANNEL_LISTS / "video_formats" / "sample_2019_2020.csv",
+                 CHANNEL_LISTS / "video_formats" / "pilot_2019_2020.csv"]
+channels = pd.concat([pd.read_csv(p_, usecols=["channel_id"], dtype={"channel_id": "string"}) for p_ in channel_paths])["channel_id"].drop_duplicates().tolist()
 CHANNEL_FILTER = channels
 
 # Anzahl Zeilen je upsert_topic_relevance()-Batch.

@@ -9,7 +9,11 @@ Bereitet die Transkripte der Angebotsstudie fuer die Codierung auf
 
 Schritte:
     1. segments.csv (Untertitel je Video) + metadata.csv (Kanal, Datum,
-       Medientyp, Titel) einlesen und auf das Zeitfenster filtern.
+       Titel) einlesen und auf das Zeitfenster filtern. Der Medientyp kommt
+       aus kanaele_roh.dta (Code `medientyp`, siehe MEDIENTYP_LABEL);
+       Creator & alternative Medien werden ueber das Vorzeichen von
+       ideo_gesellschaft_baseline in alternativ_rechts/_links geteilt,
+       Ausnahmen in MEDIENTYP_OVERRIDE.
     2. Untertitel zu Fliesstext zusammenfuehren und in Segmente von ca.
        800 Woertern schneiden. Logik unveraendert aus
        process_scraped_segments.py (transcript_to_text, split_segments),
@@ -43,6 +47,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from youtube_code.config import STATA_OUTPUT
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -50,7 +56,8 @@ import pandas as pd
 BASIS = Path(__file__).resolve().parent
 
 SEGMENTS_FILE = BASIS / "segments_new.csv"      # vollstaendiger Download (20.10.2026)
-METADATA_FILE = BASIS / "metadata.csv"
+METADATA_FILE = BASIS / "metadata_new.csv"
+CLASSIFICATION_FILE = STATA_OUTPUT / "kanaele_roh.dta"
 OUT_DIR = BASIS / "angebot"
 
 # Zeitfenster (Ortszeit Europe/Berlin, Enddatum inklusive)
@@ -59,7 +66,26 @@ ZEITFENSTER_START = "2022-01-01"
 ZEITFENSTER_ENDE = "2022-04-30"
 KRIEGSBEGINN = "2022-02-24"            # Phase "nach" ab diesem Tag (inklusive)
 
-MEDIENTYP_LABEL = {1: "oerr", 2: "traditionell", 5: "alternativ_rechts"}
+# Medientyp-Codes dieser Studie (Spalte media_type in schluessel.csv)
+MEDIENTYP_LABEL = {1: "oerr", 2: "traditionell", 3: "alternativ_links",
+                   4: "alternativ_zentral", 5: "alternativ_rechts"}
+# Herleitung aus `medientyp` in kanaele_roh.dta (1 ÖRR, 2 traditionell,
+# 3 Partei/Politiker, 4 Creator & alternative Medien): 1 und 2 werden
+# uebernommen, 4 wird nach IDEOLOGIE_VARIABLE aufgeteilt:
+#   < IDEOLOGIE_GRENZE_LINKS  -> 3 (links)
+#   > IDEOLOGIE_GRENZE_RECHTS -> 5 (rechts)
+#   dazwischen                -> 4 (zentral, Warnung)
+# Andere Rohcodes oder fehlende Ideologie bei Code 4 -> Abbruch.
+IDEOLOGIE_VARIABLE = "ideo_gesellschaft_baseline"
+IDEOLOGIE_GRENZE_LINKS = -0.5
+IDEOLOGIE_GRENZE_RECHTS = 0.5
+# Manuelle Zuordnung einzelner Kanaele (channel_id -> Code aus MEDIENTYP_LABEL),
+# ueberschreibt die Herleitung.
+MEDIENTYP_OVERRIDE = {
+    "UCMIgOXM2JEQ2Pv2d0_PVfcg": 1,   # DW Deutsch (Rohdaten: traditionell; Entscheidung 23.10.2026)
+    "UCSiFC1DCXr3p1YDzyu9rogA": 5,   # Marc Friedrich (gesellschaftlich 0.35 = zentral, wirtschaftlich
+                                     # 0.52 rechts; bisher rechts; Entscheidung 23.10.2026)
+}
 
 # Segmentierung (Werte wie in process_scraped_segments.py)
 TARGET_WORDS = 800
@@ -182,22 +208,49 @@ def split_segments(
 # 2. Einlesen und Filtern
 # ============================================================
 
+def lade_medientyp() -> pd.DataFrame:
+    """channel_id -> media_type (Code aus MEDIENTYP_LABEL), hergeleitet aus kanaele_roh.dta."""
+    if not CLASSIFICATION_FILE.exists():
+        sys.exit(f"[Medientyp] {CLASSIFICATION_FILE} fehlt.")
+    k = pd.read_stata(CLASSIFICATION_FILE, convert_categoricals=False,
+                      columns=["channel_id", "kanal_name", "medientyp", IDEOLOGIE_VARIABLE])
+    ideo = k[IDEOLOGIE_VARIABLE]
+    typ = k["medientyp"].map({1: 1, 2: 2})
+    alt = k["medientyp"] == 4
+    typ[alt & (ideo < IDEOLOGIE_GRENZE_LINKS)] = 3
+    typ[alt & (ideo > IDEOLOGIE_GRENZE_RECHTS)] = 5
+    typ[alt & ideo.between(IDEOLOGIE_GRENZE_LINKS, IDEOLOGIE_GRENZE_RECHTS)] = 4
+    k["media_type"] = typ
+    for cid, code in MEDIENTYP_OVERRIDE.items():
+        if code not in MEDIENTYP_LABEL:
+            sys.exit(f"[Medientyp] MEDIENTYP_OVERRIDE: unbekannter Code {code} fuer {cid}.")
+        k.loc[k["channel_id"] == cid, "media_type"] = code
+    # Kanaele, die nicht zugeordnet werden konnten, bleiben NaN; lade_videos()
+    # bricht ab, falls einer davon im Sample ist.
+    return k[["channel_id", "media_type"]].dropna().astype({"media_type": int})
+
+
 def lade_videos() -> pd.DataFrame:
     for f in (SEGMENTS_FILE, METADATA_FILE):
         if not f.exists():
             sys.exit(f"[Einlesen] {f} fehlt.")
 
     meta = pd.read_csv(METADATA_FILE, dtype={"video_id": "string", "channel_id": "string"})
-    pflicht = {"video_id", "channel_id", "channel_title", "published_at", "media_type"}
+    pflicht = {"video_id", "channel_id", "channel_title", "published_at"}
     fehlt = pflicht - set(meta.columns)
     if fehlt:
         sys.exit(f"[Einlesen] metadata.csv ohne Spalten {sorted(fehlt)}")
     if meta["video_id"].duplicated().any():
         sys.exit("[Einlesen] metadata.csv: video_id nicht eindeutig.")
-    unbekannt = set(meta["media_type"].unique()) - set(MEDIENTYP_LABEL)
-    if unbekannt:
-        sys.exit(f"[Einlesen] unbekannte media_type-Werte: {sorted(unbekannt)}")
-
+    meta = meta.drop(columns=["media_type"], errors="ignore").merge(
+        lade_medientyp(), on="channel_id", how="left", validate="m:1")
+    if meta["media_type"].isna().any():
+        fehlt = sorted(meta.loc[meta["media_type"].isna(), "channel_title"].unique())
+        sys.exit(f"[Einlesen] Kanaele ohne Medientyp in {CLASSIFICATION_FILE.name}: {fehlt}")
+    zentral = sorted(meta.loc[meta["media_type"] == 4, "channel_title"].unique())
+    if zentral:
+        print(f"[Medientyp] WARNUNG: alternative Kanaele mit {IDEOLOGIE_VARIABLE} zwischen "
+              f"{IDEOLOGIE_GRENZE_LINKS} und {IDEOLOGIE_GRENZE_RECHTS} (zentral): {zentral}")
     ts = pd.to_datetime(meta["published_at"], utc=True, format="ISO8601")
     meta["datum_lokal"] = ts.dt.tz_convert(ZEITZONE).dt.date.astype(str)
     im_fenster = meta["datum_lokal"].between(ZEITFENSTER_START, ZEITFENSTER_ENDE)

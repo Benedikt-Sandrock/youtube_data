@@ -89,7 +89,7 @@ Stand: 02.10.2026, ergänzt 13.10. und 14.10.2026 (letzte Abschnitte) · Zweck: 
 ### Sample
 | Variable | Typ | Inhalt | Codierung / Hinweis |
 |---|---|---|---|
-| `sample_vorkrieg` | byte | aktiv vor 24.02.2022 | 1/0; **Definition „aktiv“ festlegen** (siehe Offene Fragen) |
+| `sample_vorkrieg` | byte | aktiv vor 24.02.2022 | 1/0; ≥ 1 Video mit `format` = long in [24.02.2021, 24.02.2022); seit 28.10.2026 ohne Whitelist-Bedingung und `format` statt `min_dauer` (siehe letzter Abschnitt) |
 | `sample_baseline` | byte | Baseline-Populismus vorhanden | 1/0; entspricht `NUR_KANAELE_MIT_BASELINE` |
 | `sample_whitelist` | byte | in `frage1_kanal_whitelist.csv` | 1/0; nur falls weiterhin relevant |
 
@@ -113,7 +113,7 @@ Stand: 02.10.2026, ergänzt 13.10. und 14.10.2026 (letzte Abschnitte) · Zweck: 
 |---|---|---|---|
 | `api_abbruch` | byte | vom API-Abbruch (~20.000 Videos) betroffen | 1/0 |
 | `n_videos_api` | long | Anzahl abgerufener Videos (vor Längenfilter) | |
-| `n_videos` | long | Anzahl Videos nach Längenfilter | Abgleich mit `videos_roh` |
+| `n_videos` | long | Anzahl Videos nach Längenfilter (seit 23.10.2026 nur ab 01.01.2021, siehe letzter Abschnitt) | Abgleich mit `videos_roh` |
 
 ---
 
@@ -146,7 +146,7 @@ Umgesetzt in `src/youtube_code/step6_auswertung/export_stata_rohdaten.py`, Ausga
 1. **Topics:** alle Themen aus `step3_topic_relevance/topic_keywords.TOPIC_KEYWORDS` außer dem Krieg (Stand 05.10.2026: `topic_politik` (politics_general, nur Abgrenzung „politisch“), `topic_corona`, `topic_migration`, `topic_wirtschaft`, `topic_energie`, `topic_klima`, `topic_gender`, `topic_nahost`, `topic_iran`, `topic_eu`, `topic_usa`, `topic_bildung`) aus `video_topic_relevance` (Stichwortsuche in Titel/Beschreibung, core+wide, für alle Videos > 180 s, nicht nur politische). Gemeinsames Kennzeichen `topic_klass` = 1 nur, wenn **alle** Vergleichsthemen klassifiziert sind; die Themen stammen aus verschiedenen Klassifikationsläufen über verschiedene Videomengen, daher kann ein einzelnes `topic_*` auch bei `topic_klass` = 0 gesetzt sein (je Topic `.` = nicht klassifiziert). Dazu `topic_nur_titel` (Beschreibung fehlte; aus dem ersten klassifizierten Thema). Zu jedem Topic und zu `krieg` zusätzlich `<name>_core` (z. B. `topic_klima_core`, `krieg_core`): 1 nur bei Treffer in der core-Liste (Titel oder Beschreibung), gleiche Missings wie die core+wide-Variable. Laut `topic_keywords.py` für Kontrastanalysen core als Themendefinition bevorzugen, core+wide als Robustheit (wide-Listen von Klima/Gender enthalten Kampfbegriffe).
 2. **Krieg:** `krieg` = `is_relevant` für `russia_ukraine_war` (alle Videos); `krieg_quelle` = Trefferstufen (`ukr_core_title`, `ukr_wide_desc` …), so dass core/wide im Do-File getrennt werden kann. **Zusätzlich** `krieg_transkript` (≥ 1 Segment mit `ukraine_bezug` im Populismus-Prompt; `.` ohne Populismus-Klassifikation) und `pop_n_seg_ukraine`.
 3. **Ideologie-Baseline:** zwei Skalen statt einer Variable: `ideo_gesellschaft_baseline` (−2 progressiv … +2 konservativ) und `ideo_wirtschaft_baseline` (−2 Umverteilung … +2 marktliberal), dazu `ideo_baseline_n`. Nur Baseline-Fenster-Videos (`interval_index` −1…3), ohne Kriegsvideos (`krieg` = 1 oder `krieg_transkript` = 1 ausgeschlossen); Segment → Video → Kanal.
-4. **`sample_vorkrieg`** = in der Frage-1-Whitelist (279) UND ≥ 1 Video > 180 s in [24.02.2021, 24.02.2022).
+4. **`sample_vorkrieg`** = in der Frage-1-Whitelist (279) UND ≥ 1 Video > 180 s in [24.02.2021, 24.02.2022). *Seit 28.10.2026 ohne die Whitelist-Bedingung und mit `format` = long statt > 180 s, siehe Abschnitt „Änderungen 28.10.2026“.*
 5. **Abrufdatum:** nirgends gespeichert → `abruf_ts` durchgehend `.`.
 6. **Live/Premiere:** nur `live_broadcast_content` vorhanden (durchgehend „none“) → `live_typ` durchgehend `.`.
 7. **Mehrfachklassifikationen:** Deduplizierung auf Segmentebene (`video_id`, `segment_index`): Segmente ohne `parse_error` vor fehlerhaften, danach neuester Run. `pop_run`/`pos_run` listen alle beteiligten Runs (`;`-getrennt).
@@ -159,7 +159,7 @@ Umgesetzt in `src/youtube_code/step6_auswertung/export_stata_rohdaten.py`, Ausga
 - **Prüfung 4** weist nur die Anzahl aus: positionsklassifizierte Videos vor Kriegsbeginn bleiben drin.
 - **Prüfung 5** wird in Richtung „`*_klass` = 0 ⇒ Wert `.`“ erzwungen; klassifizierte Videos mit `.` (z. B. alle Segmente nicht kodierbar/nicht thematisiert) werden nur gezählt.
 - **`baseline_stichprobe`** ist die einzige Verwendung von `interval_index`; alle übrigen Zeitbezüge kommen aus `published_at`.
-- **`api_abbruch`** = 1 für die 10 Kanäle mit Flag `playlist_limit`; der Abbruch gilt durch das yt-dlp-Nachscraping (01.10.2026) als behoben, das Kennzeichen bleibt für Robustheitschecks erhalten.
+- **`api_abbruch`** = 1 für die 10 Kanäle mit Flag `playlist_limit`; der Abbruch gilt durch das yt-dlp-Nachscraping (01.10.2026) als behoben, das Kennzeichen bleibt für Robustheitschecks erhalten. **Nachtrag 26.10.2026:** Bei WELT Nachrichtensender fehlten trotzdem fast alle long-Videos vom 01.01. bis 23.02.2021 (das Fenster des Testlaufs begann erst am 24.02.2021) sowie rund ein Drittel der Videos im Mai 2022. Ein erneuter yt-dlp-Lauf (Fenster ab 01.01.2021, Liste `nachscraping_ytdlp_welt_2021q1.csv`, Ergebnis `outputs/segment_analysis/datenluecken_quartale/nachscraping_vergleich_nachscraping_ytdlp_welt_2021q1.md`) hat 1.280 Videos ergänzt (01/2021 +600, 02/2021 +395, 05/2022 +279, 06/2022 +6). Vorher erzeugte die Lücke einen künstlichen Einbruch der traditionellen Medien in `rel_monat` −14/−13.
 - Zählwerte, die fehlen können (`pop_n_seg`, `pos_n_seg` …), werden als `long` mit `.` geschrieben; Kennzeichen als `byte` mit `.`; Wertelabels werden direkt in die `.dta` geschrieben.
 
 ---
@@ -169,7 +169,7 @@ Gilt vor allen Abschnitten oben, wo sie abweichen. `videos_roh.dta` ersetzt dami
 
 **Population Videos:** alle Videos der Sample-Kanäle, **kein Längenfilter** mehr (vorher Dauer > 180 s). Stattdessen gibt es das Kennzeichen `min_dauer` (1 = `dauer_sek` ≥ 181; unbekannte Dauer → 0).
 - **LLM-Analysen (`pop_*`, `pos_*`, `krieg_transkript`) immer mit `if min_dauer == 1`.** Die Werte sind auch für ca. 11.400 kürzere Videos bzw. Videos ohne Dauer exportiert (roh). Kurze Ukraine-Clips aus einer alten Kriegsvideo-Liste hatten in AP 1 einen scheinbaren Rückgang des Populismus nach Kriegsbeginn erzeugt.
-- **Kanalgrößen unverändert auf `min_dauer == 1`:** `n_videos`, `erstes_video_ts`, `sample_vorkrieg`, `baseline_stichprobe`, `pop_baseline*`, `ideo_*_baseline`. Neu ist `n_videos_alle` (alle Längen); es ersetzt `n_videos_api`.
+- **Kanalgrößen unverändert auf `min_dauer == 1`:** `n_videos`, `erstes_video_ts`, `sample_vorkrieg` (seit 28.10.2026 `format` = long), `baseline_stichprobe`, `pop_baseline*`, `ideo_*_baseline`. Neu ist `n_videos_alle` (alle Längen); es ersetzt `n_videos_api`.
 
 **Topics nur aus dem Titel:** `rel_<topic>_core` (nur core-Liste = Hauptdefinition) und `rel_<topic>_cw` (core oder wide = Robustheit) für alle Themen in `topic_keywords.TOPIC_KEYWORDS`. Die Werte werden live aus den Regexen (`KW_RE`) berechnet und decken alle Videos ab; die Namen sind identisch mit `videos_kriegspraemie`. Ein fehlender Titel ergibt 0.
 - **Entfallen** sind `krieg`, `krieg_klass`, `krieg_quelle`, `krieg_core`, `topic_*`, `topic_*_core`, `topic_klass` und `topic_nur_titel` (Titel + Beschreibung aus `video_topic_relevance`, nur > 180 s). Intern wird `video_topic_relevance[russia_ukraine_war]` nur noch für den Kriegsausschluss in der Ideologie-Baseline gelesen, damit diese unverändert bleibt.
@@ -178,7 +178,7 @@ Gilt vor allen Abschnitten oben, wo sie abweichen. `videos_roh.dta` ersetzt dami
 
 **Videoformat** (Tabelle `video_format`, `step1_sample/channel_video_formats.py`):
 - `format`: short/long/live; leer = nicht zugeordnet.
-- `format_quelle`: `api_UULF`/`api_UUSH`/`api_UULV`/`ytdlp_*`.
+- `format_quelle`: `api_UULF`/`api_UUSH`/`api_UULV`/`ytdlp_*`/`ausschluss_long`. `ausschluss_long` (seit 04.11.2026): WELT-Videos 2022-01-01 bis 2022-10-26 (Ortszeit) ohne Format, per Ausschluss direkt im Store als long eingetragen (`scripts/adhoc/welt_format_ausschluss_long.py`, 4.175 Videos, inkl. 39 ≤ 60 s); sie haben ebenfalls `format_derived` = 1. Begründung: Livestreams (`ytdlp_streams` lückenlos bis 07/2025) und Shorts (`api_UUSH` ab 01/2021, 2022 max. 60 s) sind für 2022 vollständig erfasst.
 - `format_klass` = 1, wenn der letzte Laufstatus des Kanals `komplett` ist (alle `data/channel_lists/video_formats/*_formats_status.csv`) **und** das Video im Format-Fenster [01.01.2021, 01.07.2026) liegt.
 - `format_derived` = 1: WELT-Videos ohne Format im Fenster, per Ausschluss als `long` gesetzt (yt-dlp `/videos` endet ca. Juli 2025, Shorts/Livestreams sind vollständig). Das betrifft sehr viele WELT-Videos (Teiltest 13.10.2026: 43.075 von 63.191) und kann gelöschte/private Videos einschließen. Robustheit: ohne `format_derived == 1`.
 - Kanalebene: `format_status` (letzter Status, `fehlt` = nie abgefragt) und `format_liste` (0 keine, 1 upload-starke Kanäle, 2 `alt_kanaele`, 3 `weitere_kanaele`, seit 14.10.2026).
@@ -255,3 +255,41 @@ Manuelle Typologie der 279 Whitelist-Kanäle. Quelle: `data/external/kanal_typol
 
 ### Konsistenzprüfung 8 (neu)
 `kanaltyp` gesetzt genau bei `sample_whitelist = 1`; `kanaltyp_gruppe` = Zehnerstelle von `kanaltyp`; `sample_kern = 1 ⇒ kanaltyp` ∈ Kerntypen. Zusätzlich beim Laden: `channel_id` eindeutig, nur bekannte Typcodes und Sicherheitsstufen.
+
+---
+## Änderungen 23.10.2026: Datenbasis ab 2019 (Erweiterung 2019–2020)
+Plan: `.claude/plans/datenbasis_2019_2020.md`. `videos_roh.dta` enthält jetzt auch Videos vom 01.01.2019 bis 31.12.2020 der 347 vor 2021 gegründeten Sample-Kanäle (342 Hauptliste + 5 Pilot). 90 der 437 Sample-Kanäle wurden 2021 oder später gegründet und haben dort naturgemäß keine Videos.
+
+**Was für 2019–2020 vorliegt:** Views/Likes/Kommentare (Snapshot zum Abrufzeitpunkt, nicht zeitnah), Dauer, `politisch` (YouTube-`topic_categories`), `format`/`format_quelle`, `rel_<topic>_*` (Titelstichworte), `news_show`/`special_show`/`pk_sitzung`, `transkript` (nur falls vorhanden). **Nicht vorhanden:** `pop_*`, `pos_*`, `ideo_*`, `krieg_transkript` und `baseline_stichprobe` (LLM-Analysen laufen weiter nur ab 2021; Konsistenzprüfung 9 stellt das sicher).
+
+**Kanalgrößen eingefroren:** `n_videos`, `n_videos_alle` und `erstes_video_ts` zählen weiter nur Videos ab 01.01.2021 (Vergleichbarkeit mit älteren Ergebnissen). Neu: `n_videos_ab2019` (min_dauer = 1, ab 01.01.2019) und `erstes_video_ts_ab2019`. `sample_vorkrieg` und `VORKRIEG_START = 2021-02-24` unverändert (Definition seit 28.10.2026 geändert, siehe unten).
+
+**Format-Status je Fenster:** `format_status` gilt für das Fenster ab 2021, neu `format_status_2019` für 2019–2020 (`fehlt` = nie abgefragt, bei den 90 später gegründeten Kanälen). `format_klass` = 1, wenn der Status des Fensters, in das das Video fällt, `komplett` ist und das Video in [01.01.2019, 01.07.2026) liegt. Stand: `format_status_2019` 346 komplett, 1 fehler (WDR aktuell, Upload-Playlist 404), 90 fehlt.
+
+**Abdeckung je Jahr (Export vom 23.10.2026):**
+
+| Jahr | Videos | min_dauer = 1 | format_klass = 1 | format gesetzt |
+|---|---|---|---|---|
+| 2019 | 79.981 | 41.314 | 79.981 | 79.981 |
+| 2020 | 107.012 | 61.837 | 107.012 | 107.012 |
+| 2021 | 125.072 | 73.194 | 112.842 | 124.807 |
+| 2022 | 147.357 | 83.546 | 137.551 | 147.026 |
+
+**Grenzen (bei Interpretation beachten):**
+- **2020 ist ein Corona-Jahr** (Themenmix, Reichweiten); `corona_pandemic` trifft in Titeln/Beschreibungen 2020 bei 28 %, 2019 bei 0,2 %.
+- **Überlebensverzerrung:** Nur Kanäle, die es heute noch gibt (Sample 2026), und Videos, die heute noch öffentlich sind. 19 vor 2021 gegründete Kanäle haben 2019–2020 keine Videos (Videos gelöscht/privat/Kanal neu organisiert, z. B. RTL Sport, Ladykracher); die Upload-Playlist war dort vollständig gelesen, es ist keine Lücke der Sammlung.
+- **Views sind ein Snapshot** (Abrufdatum Oktober 2026), 2019–2020-Videos hatten sieben Jahre Zeit zu wachsen; Vergleiche mit 2021+ nur mit Monats-/Kanal-Fixed-Effects.
+- Kanäle mit gekappter Upload-Playlist (≥ 19.500) wurden über yt-dlp ergänzt; Details siehe `step1_sample/README.md`.
+- 4.259 Videos ohne abrufbare Details (vermutlich gelöscht/privat) haben nur Basisdaten.
+
+**Do-Files:** `war_premium_new.do` und `supply_reaction.do` schneiden direkt nach dem Laden auf `upload_ts >= 01.01.2021` zu, damit die bisherigen Analysen unverändert bleiben. Neue Do-Files, die `videos_roh` nutzen, müssen ihr Zeitfenster selbst setzen (`monat` reicht jetzt bis ca. −38 vor Kriegsbeginn).
+
+**Regressionstest** (`scripts/adhoc/regressionstest_export_2019_2020.py`, Report `outputs/video_formats/regressionstest_export_2019_2020.md`): Für die Videos ab 2021 sind 51 von 68 Variablen bitgleich zum Export vor der Erweiterung. Abweichungen erklären sich durch (a) 13.759 neue Videos ab 2021 und ca. 4.360 nachgeholte Details (views, dauer, politisch), (b) die Keyword-Version `rel_politics_general` v2 (14.10.2026), (c) seitdem neu hinzugekommene Transkripte (`transkript`), (d) kleine Format-Nacharbeiten (`format_quelle`).
+
+---
+## Änderungen 28.10.2026: `sample_vorkrieg` ohne Whitelist-Bedingung, mit `format`
+**Neu:** `sample_vorkrieg` = 1, wenn der Kanal ≥ 1 Video mit `format` = long in [24.02.2021, 24.02.2022) hat (`VORKRIEG_START`, `VORKRIEG_MIN_VIDEOS`). Die frühere Zusatzbedingung `sample_whitelist` = 1 entfällt; statt `min_dauer` = 1 zählt jetzt das Format, wie in den aktuellen Auswertungen (`FORMAT = ["long"]`). Kanäle ohne Formatangabe (z. B. WDR aktuell, `format` leer) haben damit `sample_vorkrieg` = 0.
+
+**Grund:** Die Frage-1-Whitelist (279 Kanäle, `frage1_stichprobe.py`) ist ein inhaltlicher Filter, kein Aktivitätskriterium: Sie verlangt ≥ 5 Kriegsvideos im gesamten Upload-Verlauf (Stufe 1) und ≥ 5 Videos mit Populismus-Klassifikation (Stufe 2). Für Frage 1 (Populismus vor/nach innerhalb von Kanälen) ist das gewollt, als Definition von „vor Kriegsbeginn aktiv“ aber ungeeignet. Vor dem Krieg aktive Kanäle mit wenig Kriegsberichterstattung fielen dadurch aus dem Vorkriegs-Sample. Stand 28.10.2026 betrifft das 112 Kanäle (102 vor 2021 gegründet, Median 61 lange Videos im Jahr vor Kriegsbeginn): 97 scheitern an Stufe 1, 10 nur an Stufe 2, 3 fehlen in `frage1_stichprobe_kanalstatus.csv` (nach dem 07.09.2026 ergänzt), 2 (quer, Bosetti will reden!) erfüllen laut Statusdatei beide Stufen, fehlen aber in der Whitelist-CSV. Beispiele: Weltspiegel, MDR Investigativ, Monitor (ÖRR) sowie _horizont_, Kai Brenner, Der Schattenmacher, Dave Brych, Clownswelt (alternativ rechts). In `marktanteil_rohdaten_plots.py` lagen die Kurven „alle Kanäle“ und „vorkrieg“ dadurch in den 12 Monaten vor Kriegsbeginn nicht übereinander (mittlere Abweichung bis 8,6 pp); mit der neuen Definition sind sie dort identisch.
+
+**Folgen:** Mehr Kanäle mit `sample_vorkrieg` = 1; alle Auswertungen mit dem Vorkriegs-Sample ändern sich. **Frage-1-Analysen** verwenden weiter `sample_vorkrieg == 1 & sample_whitelist == 1`; das entspricht bis auf den Wechsel `min_dauer` → `format` der alten Definition (z. B. für `sample_kern`, das weiter nur Whitelist-Kanäle enthält). Neue Konsistenzprüfung 10 rechnet `sample_vorkrieg` aus `videos_roh` nach.

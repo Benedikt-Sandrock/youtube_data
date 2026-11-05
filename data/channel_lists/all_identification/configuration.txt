@@ -76,3 +76,69 @@ Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_list
 Search from 2024-07-01 00:00:00 to 2026-01-01 00:00:00
 Search interval: 3 month(s)
 ------------------------------------------------------------
+Run ID: 20261027_084411
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2020-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261027_084439
+Query: ['CDU']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2020-01-01 00:00:00 to 2021-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261027_084543
+Query: ['SPD']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2020-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261027_084608
+Query: ['SPD']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2020-01-01 00:00:00 to 2021-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091037
+Query: ['FDP']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2020-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091107
+Query: ['FDP']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2020-01-01 00:00:00 to 2021-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091155
+Query: ['Die Grünen']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2020-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091258
+Query: ['Die Grünen']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2020-01-01 00:00:00 to 2021-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091339
+Query: ['Die Linke']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2020-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091422
+Query: ['Die Linke']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2020-01-01 00:00:00 to 2021-01-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------
+Run ID: 20261028_091515
+Query: ['AfD']
+Target directory: "C:\Users\bened\PycharmProjects\youtube_data\data\channel_lists\all_identification"
+Search from 2019-01-01 00:00:00 to 2019-07-01 00:00:00
+Search interval: 3 month(s)
+------------------------------------------------------------

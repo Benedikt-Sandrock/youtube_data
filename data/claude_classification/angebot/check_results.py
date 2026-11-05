@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 nr_series = []
-for i in range(96, 126):
+for i in range(126, 187):
     i = str(i).zfill(4)
     nr_series.append(i)
 

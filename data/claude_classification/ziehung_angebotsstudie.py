@@ -58,15 +58,17 @@ SCHLUESSEL_DATEI = ANGEBOT / "schluessel.csv"
 BATCH_DIR = ANGEBOT / "batches"
 MANIFEST = BATCH_DIR / "manifest.csv"
 
-LIMIT_PRO_WOCHE = 14           # Videos je Kanal und Woche (nur erhoehen!)
+LIMIT_PRO_WOCHE = 21           # Videos je Kanal und Woche (nur erhoehen!)
 MAX_SEGMENTE_PRO_VIDEO = 4     # Segmente je Video (nur erhoehen!)
 WOCHEN_ANKER = "2022-02-24"    # Beginn einer Woche (Kriegsbeginn, Donnerstag)
 BATCH_GROESSE = 50             # Segmente je Batch (Videos werden nicht geteilt)
 ZEILENBREITE = 120             # Batch-Dateien als Fliesstext mit Zeilenumbruechen
 
-# Kanalauswahl (Entscheidung 20.10.2026, stern TV statt Der Dunkle Parabelritter): alle Kanaele des Typs
-# alternativ_rechts, von ÖRR und traditionellen Medien nur diese:
-TYPEN_VOLLSTAENDIG = ["alternativ_rechts"]
+# Kanalauswahl (Entscheidung 20.10.2026, stern TV statt Der Dunkle Parabelritter; linke
+# alternative Kanaele ergaenzt 23.10.2026): alle Kanaele der Typen in TYPEN_VOLLSTAENDIG
+# (Labels aus MEDIENTYP_LABEL in aufbereitung_angebotsstudie.py), von ÖRR und
+# traditionellen Medien nur diese:
+TYPEN_VOLLSTAENDIG = ["alternativ_rechts", "alternativ_links"]
 KANAELE_ETABLIERT = [
     "ZDFheute Nachrichten", "tagesschau", "phoenix", "MrWissen2go", "DW Deutsch",
     "WELT Nachrichtensender", "BILD", "DER SPIEGEL", "faz", "stern TV",

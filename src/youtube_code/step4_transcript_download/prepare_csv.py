@@ -5,7 +5,7 @@ from youtube_code.store.transcript_store import get_transcripts
 from youtube_code.store.video_registry import get_video_metadata
 
 def get_ids_from_sample():
-    df = pd.read_csv(ADHOC_OUTPUT / "zufallsstichprobe_videos_20261016_170433.csv")
+    df = pd.read_csv(ADHOC_OUTPUT / "zufallsstichprobe_videos_20261024_133529.csv")
 
     ids = df["video_id"].tolist()
 
@@ -22,13 +22,14 @@ def get_transcript_segments(data):
     df.to_csv("segments_new.csv", index = False)
 
 
-with open("ids_right.json") as f:
-    data = json.load(f)
-
-video_metadata = get_video_metadata(video_ids = data, min_duration_seconds=None)
-
-print(video_metadata.head())
-
-video_metadata.to_csv("metadata_new.csv", index = False)
-
-get_transcript_segments(data)
+# with open("ids_right.json") as f:
+#     data = json.load(f)
+#
+# video_metadata = get_video_metadata(video_ids = data, min_duration_seconds=None)
+#
+# print(video_metadata.head())
+#
+# video_metadata.to_csv("metadata_new.csv", index = False)
+#
+# get_transcript_segments(data)
+get_ids_from_sample()

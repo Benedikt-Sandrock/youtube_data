@@ -12,8 +12,10 @@ isid channel_id
 tab medientyp, missing
 tab kanaltyp medientyp, missing
 tab kanaltyp sample_vorkrieg if sample_whitelist == 1
+tab sample_vorkrieg sample_whitelist
 tab1 sample_vorkrieg sample_baseline sample_whitelist sample_kern api_abbruch format_liste
 tab format_status, missing
+tab format_status_2019, missing
 
 use videos_roh.dta, clear
 describe

@@ -22,7 +22,7 @@ gebündelt auffindbar sind. Pfad-Konstante im Code:
 | AP | Skript | Output |
 |---|---|---|
 | 1 | `ap1_selektionsdiagnose.py` (zuerst, schreibt `ap1_diagnose_videos.csv`), `ap1_selektionscheck.py` | `outputs/masterarbeit/ap1_selektion/` |
-| 2 | `ap2_marktanteil_stichprobenbias.py` (nur lesend; `--n-bootstrap`, Default 1000; Datenbasis `lade_basisdaten(kanalquelle="kanon")` aus `step6_auswertung/frage4_kriegspraemie_relative_views_plots.py`) | `outputs/masterarbeit/ap2_stichprobenbias/` |
+| 2 | `ap2_marktanteil_stichprobenbias.py` (nur lesend; `--n-bootstrap`, Default 1000; Datenbasis `lade_basisdaten(kanalquelle="kanon")` aus `step6_auswertung/frage4_kriegspraemie_relative_views_plots.py`; **veraltete Datenbasis** `channel_video_erfolg.csv` vom 08.09.2026, nicht vergleichbar mit `marktanteil_rohdaten_plots.py` (8i) – bei erneutem Bedarf auf `videos_roh.dta` umstellen) | `outputs/masterarbeit/ap2_stichprobenbias/` |
 | 3 | `ap3_validierung_stichprobe.py`, `ap3_validierung_auswertung.py` | `outputs/masterarbeit/ap3_validierung/` |
 | 4 | Erweiterung von `step6_auswertung/populismuspraemie_kriegsvideos_bericht.py` | `outputs/masterarbeit/ap4_positionspraemie/` |
 | 5 | Erweiterung von `step6_auswertung/frage1_{populismus,stance}_bericht.py` | `outputs/masterarbeit/ap5_frage1_did/` |

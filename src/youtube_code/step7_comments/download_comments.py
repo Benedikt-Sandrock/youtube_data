@@ -70,7 +70,9 @@ SHUFFLE_SEED = None  # None = bei jedem Lauf neue Zufallsreihenfolge; int = repr
 
 # --- nur fuer den __main__-Block ---
 MODE = "video_list" # "video_list" (VIDEO_LIST-JSON), "channels" (alle Videos aus CHANNEL_LIST_CSV) oder "channels_topic" (nur TOPIC-Videos aus CHANNEL_LIST_CSV)
-VIDEO_LIST = SRC / "step4_transcript_download" / "ids_right.json" # nur bei MODE="video_list"
+# VIDEO_LIST = SRC / "step4_transcript_download" / "ids_right.json" # nur bei MODE="video_list"
+# VIDEO_LIST = "ids_to_scrape.json"
+VIDEO_LIST = "do_ids.json"
 CHANNEL_LIST_CSV = SAMPLES / "russia_longitudinal_v1" / "topic_channels_sample.csv"  # bei MODE="channels"/"channels_topic": CSV mit channel_id-Spalte
 TOPIC = "russia_ukraine_war"  # nur bei MODE="channels_topic": Topic aus video_topic_relevance (Kriegsvideos = ist_kriegsvideo in step6)
 INCLUDE_REPLIES = False

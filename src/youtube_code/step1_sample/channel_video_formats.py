@@ -131,13 +131,20 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # Sample-Kanaele); beide von scripts/adhoc/export_kanalliste_2019_2020.py,
 # Fenster 2019-01-01..2020-12-31 aus der Liste.
 # Vorheriger Wert: CHANNEL_LISTS / "video_formats" / "zufallsstichprobe_fehlende_formate.csv"
-CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "sample_2019_2020.csv"
+# CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "sample_2019_2020.csv"
+# Vorheriger Wert (04.11.2026, WELT fuer die Ziehung 06.01.-26.10.2022):
+# CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "angebot_2022h2_fehlende_formate.csv"
+# Aktuell (04.11.2026): nur WDR aktuell, Fenster 06.01.-26.10.2022 aus der Liste.
+CHANNEL_INPUT = CHANNEL_LISTS / "video_formats" / "wdr_aktuell_2022_fehlende_formate.csv"
 
 # Zeitfenster als ISO-String mit Z (Ende inklusive). Beide None = Fenster aus
 # den Spalten fenster_von/fenster_bis der Kanalliste (muessen fuer alle Zeilen
 # gleich sein), z.B. bei der von scripts/adhoc/zufallsstichprobe_videos.py
 # erzeugten Liste zufallsstichprobe_fehlende_formate.csv.
 # Bisher (Sample-Listen): "2021-01-01T00:00:00Z" bis "2026-06-30T23:59:59Z".
+# Erweiterung 2019-2020 (Okt. 2026): Fenster "2019-01-01T00:00:00Z" bis
+# "2020-12-31T23:59:59Z" kommt aus fenster_von/fenster_bis der Listen
+# sample_2019_2020.csv / pilot_2019_2020.csv (beide Konstanten oben bleiben None).
 PUBLISHED_AFTER = None
 PUBLISHED_BEFORE = None
 

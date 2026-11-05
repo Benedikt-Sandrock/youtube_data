@@ -70,7 +70,7 @@ from youtube_code.store import video_registry
 # Kanaele als Channel-ID (UC...), @Handle oder Kanalname
 cats = [1,2,5]
 df = pd.read_stata(STATA_OUTPUT / "views_aug21-jan22.dta")
-
+# print(df.head())
 df_top10 = (df.sort_values(by=["media_category", "views"], ascending = [True, False])
             .groupby("media_category").head(10))
 
@@ -78,21 +78,39 @@ df_top10 = df_top10[df_top10["media_category"].isin(cats)]
 
 df_top10.to_csv("top10.csv", index = False)
 
-KANAELE = df_top10["channel_id"].tolist() + ["UCSiFC1DCXr3p1YDzyu9rogA"]
+linke_kanaele = [
+    "UC3hekG458EdMK2KmbGbMHmw", # Marvin Neumann
+    "UCIk-Fw1QuWJdO4sAxhXE5DA", # Malternativ
+    "UClj2hzTR0gl9VfZ9V6CM3kw", # Staiy
+    "UCK4LDHLxBqiAtcwCm4z7DRg", # Der Dunkle Parabelritter
+    "UCE7b8qctaEGmST38-sfdOsA", # NachDenkSeiten
+    "UCXdfGoYTQq5eQXP6OJwWSQw", # Rayk Anders
+    "UCRprqV4FxwrWQJbZ0VLFS_g", # Wohlstand für Alle
+    "UCe5hl70Es-VQ4OWvxssFH4A", # acTVism Munich
+    "UCqLv2nTsMB_FXtQRFNXjWhA", # Geld für die Welt - Maurice Höfgen
+    "UC9qdoYTVU413M6EvqDRZDtA", # Volksverpetzer
+    "UCaICID7P7gdRoVeeXbj-s7w", # Ernst Wolff
+    "UCSQJpXRkiYEnDeHFoMNGfww", # Druschba FM
+]
 
-print(len(KANAELE))
+KANAELE = df_top10["channel_id"].tolist() + ["UCSiFC1DCXr3p1YDzyu9rogA",
+                                             "UCICWTMc7Jni_u5ORVXBOnLQ",
+                                             "UCfluzhYpawqHUYNcFdw68Gg",
+                                             ] + linke_kanaele
+
+print(f"Number of channels: {len(KANAELE)}")
 # Optional zusaetzlich/alternativ: Textdatei (eine Zeile je Kanal) oder CSV mit
 # Spalte channel_id bzw. kanalname. None = nicht verwenden.
 KANAELE_DATEI = None
 
-START = "2022-01-01"  # inklusive
-ENDE = "2022-04-30"   # inklusive
+START = "2022-05-01"  # inklusive
+ENDE = "2022-05-31"   # inklusive
 
 # "tag", "woche", "monat", "quartal", "jahr" oder "gesamt"
 FREQUENZ = "woche"
 
 # Anzahl zufaellig gezogener Videos je Kanal und Periode
-N = 50
+N = 30
 
 # Nur dieses Videoformat ("long", "short", "live"); None = alle Formate.
 # "long" schliesst Shorts und Livestreams aus.

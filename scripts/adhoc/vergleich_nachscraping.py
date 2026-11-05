@@ -36,7 +36,9 @@ from youtube_code.config import OUTPUTS, STORE
 ORDNER = OUTPUTS / "segment_analysis" / "datenluecken_quartale"
 # Testlauf (WELT + OE24): nachscraping_ytdlp_test.csv -> nachscraping_vergleich.md
 # Teil 1: nachscraping_ytdlp_kanaele_teil1.csv (erledigt)
-PFAD_KANALLISTE = ORDNER / "nachscraping_ytdlp_kanaele_teil2.csv"
+# Teil 2: nachscraping_ytdlp_kanaele_teil2.csv (erledigt)
+# Aktuell (26.10.2026): WELT-Luecke 01.01.-23.02.2021 (nachscraping_ytdlp_welt_2021q1.csv)
+PFAD_KANALLISTE = ORDNER / "nachscraping_ytdlp_welt_2021q1.csv"
 # Snapshot/Ergebnis je Kanalliste getrennt, damit fruehere Laeufe erhalten bleiben.
 _SUFFIX = "" if PFAD_KANALLISTE.stem == "nachscraping_ytdlp_test" else f"_{PFAD_KANALLISTE.stem}"
 PFAD_SNAPSHOT = ORDNER / f"nachscraping_snapshot_vorher{_SUFFIX}.csv"

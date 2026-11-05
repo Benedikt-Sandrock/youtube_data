@@ -39,6 +39,11 @@ Historie:
     (exxpressTV, FPOE TV, NuoViso, VOL.AT) aber praktisch nichts -> die
     kleineren Luecken sind ueberwiegend echte Upload-Pausen, Ertrag
     entsprechend unsicher.
+  - WELT-Nachtrag (26.10.2026, Liste nachscraping_ytdlp_welt_2021q1.csv von
+    Hand angelegt, nicht von diesem Skript): Der Testlauf hatte offenbar ein
+    Fenster ab 2021-02-24, daher fehlten 01.01.-23.02.2021. +1.280 Videos
+    (auch 279 aus Mai 2022), siehe
+    nachscraping_vergleich_nachscraping_ytdlp_welt_2021q1.md.
 
 `geschaetzte_quota` = ceil(geschaetzt_fehlend / 50) + QUOTA_OVERHEAD (grobe
 Schaetzung; in Teil 1 kosteten Kanaele ohne neue Videos 1-17 Einheiten).

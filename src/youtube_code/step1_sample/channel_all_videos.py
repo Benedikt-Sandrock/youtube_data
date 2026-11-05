@@ -90,7 +90,7 @@ from youtube_code.utils.ytdlp import iter_channel_video_id_batches
 # MODE SWITCH  ←  change this line to switch
 #   "NEW_CHANNELS"  |  "UPDATE"  |  "TARGETED_SEARCH"  |  "TARGETED_SEARCH_YTDLP"
 # ─────────────────────────────────────────────
-MODE = "TARGETED_SEARCH"
+MODE = "TARGETED_SEARCH_YTDLP"
 
 # Ob zusaetzlich zur zentralen Registry (data/store/video_registry.sqlite,
 # immer geschrieben) noch eine JSON-Datei (VIDEOS_TOTAL_FILE) gepflegt wird.
@@ -143,11 +143,15 @@ TARGETED_PUBLISHED_BEFORE = "2026-06-30T23:59:59Z"
 # Aktuell: Nachscraping-Liste aus dem Quartals-Luecken-Screening
 # (scripts/adhoc/export_nachscraping_ytdlp_liste.py). Erledigt: Testlauf
 # WELT + OE24 (nachscraping_ytdlp_test.csv) und Teil 1 (12 Kanaele, +16.695
-# Videos). Jetzt Teil 2 (30 Kanaele mit >= 100 geschaetzt fehlenden Videos).
+# Videos) und Teil 2 (30 Kanaele mit >= 100 geschaetzt fehlenden Videos).
+# Jetzt (26.10.2026): WELT-Luecke 01.01.-23.02.2021 (fehlende long-Videos an
+# der Nahtstelle zwischen 2019-2020-Erweiterung und Testlauf). Volles
+# Fenster ab 2021-01-01, damit auch sonstige Restluecken mit auffallen.
 # Pruefung per scripts/adhoc/vergleich_nachscraping.py vorher/nachher.
 TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = (
-    OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "nachscraping_ytdlp_kanaele_teil2.csv"
+    OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "nachscraping_ytdlp_welt_2021q1.csv"
 )
+# Vorheriger Wert: ... / "nachscraping_ytdlp_kanaele_teil2.csv"
 # TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = "missing_channels.csv"
 # TARGETED_SEARCH_YTDLP_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "baseline_unreliable_large_channels.csv"
 # Nutzt dasselbe Zeitfenster wie TARGETED_SEARCH (TARGETED_PUBLISHED_AFTER/_BEFORE).
@@ -191,11 +195,15 @@ if SAVE_JSON_SNAPSHOT and os.path.exists(VIDEOS_TOTAL_FILE):
 else:
     videos_total = []
 
-with open(CHANNEL_INPUT, "r", encoding="utf-8") as f:
-    channel_ids= json.load(f)
+# CHANNEL_INPUT nur in den Modi laden, die es brauchen - die TARGETED-Modi
+# haben eigene Kanallisten und sollen nicht an einer fehlenden Datei scheitern.
+channel_ids: list[str] = []
+if MODE in ("NEW_CHANNELS", "UPDATE"):
+    with open(CHANNEL_INPUT, "r", encoding="utf-8") as f:
+        channel_ids = json.load(f)
 
-if isinstance(channel_ids[0], dict):
-    channel_ids = [c["channel_id"] for c in channel_ids]
+    if isinstance(channel_ids[0], dict):
+        channel_ids = [c["channel_id"] for c in channel_ids]
 
 
 # ─────────────────────────────────────────────

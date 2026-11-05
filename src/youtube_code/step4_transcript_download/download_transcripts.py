@@ -35,7 +35,7 @@ SPEED_DOWNLOAD = 0
 # VIDEO_LIST = "political_nonwar_ids.json"  # nur fuer den __main__-Block, muss .json sein
 # VIDEO_LIST = OUTPUTS / "segment_analysis" / "abdeckung_politisch_nichtkrieg" / "download_liste1_zellen_ge3_krieg.json"
 # VIDEO_LIST = OUTPUTS / "segment_analysis" / "abdeckung_politisch_nichtkrieg" / "download_liste2_zellen_1bis2_krieg.json"
-VIDEO_LIST = "ids_right.json"
+VIDEO_LIST = "do_ids.json"
 
 BATCH_SIZE = 5  # API-Batches
 REQUIRED_COLUMNS = ["video_id", "transcript_segments", "language_code", "is_generated", "status"]

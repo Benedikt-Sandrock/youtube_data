@@ -4,19 +4,21 @@ from datetime import datetime
 
 # === CONFIG ###
 
+### MISSING: AfD 2019-7-1 until 2021-1-1 ###
+
 # Search period
-start_date = datetime(2024, 7, 1)
-final_end_date = datetime(2026, 1, 1)
+start_date = datetime(2019, 7, 1)
+final_end_date = datetime(2021, 1, 1)
 
 # Analysis period
-published_after_analysis = "2021-01-01T00:00:00Z"
+published_after_analysis = "2019-01-01T00:00:00Z"  # seit 23.10.2026 (Metadaten ab 2019; LLM-Analysen weiter ab 2021)
 published_before_analysis = "2026-07-01T00:00:00Z"
 
 # Query configuration
 # Letzte Laeufe (14.10.2026): "BSW" 2023-07-01..2024-07-01 und 2024-07-01..2026-01-01
 # (BSW-Sample-Erweiterung, .claude/plans/bsw_sample_erweiterung.md). Die
 # uebrigen Parteien liefen 2021-01-01..2026-01-01 (siehe search_runs).
-query = "BSW"
+query = "AfD"
 month_interval = 3
 sample = "party_identification"
 

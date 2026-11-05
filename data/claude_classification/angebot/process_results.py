@@ -52,6 +52,9 @@ intensitaet_rank = {"sachlich": 0, "abwertend": 1, "delegitimierung": 2}
 for col in ["themen", "krieg_aspekte", "estab_gegenstand"]:
     df[col] = df[col].apply(ast.literal_eval)
 
+# df.to_csv("results_segment_level.csv", index = False)
+
+
 inverse_intens = {n:w for w,n in intensitaet_rank.items()}
 df["estab_intensitaet"] = df["estab_intensitaet"].replace(inverse_intens)
 
@@ -169,26 +172,3 @@ pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 1000)
 print(df)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

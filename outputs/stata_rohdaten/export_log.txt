@@ -1,23 +1,24 @@
-[Laden] Kanal-Sample russia_longitudinal_v1: 427 Kanaele
-[Laden] Format-Status aus ['alt_kanaele_formats_status.csv', 'sample_russia_longitudinal_v1_formats_status.csv', 'upload_starke_kanaele_formats_status.csv']: {'komplett': 424, 'fehler': 2, 'unvollstaendig': 1}
+[Laden] Kanal-Sample russia_longitudinal_v1: 437 Kanaele
+[Laden] Format-Status Fenster ab2021 aus ['alt_kanaele_formats_status.csv', 'bsw_kanaele_formats_status.csv', 'pilot_2019_2020_formats_status.csv', 'sample_2019_2020_formats_status.csv', 'sample_russia_longitudinal_v1_formats_status.csv', 'upload_starke_kanaele_formats_status.csv', 'zufallsstichprobe_fehlende_formate_formats_status.csv']: {'komplett': 434, 'fehler': 2, 'unvollstaendig': 1}
+[Laden] Format-Status Fenster 2019 aus ['alt_kanaele_formats_status.csv', 'bsw_kanaele_formats_status.csv', 'pilot_2019_2020_formats_status.csv', 'sample_2019_2020_formats_status.csv', 'sample_russia_longitudinal_v1_formats_status.csv', 'upload_starke_kanaele_formats_status.csv', 'zufallsstichprobe_fehlende_formate_formats_status.csv']: {'komplett': 346, 'fehler': 1}
 [Laden] Kanallisten mit Sendungsmustern: {1: 10, 2: 14, 3: 10}
-[Laden] Videos der Sample-Kanaele (alle Laengen): 1093796, ohne Titel: 4034
-[Laden] ohne channel_id: 0, ohne/unparsebares published_at: 0, ohne/unparsebare Dauer: 8428
+[Laden] Videos der Sample-Kanaele (alle Laengen): 1295830, ohne Titel: 4008
+[Laden] ohne channel_id: 0, ohne/unparsebares published_at: 2, ohne/unparsebare Dauer: 4076
 [Check] ok: video_id in der Registry eindeutig
-[min_dauer] Dauer >= 181 s: 547662 von 1093796 Videos (422 Kanaele mit >= 1 solchen Video); Dauer unbekannt (-> min_dauer = 0): 8428
-[Merge] video_format: 1036985 gematcht, 56811 nur Export, 0 nur Quelle
-[Format] per Ausschluss als long gesetzt (FORMAT_AUSSCHLUSS_LONG): 43075 Videos
-[Format] format_klass = 1 (Kanal komplett, Video im Fenster 2021-01-01 bis < 2026-07-01): 1043754 von 1093796; davon ohne Format: 11536
-[Sendungen] Videos aus Kanaelen mit geprueften Mustern: 370540, news_show = 1: 25794, special_show = 1: 807, pk_sitzung = 1: 1401
+[min_dauer] Dauer >= 181 s: 663236 von 1295830 Videos (432 Kanaele mit >= 1 solchen Video); Dauer unbekannt (-> min_dauer = 0): 4076
+[Merge] video_format: 1239044 gematcht, 56786 nur Export, 0 nur Quelle
+[Format] per Ausschluss als long gesetzt (FORMAT_AUSSCHLUSS_LONG): 43042 Videos
+[Format] format_klass = 1 (Kanal im jeweiligen Fenster komplett, Video im Fenster 2019-01-01 bis < 2026-07-01): 1245786 von 1295830; davon ohne Format: 11542
+[Sendungen] Videos aus Kanaelen mit geprueften Mustern: 466555, news_show = 1: 30089, special_show = 1: 861, pk_sitzung = 1: 1745
 [Sendungen] je Kanalliste (Summe = 1):
               news_show  special_show  pk_sitzung
 format_liste                                     
-1                 11922           463           0
-2                  8008           172           0
-3                  5864           172        1401
-[Merge] video_details.topic_categories (politisch): 1083460 gematcht, 10336 nur Export, 0 nur Quelle
-[Merge] video_topic_relevance[russia_ukraine_war] (nur intern): 542110 gematcht, 551686 nur Export, 0 nur Quelle
-[Merge] transcript_store: 59607 Videos mit Transkript (status OK)
+1                 13929           511           0
+2                  9546           178           0
+3                  6614           172        1745
+[Merge] video_details.topic_categories (politisch): 1289849 gematcht, 5981 nur Export, 0 nur Quelle
+[Merge] video_topic_relevance[russia_ukraine_war] (nur intern): 662716 gematcht, 633114 nur Export, 0 nur Quelle
+[Merge] transcript_store: 68761 Videos mit Transkript (status OK)
 [Laden] POPULISMUS_P: 115361 Segmentzeilen aus 14 Runs; Test-Runs ausgeschlossen: ['run_0006', 'run_0007', 'run_0008', 'run_0009'] (160 Zeilen)
 [Laden] POPULISMUS_P: 257 Segmente in mehreren Runs (58 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
 [Laden] POPULISMUS_P: nach Segment-Dedup 114944 Segmente, 36864 Videos, davon ungueltig (parse_error/leer): 0
@@ -27,14 +28,14 @@ format_liste
 [Laden] IDEOLOGIE_I: 23354 Segmentzeilen aus 13 Runs; Test-Runs ausgeschlossen: ['run_0001', 'run_0002', 'run_0003', 'run_0004', 'run_0005'] (108 Zeilen)
 [Laden] IDEOLOGIE_I: 2287 Segmente in mehreren Runs (2287 Videos), davon mit abweichendem Segmenttext (text_sha1): 0
 [Laden] IDEOLOGIE_I: nach Segment-Dedup 20951 Segmente, 20951 Videos, davon ungueltig (parse_error/leer): 0
-[Merge] POPULISMUS_P: 36605 gematcht, 1057191 nur Export, 259 nur Quelle
+[Merge] POPULISMUS_P: 36605 gematcht, 1259225 nur Export, 259 nur Quelle
 [Check] Pruefung 7 (POPULISMUS_P): klassifiziert mit min_dauer = 0 (im Export, fuer LLM-Analysen ausschliessen): 11444; nicht unter den Videos der Sample-Kanaele (fehlen im Export): 259
-[Merge] POSITION_V1: 35648 gematcht, 1058148 nur Export, 245 nur Quelle
+[Merge] POSITION_V1: 35648 gematcht, 1260182 nur Export, 245 nur Quelle
 [Check] Pruefung 7 (POSITION_V1): klassifiziert mit min_dauer = 0 (im Export, fuer LLM-Analysen ausschliessen): 10698; nicht unter den Videos der Sample-Kanaele (fehlen im Export): 245
-[Merge] IDEOLOGIE_I: 14443 gematcht, 1079353 nur Export, 6508 nur Quelle
+[Merge] IDEOLOGIE_I: 14443 gematcht, 1281387 nur Export, 6508 nur Quelle
 [Check] Pruefung 7 (IDEOLOGIE_I): klassifiziert mit min_dauer = 0 (im Export, fuer LLM-Analysen ausschliessen): 2348; nicht unter den Videos der Sample-Kanaele (fehlen im Export): 6508
-[Merge] screening_state: 501471 gematcht, 592325 nur Export, 0 nur Quelle
-[Merge] channels (Kanalmetadaten): 427 gematcht, 0 nur Export, 0 nur Quelle
+[Merge] screening_state: 501471 gematcht, 794359 nur Export, 0 nur Quelle
+[Merge] channels (Kanalmetadaten): 437 gematcht, 0 nur Export, 0 nur Quelle
 [min_dauer] Videos je Kanal alle / min_dauer == 1 (channel_id | alle | min_dauer):
     UC-5Ao5j48FBONkfprK1m5YA | 7 | 7
     UC-75V7JVPyuhsdJnPJCP2GQ | 1939 | 1336
@@ -63,6 +64,7 @@ format_liste
     UC1w6pNGiiLdZgyNpXUnA4Zw | 5467 | 2943
     UC1y1GtNgGiAUBfQz87ltjag | 5239 | 1337
     UC267Hlq_ACFuWzZYfazrDGQ | 1809 | 1806
+    UC2_h-LYx4rEE3bsL7mZ6Udw | 1720 | 137
     UC2cJbBzyHM48MVFB6eOW9og | 1228 | 801
     UC2n9cj1SR8lXPnNjmFl2BBw | 390 | 10
     UC2q758ZoKua2OKWxSHJiVXA | 5027 | 287
@@ -93,12 +95,14 @@ format_liste
     UC62IIFhchBWQxLPSyUatD-A | 11255 | 9517
     UC67IaTsbpkzgAaeRMnJt5AQ | 245 | 174
     UC6RYT0kcxYh_u8OJoAaF1Pg | 1181 | 324
+    UC6Wkh06cSGkCDIhkk_xHhUw | 1209 | 1204
     UC6eKQpThuLPOHAf_EPyB3xw | 750 | 62
     UC6hrzR7smGOGQgOh5q5HZYQ | 1245 | 931
     UC6rdE0CWPOZBJdM-b5Yk-Yg | 2468 | 169
     UC6zXbTQEujMO-5CzyywlVDQ | 374 | 40
     UC70-qPE5cS_aOYAOGnM_24g | 1086 | 485
     UC71SOu9JMKd3VHJs7GipdNQ | 315 | 312
+    UC7CJun1Vcrn7TVgpndgqBpw | 2644 | 2024
     UC7HpbItjae9vGSvO5bYDU3w | 443 | 376
     UC7UmWgseKK7p3NPLo7RISdg | 1493 | 1354
     UC7g7kvJmGit81_4R_4yxhGA | 1808 | 774
@@ -156,6 +160,7 @@ format_liste
     UCEtYtMoD26j2BJBJ4w_hM6w | 277 | 106
     UCFFM_g9QSjmE45y9XtfYLdw | 418 | 352
     UCFemltyr6criZZsWFHUSHPQ | 2200 | 426
+    UCFhuQ228JMOO9A9TBAyRKqA | 982 | 773
     UCFoKXoDoExwtBWdSTCIdEVQ | 1338 | 719
     UCFqcNI0NaAA21NS9W3ExCRg | 1679 | 609
     UCFsViOtZE0cNVjqBkvetpmA | 1724 | 583
@@ -198,7 +203,7 @@ format_liste
     UCM5gP5bRLmc7ysiLbXA2R3A | 1008 | 776
     UCMIgOXM2JEQ2Pv2d0_PVfcg | 6820 | 5130
     UCMW8XBBRkjrF_fweALWaZyw | 1938 | 1754
-    UCMbiTMFu2Sm06aiKbxQ3ibg | 123 | 102
+    UCMbiTMFu2Sm06aiKbxQ3ibg | 123 | 103
     UCMlirlzQIUpfb3uC5LXB17Q | 744 | 530
     UCMpW4tdyZUid2Ka9_FuDDhQ | 19685 | 5260
     UCN23GlvCgK9XZDsNQzln4_Q | 385 | 302
@@ -284,7 +289,7 @@ format_liste
     UCYyerybBwXg3GhxofPs9eHQ | 410 | 368
     UCZAnY7eNSydfTCooQmreUJQ | 393 | 381
     UCZHpIFMfoJJ_1QxNGLJTzyA | 366 | 310
-    UCZMsvbAhhRblVGXmEXW8TSA | 63191 | 32816
+    UCZMsvbAhhRblVGXmEXW8TSA | 65993 | 34313
     UCZOM0CqaJ5njZB_O-RyQSsw | 436 | 433
     UCZX_5XCRE_dZ_4tNXOEYtog | 2044 | 1004
     UCZiX_brEG6VlfqGjOv78VAw | 3315 | 1429
@@ -311,6 +316,7 @@ format_liste
     UCc2PueJVrynVhKB99Z0-jew | 1817 | 921
     UCcHMudRg3_xhJfTGDSRIx1w | 912 | 858
     UCcPcua2PF7hzik2TeOBx3uw | 21746 | 4440
+    UCcUREIs52XlMUz7cDuu-mTg | 898 | 898
     UCcoQ3WG2J_Xjwwyt-sJqh-w | 2054 | 542
     UCcv4TGfToIWJKIBVdhfRfAA | 631 | 592
     UCcweJsCV2TUP_kzMX25U-oQ | 9325 | 4887
@@ -320,7 +326,7 @@ format_liste
     UCdG3Qj5snC8LL26g0oZmXqw | 1035 | 433
     UCdGz2Uvjn8guaHTyWIqizpQ | 735 | 179
     UCdJUFxC2vb7xDAa5M-Mvi_A | 4506 | 430
-    UCdPX3MNVbr5nGRthygN2JRQ | 25185 | 8500
+    UCdPX3MNVbr5nGRthygN2JRQ | 25185 | 10751
     UCdQO07TAiovFOgBtgMfWeCQ | 7019 | 1567
     UCdWyaS6Xtjh4CP7iMFifqgg | 1780 | 1780
     UCdoHHeblAGGW3uy52DalI7w | 460 | 88
@@ -344,6 +350,7 @@ format_liste
     UCfnNah9Q-A2OzcbqeZQiFhQ | 1708 | 1685
     UCg1-w2x7jwdQ8-3pM9aUQ6g | 245 | 215
     UCgAPgHNmQSG_ySHRiOVeF4Q | 8561 | 1556
+    UCgJ0yIYRJT13BPtQdagWORA | 1035 | 902
     UCgZw_Rxf1RYKDtQr9zdYuwg | 1796 | 938
     UCgau4awdKG2ni2Ib4jvUqFA | 8228 | 3300
     UCgcHsYmYWTmLBU034YVSSIA | 483 | 136
@@ -352,6 +359,7 @@ format_liste
     UCh-Ftqf4si1HFVtDm7Y10yg | 526 | 470
     UCh7UU4jFZWKzu1KxqDic_Og | 1639 | 1111
     UCh8EqZyAUunyl1ryHeZAaSw | 3244 | 2193
+    UChkELlk5GBaUCVx8-94IK_Q | 1415 | 919
     UChkVOG0PqkXIHHmkBGG15Ig | 232 | 213
     UChvSDcd3cPuvhA0R3FHBFJw | 2048 | 2032
     UCi-pZ-VukgK9uzymsA0LNQA | 1674 | 1649
@@ -410,6 +418,7 @@ format_liste
     UCqmQ1b96-PNH4coqgHTuTlA | 1639 | 604
     UCr78AIw8O_HGs2jMUAGEp_g | 1012 | 1004
     UCrGy59kaH785Ac6KIl2y65A | 794 | 143
+    UCrL3vhmQnFKNfdY_8yUBtcA | 276 | 273
     UCrb6U1FuOP5EZ7n7LfOJMMQ | 477 | 118
     UCs-G8CXCziErSY1459e7U8A | 5437 | 593
     UCs05VH8MBAaX_cNXlrYIZkA | 624 | 207
@@ -456,6 +465,8 @@ format_liste
     UCxOGWb_OYoaz2V3QclJT3YA | 403 | 218
     UCxQdpLijLxJTXUgmM03xT0g | 1098 | 1031
     UCxU1a-2vec6ljU43I0F2Jwg | 5688 | 606
+    UCxeay89YP9XbhLNC3Zd_9cA | 1062 | 683
+    UCxi2edl6w4Dr1-SK8CgnvKQ | 996 | 861
     UCxlEazKoCv2mNFiiVPOUESQ | 597 | 107
     UCy4_zQ59zmS7zO4Dc6vbT_w | 1649 | 1139
     UCyH9w3VhfZPdjH28VFeoHUA | 4850 | 4115
@@ -463,100 +474,109 @@ format_liste
     UCyQpfuhftLvrmjxgEzVH78Q | 47915 | 21371
     UCycuPgtpxdu_6-1nVXgzPmg | 258 | 198
     UCyw8Tkb44AGA2eB8K9fRioQ | 3708 | 2368
-[Format] format_status der Sample-Kanaele: {'komplett': 424, 'fehler': 2, 'unvollstaendig': 1}
-[Merge] frage1_kanal_whitelist: 279 gematcht, 148 nur Export, 0 nur Quelle
-[Sample] aktiv vor Kriegsbeginn (>= 1 Video in [2021-02-24, 2022-02-24)): 330 Kanaele
+[Format] format_status der Sample-Kanaele: {'komplett': 434, 'fehler': 2, 'unvollstaendig': 1}
+[Format] format_status_2019 der Sample-Kanaele: {'komplett': 346, 'fehlt': 90, 'fehler': 1}
+[Merge] frage1_kanal_whitelist: 279 gematcht, 158 nur Export, 0 nur Quelle
+[Sample] aktiv vor Kriegsbeginn (>= 1 Video format long in [2021-02-24, 2022-02-24)): 334 Kanaele
+[Sample] sample_vorkrieg: 334 Kanaele, davon nicht in der Whitelist: 110
 [Check] ok: Medientyp-Datei ohne widerspruechliche Duplikate
 [Laden] Medientyp: 432 Kanaele (2 identische Duplikatzeilen entfernt), Rohcodes {1: 59, 2: 46, 3: 306, 4: 19, 5: 2}
 [Check] ok: nur bekannte Medientyp-Rohcodes
-[Merge] Medientyp-Excel: 424 gematcht, 3 nur Export, 8 nur Quelle
+[Merge] Medientyp-Excel: 425 gematcht, 12 nur Export, 7 nur Quelle
 [Check] ok: Kanaltypologie: channel_id eindeutig
 [Check] ok: Kanaltypologie: nur bekannte typ_code
 [Check] ok: Kanaltypologie: sicherheit nur hoch/mittel/niedrig
 [Laden] Kanaltypologie: 279 Kanaele, Typen {'A1': 9, 'A2': 20, 'A3': 8, 'A4': 3, 'A5': 17, 'A6': 12, 'A7': 7, 'A8': 6, 'B1': 27, 'B2': 55, 'B3': 19, 'B4': 22, 'C1': 28, 'C2': 17, 'C3': 18, 'C4': 11}
-[Merge] Kanaltypologie: 279 gematcht, 148 nur Export, 0 nur Quelle
+[Merge] Kanaltypologie: 279 gematcht, 158 nur Export, 0 nur Quelle
 [Sample] sample_kern (A1, A2, A5, B1, B2, B3, C1, ohne 1 Einzelausschluss): 174 Kanaele, davon sample_vorkrieg 125
 [Ideologie] Baseline-Videos ohne Kriegsbezug mit IDEOLOGIE_I-Klassifikation: 4777 (354 Kanaele)
 [Merge] API-Abbruch (playlist_limit): 10 Kanaele, davon im Sample 10
 
 [Abdeckung] Videoebene (Anteil nicht fehlend bzw. = 1):
-    views: 99.18% nicht fehlend
-    likes: 98.45% nicht fehlend
-    kommentare: 75.15% nicht fehlend
-    politisch: 99.06% nicht fehlend
-    dauer_sek: 99.23% nicht fehlend
-    news_show: 33.88% nicht fehlend
-    krieg_transkript: 3.35% nicht fehlend
-    pop_gesamt: 3.27% nicht fehlend
-    pos_russland: 2.71% nicht fehlend
-    pos_westpolitik: 2.46% nicht fehlend
-    min_dauer = 1: 547662 (50.07%)
-    post_war = 1: 948797 (86.74%)
-    format_klass = 1: 1043754 (95.42%)
-    format_derived = 1: 43075 (3.94%)
-    politisch_klass = 1: 1083460 (99.06%)
-    pop_klass = 1: 36605 (3.35%)
-    pos_klass = 1: 35648 (3.26%)
-    transkript = 1: 59607 (5.45%)
-    baseline_stichprobe = 1: 2646 (0.24%)
-    rel_russia_ukraine_war_core = 1: 46115 (4.22%)
-    rel_russia_ukraine_war_cw = 1: 70685 (6.46%)
-    rel_politics_general_core = 1: 97662 (8.93%)
-    rel_politics_general_cw = 1: 171013 (15.63%)
-    rel_corona_pandemic_core = 1: 11214 (1.03%)
-    rel_corona_pandemic_cw = 1: 27393 (2.50%)
-    rel_migration_core = 1: 13948 (1.28%)
-    rel_migration_cw = 1: 15136 (1.38%)
-    rel_economy_general_core = 1: 19562 (1.79%)
-    rel_economy_general_cw = 1: 26658 (2.44%)
-    rel_energy_core = 1: 6664 (0.61%)
-    rel_energy_cw = 1: 11299 (1.03%)
-    rel_climate_core = 1: 8098 (0.74%)
-    rel_climate_cw = 1: 9015 (0.82%)
-    rel_gender_core = 1: 2434 (0.22%)
-    rel_gender_cw = 1: 5520 (0.50%)
-    rel_mideast_core = 1: 25200 (2.30%)
-    rel_mideast_cw = 1: 26934 (2.46%)
-    rel_iran_core = 1: 11252 (1.03%)
-    rel_iran_cw = 1: 12562 (1.15%)
-    rel_eu_core = 1: 6896 (0.63%)
-    rel_eu_cw = 1: 9734 (0.89%)
-    rel_usa_core = 1: 47516 (4.34%)
-    rel_usa_cw = 1: 52512 (4.80%)
-    rel_education_core = 1: 845 (0.08%)
-    rel_education_cw = 1: 1457 (0.13%)
+    views: 99.64% nicht fehlend
+    likes: 98.90% nicht fehlend
+    kommentare: 74.41% nicht fehlend
+    politisch: 99.54% nicht fehlend
+    dauer_sek: 99.69% nicht fehlend
+    news_show: 36.00% nicht fehlend
+    krieg_transkript: 2.82% nicht fehlend
+    pop_gesamt: 2.76% nicht fehlend
+    pos_russland: 2.29% nicht fehlend
+    pos_westpolitik: 2.08% nicht fehlend
+    min_dauer = 1: 663236 (51.18%)
+    post_war = 1: 962513 (74.28%)
+    format_klass = 1: 1245786 (96.14%)
+    format_derived = 1: 43042 (3.32%)
+    politisch_klass = 1: 1289849 (99.54%)
+    pop_klass = 1: 36605 (2.82%)
+    pos_klass = 1: 35648 (2.75%)
+    transkript = 1: 68761 (5.31%)
+    baseline_stichprobe = 1: 2646 (0.20%)
+    rel_russia_ukraine_war_core = 1: 48880 (3.77%)
+    rel_russia_ukraine_war_cw = 1: 76811 (5.93%)
+    rel_politics_general_core = 1: 122959 (9.49%)
+    rel_politics_general_cw = 1: 207671 (16.03%)
+    rel_corona_pandemic_core = 1: 20703 (1.60%)
+    rel_corona_pandemic_cw = 1: 49688 (3.83%)
+    rel_migration_core = 1: 15874 (1.23%)
+    rel_migration_cw = 1: 17315 (1.34%)
+    rel_economy_general_core = 1: 21993 (1.70%)
+    rel_economy_general_cw = 1: 32103 (2.48%)
+    rel_energy_core = 1: 7059 (0.54%)
+    rel_energy_cw = 1: 12167 (0.94%)
+    rel_climate_core = 1: 9488 (0.73%)
+    rel_climate_cw = 1: 10581 (0.82%)
+    rel_gender_core = 1: 2566 (0.20%)
+    rel_gender_cw = 1: 5801 (0.45%)
+    rel_mideast_core = 1: 26159 (2.02%)
+    rel_mideast_cw = 1: 28119 (2.17%)
+    rel_iran_core = 1: 12387 (0.96%)
+    rel_iran_cw = 1: 13752 (1.06%)
+    rel_eu_core = 1: 10845 (0.84%)
+    rel_eu_cw = 1: 14378 (1.11%)
+    rel_usa_core = 1: 55623 (4.29%)
+    rel_usa_cw = 1: 61470 (4.74%)
+    rel_education_core = 1: 1031 (0.08%)
+    rel_education_cw = 1: 1780 (0.14%)
 [Abdeckung] format (leer = nicht zugeordnet) x format_klass:
 format_klass      0       1
 format                     
-(leer)         2200   11536
-live              0   40845
-long          41628  730562
-short          6214  260811
+(leer)         2202   11542
+live              0   50075
+long          41628  920015
+short          6214  264154
+[Abdeckung] Videos je Jahr (alle / min_dauer = 1 / format_klass = 1 / format gesetzt):
+             alle  min_dauer  format_klass  format
+upload_ts                                         
+2019.0      79981      41314         79981   79981
+2020.0     107012      61837        107012  107012
+2021.0     126067      73558        113837  125802
+2022.0     147642      83700        137836  147311
 [Abdeckung] pop_klass x min_dauer:
 min_dauer       0       1
 pop_klass                
-0          534690  522501
+0          621150  638075
 1           11444   25161
 [Abdeckung] Kanaele je Sample-Kennzeichen und Medientyp:
           sample_vorkrieg      sample_baseline      sample_whitelist     
                       sum size             sum size              sum size
 medientyp                                                                
--1                      0    3               0    3                0    3
- 1                     40   60              42   60               44   60
- 2                     35   44              37   44               38   44
- 3                     16   19              18   19               16   19
- 4                    132  301             213  301              181  301
-    Kanaele gesamt: 427, ohne Medientyp: 3, mit Ideologie-Baseline: 348
+-1                      5   12               0   12                0   12
+ 1                     52   60              42   60               44   60
+ 2                     41   44              37   44               38   44
+ 3                     17   19              18   19               16   19
+ 4                    219  302             213  302              181  302
+    Kanaele gesamt: 437, ohne Medientyp: 12, mit Ideologie-Baseline: 348
 [Abdeckung] Kanaele je Kanaltyp (sample_vorkrieg, sample_kern):
                                             sample_vorkrieg      sample_kern     
                                                         sum size         sum size
 kanaltyp                                                                         
-A1 ÖRR-Nachrichten                                        9    9           9    9
+A1 ÖRR-Nachrichten                                        8    9           9    9
 A2 Private Nachrichten                                   19   20          20   20
 A3 Private Nachrichten regional/lokal                     8    8           0    8
 A4 Auslandsrundfunk                                       3    3           0    3
-A5 Magazin/Reportage/Doku                                13   17          17   17
-A6 Satire & Comedy                                       11   12           0   12
+A5 Magazin/Reportage/Doku                                14   17          17   17
+A6 Satire & Comedy                                       12   12           0   12
 A7 Unterhaltung/Sport/Kinder                              7    7           0    7
 A8 Senderhauptkanal Mischprogramm                         6    6           0    6
 B1 Alternative Portale                                   21   27          27   27
@@ -596,6 +616,10 @@ C4 Lifestyle/Coaching/Esoterik                           11   11           0   1
 [Check] ok: 5 format_derived = 1 => format = long
 [Check] ok: 5 news_show/special_show/pk_sitzung = . genau fuer Kanaele ohne gepruefte Titelmuster (format_liste = 0)
 [Check] ok: 5 news_show + special_show + pk_sitzung <= 1 (Kategorien schliessen sich aus)
+[Check] ok: 9 Videos vor 01.01.2021 haben pop_klass = pos_klass = baseline_stichprobe = 0
+[Check] ok: 9 Videos vor 01.01.2021 haben kein pop_*/pos_*
+[Check] ok: 9 n_videos_ab2019 >= n_videos
+[Check] ok: 9 erstes_video_ts_ab2019 <= erstes_video_ts
 [Check] ok: 8 kanaltyp gesetzt genau fuer sample_whitelist = 1
 [Check] ok: 8 kanaltyp_gruppe = Zehnerstelle von kanaltyp
 [Check] ok: 8 sample_kern = 1 => kanaltyp in ['A1', 'A2', 'A5', 'B1', 'B2', 'B3', 'C1']
@@ -618,7 +642,8 @@ C1 Wirtschaft & Finanzen                      0   0   0  28
 C2 Wissen/Bildung/Technik                     0   0   0  17
 C3 Unterhaltung/Reaction/Podcasts             0   0   0  18
 C4 Lifestyle/Coaching/Esoterik                0   0   0  11
+[Check] ok: 10 sample_vorkrieg = 1 genau bei >= VORKRIEG_MIN_VIDEOS Videos (format long) im Jahr vor Kriegsbeginn
 [Check] ok: 6 pop_baseline = Nachberechnung aus Baseline-Videos (max. Abweichung 0.00e+00, Toleranz 1e-09)
-[Export] videos_roh.dta: 1093796 Zeilen, 69 Variablen
-[Export] kanaele_roh.dta: 427 Zeilen, 29 Variablen
+[Export] videos_roh.dta: 1295830 Zeilen, 69 Variablen
+[Export] kanaele_roh.dta: 437 Zeilen, 32 Variablen
 [Export] check_rohdaten.do geschrieben

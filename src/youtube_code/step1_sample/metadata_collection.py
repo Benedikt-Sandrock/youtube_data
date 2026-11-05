@@ -64,7 +64,7 @@ REFRESH_MODE = False  # True = view/like/comment_count fuer VIDEOS_INPUT_PATH be
 # immer get_video_metadata(), nicht refresh_video_stats() - fuer Videos, die
 # noch NIE erfolgreich abgefragt wurden, macht der "schon bekannt"-Filter
 # keinen Unterschied, siehe Docstring dort).
-CHECK_CHANNELS_MODE = False
+CHECK_CHANNELS_MODE = True
 
 # VIDEOS_INPUT_PATH = SAMPLES / "russia_longitudinal_v1" / "identification_videos_missing_metadata.json"
 # VIDEOS_INPUT_PATH = RAW / "sample_50k_channels_russia_ukraine.json"
@@ -85,7 +85,9 @@ VIDEOS_INPUT_PATH = DATA / "claude_classification" / "angebot" / "missing_stats.
 # Aktuell (14.10.2026): die 10 neuen Kanaele der BSW-Sample-Erweiterung
 # (.claude/plans/bsw_sample_erweiterung.md). Vorheriger Wert:
 # OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "metadata_nachscraping_kanaele.csv"
-MISSING_METADATA_CHANNEL_INPUT = CHANNEL_LISTS / "new.csv"
+# Aktuell (26.10.2026): WELT nach dem Nachscraping der Luecke 01.01.-23.02.2021
+# (+1.280 Videos ohne Views/Dauer). Vorheriger Wert: CHANNEL_LISTS / "new.csv"
+MISSING_METADATA_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "datenluecken_quartale" / "nachscraping_ytdlp_welt_2021q1.csv"
 # MISSING_METADATA_CHANNEL_INPUT = OUTPUTS / "segment_analysis" / "whitelist_ab_150.csv"
 
 YOUTUBE = build("youtube", "v3", developerKey=api_keys[0])

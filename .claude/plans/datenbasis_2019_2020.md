@@ -45,7 +45,10 @@ durchblättern. Das sind ~1,3–1,5 Mio. Einträge / 50 ≈ 26–30k Einheiten. 
 für geschätzt 150–250k neue Videos (≈ 3–5k Einheiten). **Insgesamt ≈ 30–35k Einheiten, also
 3–4 Tage** mit einem Key (`API_KEY`, 10k/Tag). yt-dlp kostet kaum Quota, aber Laufzeit.
 
-## Stand (22.10.2026)
+## Stand (23.10.2026): Schritte 0–7 durchgeführt, Export + Regressionstest erledigt
+Siehe Codebuch-Abschnitt „Änderungen 23.10.2026“ und `outputs/video_formats/`. Offen: nur WDR aktuell (404) sowie optional Stichprobenprüfung einzelner Video-IDs auf youtube.com.
+
+## Stand (22.10.2026, historisch)
 - [x] `scripts/adhoc/export_kanalliste_2019_2020.py` ist geschrieben (Konfigurationsblock oben).
   Es schreibt
   - `data/channel_lists/video_formats/sample_2019_2020.csv`: alle `eligible_current_analysis`-Kanäle

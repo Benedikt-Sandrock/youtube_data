@@ -13,6 +13,7 @@ TRANSCRIPTS = DATA / "transcripts"
 SAMPLES = DATA / "samples"
 EXPLORATION = DATA/ "exploration"
 EXTERNAL = DATA / "external"
+CLAUDE = DATA / "claude_classification"
 
 # Outputs
 
@@ -30,3 +31,4 @@ STATA_OUTPUT = OUTPUTS / "stata_rohdaten"
 MASTERARBEIT_SCRIPTS = ROOT / "scripts" / "masterarbeit"
 
 SRC = ROOT / "src" / "youtube_code"
+SCRIPTS = ROOT / "scripts" / "adhoc"

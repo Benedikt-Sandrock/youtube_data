@@ -22,8 +22,9 @@ Liest ``video_results.csv`` (erzeugt von ``process_results.py``) und erstellt:
    Dieselben sechs Kennzahlen wie in 2. im Zeitverlauf (wöchentlich oder monatlich), Videos mit Ukraine-Krieg-Thema
    (in ≥ 1 Segment, durchgezogen) vs. alle übrigen Videos (gestrichelt), Farbe = Medientyp. Plus ``kennzahlen.csv``.
 
-Medientypen: entweder Mainstream (ÖRR + Traditionell) vs. Alternativ oder ÖRR / Traditionell / Alternativ
-(Konstante ``MEDIENTYP_GRUPPIERUNG``).
+Medientypen: entweder Mainstream (ÖRR + Traditionell) vs. alternative Typen oder ÖRR / Traditionell / alternative
+Typen (Konstante ``MEDIENTYP_GRUPPIERUNG``). Alternative Medien sind nach Ideologie geteilt (alternativ_rechts,
+alternativ_links, ggf. alternativ_zentral; siehe aufbereitung_angebotsstudie.py).
 """
 from pathlib import Path
 
@@ -37,7 +38,7 @@ import pandas as pd
 
 # ===================== KONFIGURATION =====================
 INPUT_FILE = Path("video_results.csv")      # Videodatensatz aus process_results.py
-MEDIENTYP_GRUPPIERUNG = "mainstream"        # "mainstream" (ÖRR + Traditionell zusammen) | "drei" (ÖRR, Traditionell, Alternativ)
+MEDIENTYP_GRUPPIERUNG = "mainstream"        # "mainstream" (ÖRR + Traditionell zusammen) | "drei" (ÖRR, Traditionell, je alternativer Typ einzeln)
 PLOT_KRIEGSASPEKTE = True                   # True | False
 PLOT_ESTABLISHMENT = True                   # True | False
 PLOT_ESTAB_KRIEG_VS_ANDERE = True           # True | False: Zeitverlauf Ukraine-Krieg-Videos vs. alle anderen Videos
@@ -62,9 +63,11 @@ VERGLEICH_ZEITEINHEIT = "woche"                # "woche" | "monat": Zeitachse f�
 KRIEGSBEGINN = pd.to_datetime("2022-02-24")
 PHASEN = ["Vorher", "Eskalation", "Kriegsbeginn"]
 
-MEDIENTYP_LABELS = {"oerr": "ÖRR", "traditionell": "Traditionell", "alternativ_rechts": "Alternativ",
+MEDIENTYP_LABELS = {"oerr": "ÖRR", "traditionell": "Traditionell", "alternativ_rechts": "Alternativ rechts",
+                    "alternativ_zentral": "Alternativ zentral", "alternativ_links": "Alternativ links",
                     "mainstream": "Mainstream"}
 MEDIENTYP_COLORS = {"oerr": "#2a78d6", "traditionell": "#eb6834", "alternativ_rechts": "#1baf7a",
+                    "alternativ_zentral": "#8a8985", "alternativ_links": "#c2338a",
                     "mainstream": "#2a78d6"}
 INTENS_STUFEN = ["sachlich", "abwertend", "delegitimierung"]
 

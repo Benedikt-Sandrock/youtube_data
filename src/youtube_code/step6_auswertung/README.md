@@ -52,23 +52,23 @@ youtube_code/step6_auswertung/
                                               (Forschungsfrage 4, Erweiterung)
     frage4_kriegspraemie_relative_views_plots.py 8c: relative Views (Index)
                                               statt Regression, deskriptiv
-    frage4_kriegspraemie_marktanteil_plots.py 8d: Marktanteil je Gruppe5
+    frage4_kriegspraemie_marktanteil_plots.py 8d: [VERALTET -> 8i] Marktanteil je Gruppe5
                                               (Aufgaben.md TODO 1, Zusatzfrage)
-    frage4_kriegspraemie_marktanteil_phasen_bericht.py 8e: Marktanteil je
+    frage4_kriegspraemie_marktanteil_phasen_bericht.py 8e: [VERALTET -> 8i] Marktanteil je
                                               Gruppe5, phasenweise Tabelle statt
                                               Zeitreihe, 3 Umfaenge + absolute
                                               Gesamtnachfrage (Nachfrageperspektive)
     export_stata_rohdaten.py             S: Rohdatensatz fuer Stata (videos_roh.dta,
                                               kanaele_roh.dta) nach
                                               docs/codebuch_rohdatensatz.md
-    kanaluebersicht_marktanteil_bericht.py 8f: Kanal-Ebenen-Zerlegung von 8e -
+    kanaluebersicht_marktanteil_bericht.py 8f: [VERALTET -> 8i] Kanal-Ebenen-Zerlegung von 8e -
                                               Konzentrationscheck (treiben wenige
                                               grosse Kanaele einen Gruppentrend?)
-    marktanteil_themen_plots.py          8g: Marktanteil je (konfigurierbarer)
+    marktanteil_themen_plots.py          8g: [VERALTET -> 8i] Marktanteil je (konfigurierbarer)
                                               Anzeigegruppe, ueber alle 5 Themen +
                                               nicht-exklusive "alle politischen
                                               Videos" (Erweiterung von 8d)
-    marktanteil_themen_treiber_plots.py  8h: Zerlegung von 8g in die beiden rohen
+    marktanteil_themen_treiber_plots.py  8h: [VERALTET -> 8i] Zerlegung von 8g in die beiden rohen
                                               Treiber Anzahl Videos x Views/Video
                                               (Shift-Share-Zerlegung, monatlich,
                                               rohe statt normierte Werte)
@@ -81,6 +81,13 @@ youtube_code/step6_auswertung/
     ereignis_aufmerksamkeit_plots.py     8k: Ereignisfenster (±6 Wochen) je Medientyp x
                                               Ideologie: Angebot, Views-Anteil, kanalinterne
                                               Nachfrage der Kriegsvideos (Stufe 1, deskriptiv)
+    shorts_anteil_plots.py               8l: Shorts-Anteil an allen Videos je Gruppe und
+                                              Monat (gepoolt + Kanalmittel, Rohdatensatz)
+    marktkonzentration_rohdaten_plots.py 8m: Konzentration innerhalb der Gruppen
+                                              (N_eff, CR3, k50, Gini je Phase; Views + Uploads)
+    event_study_rohdaten.py              8n: Event Study Kanalerfolg um Ereignisdaten
+                                              (Kanal x 30-Tage-Bin, Kanal-FE, Differenz
+                                              zur Referenzgruppe; Rohdatensatz)
     populismuspraemie_kriegsvideos_bericht.py 9: Populismus-/Haltungspraemie bei
                                               Kriegsvideos (.claude/Aufgaben.md TODO 2,
                                               MODUS = "populismus" | "stance")
@@ -546,7 +553,27 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    Siehe Moduldocstring und
    `.claude/plans/frage4_kriegspraemie_relative_views.md` für die
    vollständige Herleitung.
-8d. **`frage4_kriegspraemie_marktanteil_plots.py`** (neu, 2026-09-08):
+> **Veraltet (Stand 2026-10-26): Schritte 8d–8h.** Sie lesen
+> `channel_video_erfolg.csv` (Stand 08.09.2026) über `lade_basisdaten()`
+> und enthalten daher nicht: `format == long` statt `min_dauer`, die
+> Kriegs-Stichwortsuche nur im Titel (seit 13.10.2026), die Ideologie aus
+> der Baseline (`ideo_gesellschaft_baseline`) statt aus
+> `channel_classification_ideology.csv` (dort Duplikat-Bug in
+> `lade_ideologie()`), die neuen Kanäle (BSW, 2019/20) sowie das volle
+> Zeitfenster; Default-Kanalbasis ist die 279er-Whitelist statt des
+> Kanon-Samples. Ersetzt durch **8i** (`marktanteil_rohdaten_plots.py`).
+> Die Skripte bleiben nur zur Nachvollziehbarkeit bereits zitierter Zahlen
+> erhalten; ihre Ergebnisse sind mit 8i nicht direkt vergleichbar. Inhalte,
+> die 8i noch fehlen (Gesamtnachfrage je Phase aus 8e,
+> Kanal-Konzentration aus 8f, Zerlegung Videos × Views/Video aus 8h),
+> bei Bedarf neu auf Basis von 8i umsetzen statt die alten Skripte
+> weiterzupflegen. Dasselbe gilt für die darauf aufbauenden Skripte
+> `scripts/adhoc/marktanteil_vergleich_279_vs_427(_plots).py`,
+> `scripts/adhoc/marktanteil_rechts_levelshift_konzentration.py` und
+> `scripts/masterarbeit/ap2_marktanteil_stichprobenbias.py`.
+
+8d. **`frage4_kriegspraemie_marktanteil_plots.py`** (neu, 2026-09-08,
+   **veraltet → 8i**, siehe Hinweis oben):
    Antwort auf die Zusatzfrage aus TODO 1 ("...oder können sie hier einen
    höheren Marktanteil als bei anderen (politischen) Videos erzielen?").
    Anders als Schritt 8c (Index INNERHALB derselben Gruppe: Kriegsvideo-
@@ -570,7 +597,7 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    `kriegspraemie_marktanteil_methodik.md` nach `outputs/segment_analysis/
    plots_frage4_kriegspraemie_relative_views/`.
 8e. **`frage4_kriegspraemie_marktanteil_phasen_bericht.py`** (neu,
-   2026-09-09): Nutzervorgabe nach Schritt 8d ("Ich möchte eine
+   2026-09-09, **veraltet → 8i**, siehe Hinweis vor 8d): Nutzervorgabe nach Schritt 8d ("Ich möchte eine
    phasenweise Tabelle ... Marktanteile ... UND die absolute
    Gesamtnachfrage ... um zu sehen, ob der Kuchen wächst oder nur
    umverteilt wird") — dieselbe Marktanteils-Formel wie 8d, aber
@@ -620,7 +647,8 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    Gruppe5-Struktur, vier Teiltabellen: n Videos/Kriegsvideos, n
    Videos/Kriegsvideos pro Monat, Output-Anteil, relative Reichweite —
    Beschriftung passt sich am Umfang an).
-8f. **`kanaluebersicht_marktanteil_bericht.py`** (neu, 2026-09-10): Kanal-
+8f. **`kanaluebersicht_marktanteil_bericht.py`** (neu, 2026-09-10,
+   **veraltet → 8i**, siehe Hinweis vor 8d): Kanal-
    Ebenen-Zerlegung des Gruppen-Marktanteils aus 8d/8e — ausgelöst durch die
    Nutzerfrage, ob der in der Marktanteilsgrafik sichtbare Vorkriegs-Trend
    (Anstieg Traditionelles Medium, Abschwung Alternative Medien rechts) von
@@ -645,7 +673,8 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    sogar leicht), der Abschwung von Alternative Medien (rechts) dagegen
    überwiegend ein Einzelkanal-Effekt (Boris Reitschuster allein erklärt
    ~48%, die Top-2-Kanäle zusammen ~63% des Gruppenrückgangs).
-8g. **`marktanteil_themen_plots.py`** (neu, 2026-09-10): Erweiterung von 8d
+8g. **`marktanteil_themen_plots.py`** (neu, 2026-09-10, **veraltet → 8i**,
+   siehe Hinweis vor 8d): Erweiterung von 8d
    auf alle fünf klassifizierten Themen (`video_topic_relevance`, nicht nur
    Ukraine-Krieg) — Nutzervorgabe „Ich möchte, dass die anderen Themen auch
    eingearbeitet werden … für jedes einzelne Thema und für alle politischen
@@ -674,7 +703,8 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    Zeile je Szenario x Periode x Anzeigegruppe) sowie
    `marktanteil_themen_methodik.md` nach `outputs/segment_analysis/
    plots_marktanteil_themen/`.
-8h. **`marktanteil_themen_treiber_plots.py`** (neu, 2026-09-10):
+8h. **`marktanteil_themen_treiber_plots.py`** (neu, 2026-09-10,
+   **veraltet → 8i**, siehe Hinweis vor 8d):
    Zerlegungs-Erweiterung von 8g — Nutzervorgabe „Ich möchte, dass du ein
    neues Skript erstellst, das sie [die Marktanteilsgrafiken] etwas
    abändert: Ich möchte die durchschnittlichen Views pro Video und die
@@ -710,9 +740,143 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    links/mitte/rechts nach `ideo_gesellschaft_baseline` (Schnitte ±0,5;
    Ideologie jetzt aus dem Vorkriegsfenster), (2) Tertile von `pop_baseline`
    (über Kanäle, Partei/Politiker ausgeschlossen). Beides für alle Kanäle
-   und für `sample_vorkrieg == ja`. Schreibt 4 PNGs, `marktanteil_monat.csv`
-   und `marktanteil_methodik.md` (inkl. Phasenmitteln) nach
-   `outputs/segment_analysis/plots_marktanteil_rohdaten/`. Aufruf:
+   und für `sample_vorkrieg == ja`. Seit 2026-10-26 zweite Grafikreihe mit
+   dem Angebot (Uploads je Gruppe; `ANGEBOT_METRIK` = `anteil` an allen
+   Uploads in %, Default, oder absolute `anzahl`), um Output-Wachstum von
+   Reichweite pro Video zu trennen. `ABSOLUT_VERSION` (Default `True`)
+   ergänzt je Grafik `…_absolut.png` mit absoluten Zahlen (oben Views in
+   Mio., unten Uploads je Gruppe und Monat; Views-Alterseffekt kürzt sich
+   dort nicht heraus). `KOMBI_VERSION` (seit 2026-10-27 `"kombi"` /
+   `"getrennt"` / `"alle"`, Default `"alle"`) steuert, ob nur die kombinierte,
+   nur die getrennten Grafiken je Sample oder beide erzeugt werden
+   (Streudiagramme, CSV und Methodik unabhängig davon). Die kombinierte
+   `marktanteil_<klassifikation>_kombiniert_<format>.png` zeigt
+   alle Kanäle als Hauptlinie mit Monatspunkten, nur Vorkriegskanäle als
+   gestrichelte Linie in derselben Farbe; bei `ABSOLUT_VERSION` zusätzlich
+   `…_kombiniert_<format>_absolut.png` (Abstand der Linien = Beitrag erst
+   später gestarteter Kanäle in Views bzw. Uploads). `BETONUNG_MONATE`
+   (Default `(-3, 3)`, seit 2026-10-27; `None` = aus) zeichnet die Monatswerte
+   um den Kriegsbeginn deckend und verbunden über die LOWESS-Linie, damit ein
+   Sprung nicht weggeglättet wird. Senkrechte Linien in den Zeitreihen: Kriegsbeginn
+   und `EREIGNISSE` (Default Bundestagswahlen 2021/2025, US-Wahlen
+   2020/2024; gepunktet, tagesgenau im Monat). Achsenkonvention (seit
+   2026-11-04): der Punkt von Periode k liegt bei x = k und markiert deren
+   Beginn, der Kriegsbeginn liegt also exakt auf dem Punkt von Periode 0
+   (vorher zwischen Periode -1 und 0); gilt auch für `shorts_anteil_plots.py`. Zusätzlich Streudiagramme
+   `uploads_vs_views_*.png` (x = Upload-Anteil, y = Views-Anteil,
+   Mittel je Intervall als verbundene Trajektorie, Diagonale = gleiche
+   Anteile) für die Umfänge in `STREU_UMFAENGE` (Default nur „alle Videos“)
+   und die Gruppen in `STREU_GRUPPEN` (Default ÖRR, traditionelle Medien,
+   Alternative rechts); Intervalle über `STREU_START`/`STREU_INTERVALL`
+   (Default halbjährlich ab Monat −24); dünne Parallelen zur Diagonale im
+   Abstand `STREU_DIAGONAL_ABSTAND` pp (Default 5) zeigen, ob sich Upload-
+   oder Views-Anteil stärker verändert. `STREU_LAYOUT` (`gemeinsam`,
+   `getrennt`, `beide`; Default `beide`) ergänzt `…_getrennt.png` mit einem
+   eigens gezoomten Panel je Gruppe (Maßstab je Panel verschieden, innerhalb
+   eines Panels x = y; `STREU_ZOOM` = `intervalle` (Default, Zoom auf die
+   Trajektorie, Monatsausreißer abgeschnitten) oder `monate`; Diagonalen mit
+   c in pp beschriftet). `KANALLISTE` (Default leer = alle Kanäle)
+   schränkt beide Samples auf die gelisteten `channel_id`s ein; Medientyp ×
+   Ideologie wird vorher auf allen Kanälen gebildet, Tertilgrenzen und
+   Populismus-Median (seit 2026-10-28) erst auf den Kanälen der Liste. Aktuell wird
+   `KANALLISTE` aus `outputs/stata_rohdaten/channels_check.xlsx` gebildet
+   (`media_category` ∈ {1, 2, 5}, `foreign` ≠ 1, Filter auf `sample`).
+   Codes der manuell gepflegten Spalte `sample`: 0 = keiner Gruppe
+   zugeordnet, 1 = uploadstarke News-Kanäle mit hohem Politikfokus, ohne
+   regionalen Fokus, 2 = politische Recherche-, Magazin- und Doku-Kanäle
+   (≥ 35 % der Views politisch laut YouTube-Klassifikation, lange Videos ab
+   24.01.2020), 3 = Nachrichtenkanäle mit regionalem Fokus, 4 = kein eigener
+   Content (Verbreitung von Ausschnitten aus Interviews, Reden usw.),
+   5 = Recherche/Doku mit überwiegend unpolitischem Content (< 35 %; nur für
+   Robustheitschecks). Die Codes stehen auch im Blatt `Codebuch`
+   der Excel-Datei. Robustheitscheck `MANUELL_ALT_RECHTS` (Default
+   `False`): Kanäle ohne Baseline-Gruppe (kein `medientyp` bzw. keine
+   Ideologie in `kanaele_roh`, außer Partei/Politiker), die in
+   `channels_check.xlsx` vorläufig manuell als `media_category` = 5
+   (alternativ rechts) codiert sind, zählen bei `True` zu „Alternative
+   (rechts)“; ihre Liste wird immer auf der Konsole und in der Methodik
+   ausgegeben, bei `True` tragen alle Ausgabedateien den Zusatz `_manuell`.
+   `OERR_DOKU_CODES` (Default `[]`, z. B. `[2]`): ÖRR-Kanäle mit diesen
+   `sample`-Codes bilden die eigene Gruppe „ÖRR (Recherche/Doku)“ (helleres
+   Blau), die übrigen (tagesschau, phoenix usw.) bleiben „ÖRR“; beide
+   zusammen ergeben die ungetrennte ÖRR-Linie. Die Codes müssen über
+   `KANALLISTE` im Sample sein (sonst Abbruch); Ausgabedateien tragen dann
+   den Zusatz `_oerrdoku`.
+   `KANAELE_AUSSCHLIESSEN` (Default `[]`, Robustheitscheck): einzelne Kanäle
+   per `channel_id` oder Kanaltitel (`kanal_name` bzw. `channel_title` in
+   `channels_check.xlsx`, exakt bis auf Groß-/Kleinschreibung; unbekannte oder
+   mehrdeutige Titel → Abbruch mit Vorschlägen) aus beiden Samples entfernen,
+   um zu prüfen, ob sie den Verlauf treiben. Gruppen, Tertilgrenzen und
+   Populismus-Median werden vorher gebildet (Gruppendefinition wie ohne
+   Ausschluss); Konsole und Methodik zeigen je Kanal seinen Anteil an Views
+   und Uploads seiner Gruppe vor/ab Kriegsbeginn. Ausgabedateien tragen den
+   Zusatz `_ohne_<kanal>` (bis 3 Kanäle) bzw. `_ohne<N>kanaele`.
+   Schreibt die
+   PNGs, `marktanteil_monat.csv`
+   (inkl. `angebot_anteil` und Datumsbereich `monat_start`/`monat_ende`, bei
+   `QUARTALSWEISE` `quartal_start`/`quartal_ende`), bei `WOECHENTLICH` (Default `True`) zusätzlich
+   `marktanteil_woche.csv` (gleiche Werte je Woche relativ zum Kriegsbeginn,
+   Woche 0 ab 24.02.2022, Do–Mi, Spalten `rel_woche`/`woche_start`/`woche_ende`,
+   Mindestbesetzung `MIN_VIDEOS_PRO_WOCHE`, nur Tabelle), bei `WOCHEN_PLOT`
+   (Default `False`) wochenweise Zeitreihen-Grafiken mit allen übrigen
+   Einstellungen, aber eigenem Zeitfenster `WOCHEN_FENSTER` (Datum `JJJJ-MM-TT`
+   oder `rel_woche`, unabhängig von `PERIODE_MIN`/`PERIODE_MAX`/`QUARTALSWEISE`;
+   Glättung `WOCHEN_LOWESS_FRAC`, dünne LOWESS-Hintergrundlinie
+   `WOCHEN_LOWESS_HINTERGRUND` (Default 0.3, 0 = keine); Dateien `…_woche_<JJJJMMTT>-<JJJJMMTT>….png`
+   und `marktanteil_woche_<JJJJMMTT>-<JJJJMMTT>.csv`) und `marktanteil_methodik.md` (inkl.
+   Phasenmitteln für Views- und Upload-Anteile) nach
+   `outputs/segment_analysis/plots_marktanteil_rohdaten/`. Seit 2026-10-27
+   zeigen die Hauptgrafiken nur noch alle Videos; `UMFANG_ZUSATZ` (Default
+   `politisch`, `krieg`) und `UMFANG_LAYOUT` (`einzeln` = eigene Grafik je
+   Umfang `…_<sample>_<umfang>_<format>.png`, Default; `kombiniert` = alle
+   Spalten in `…_<sample>_umfaenge_<format>.png`; `beide`) steuern die
+   übrigen Umfänge (gilt auch für `…_absolut`/`…_kombiniert`). Seit
+   2026-10-27 zusätzlicher Umfang `politisch_kw` („Politische Videos
+   (Stichworte)“, Default in `UMFANG_ZUSATZ`): politisch, wenn mindestens eine
+   Titel-Stichwortsuche `rel_<thema>_<KEYWORD_VARIANTE>` anschlägt
+   (`KEYWORD_THEMEN` Default alle Themen aus `TOPIC_KEYWORDS`,
+   `KEYWORD_VARIANTE` `cw` oder `core`, Default `cw`).
+   `POPULISMUS_TERTILE` (Default `True`) schaltet die Tertil-Klassifikation
+   (Grenzen seit 2026-10-28 auf dem Sample nach `KANALLISTE`)
+   samt Grafiken, CSV-Zeilen und Methodik-Abschnitten ab.
+   `POPULISMUS_MEDIAN` (Default `True`, seit 2026-10-28) ergänzt die
+   Klassifikation `populismus_median`: ÖRR, traditionelle Medien und
+   alternative Medien geteilt am Median von `pop_baseline` über die
+   alternativen Kanäle im tatsächlichen Sample (nach `KANALLISTE` und
+   `MANUELL_ALT_RECHTS`; derselbe Median für beide Samples)
+   (`marktanteil_populismus_median_…png`). `MEDIENTYP_GESAMT` (Default
+   `True`, seit 2026-10-29) ergänzt die Klassifikation `medientyp_gesamt`:
+   ÖRR, traditionelle Medien und alle alternativen Medien als eine Gruppe,
+   nach der manuellen `media_category` in `channels_check.xlsx` (1 / 2 /
+   3–5; Code 6 und ohne Code fallen raus), unabhängig von `medientyp` und
+   Ideologie-Baseline aus `kanaele_roh` (`marktanteil_medientyp_gesamt_…png`;
+   Kreuztabelle gegen `medientyp` auf der Konsole). Streudiagramme, für die
+   keine der `STREU_GRUPPEN` im Sample vorkommt, werden seither mit Hinweis
+   übersprungen statt abzubrechen. Die Konsole
+   zeigt je Sample die ohne `pop_baseline` ausgeschlossenen Kanäle sowie die
+   Besetzung der Tertile nach Medientyp bzw. der Median-Gruppen.
+   `QUARTALSWEISE` (Default `False`, seit 2026-10-27) rechnet alles je Quartal
+   relativ zum Kriegsbeginn (`rel_quartal`, Quartal 0 = 24.02.–23.05.2022) statt
+   je Monat, ohne LOWESS-Glättung und ohne `BETONUNG_MONATE`; Monatsangaben der
+   CONFIG (`PERIODE_MIN/-MAX`, `PHASEN`, `STREU_START/-INTERVALL`) werden auf die
+   vollständig enthaltenen Quartale umgerechnet. Dateien mit Zusatz `_quartal`
+   (`marktanteil_…_<format>_quartal….png`, `marktanteil_quartal.csv`,
+   `marktanteil_methodik_quartal.md`). `INTERAKTIV` (Default `False`, seit
+   2026-10-27, braucht `plotly`) schreibt zu jeder Zeitreihen- und
+   Streudiagramm-PNG eine Plotly-HTML gleichen Namens nach `…/interaktiv/`
+   (Hover mit Gruppe, Periode inkl. Datumsbereich, Views-/Upload-Anteil, Views,
+   Videos; Zoom; Gruppen per Legendenklick ausblendbar; `plotly.min.js` liegt
+   einmal daneben). `KANALINDEX` (Default `True`, seit 2026-10-27) ergänzt die
+   Robustheitsvariante „Kanalanteile statt gepoolter Views“: Views je Kanal
+   werden auf dessen Vorkriegsniveau normiert (`KANALINDEX_BASIS`, Default
+   Monat −25 bis −1; Kanäle mit Upload in < `KANALINDEX_MIN_AKTIV` der
+   Basisperioden fallen raus; Index gekappt bei `KANALINDEX_KAPPUNG`), dann
+   Gruppenanteile mit Kanalgewicht Basis^e (`KANALINDEX_GEWICHTUNGEN`:
+   `linear` e = 1 ≈ gepoolt, `wurzel` e = 0,5, `gleich` e = 0) sowie
+   Median-Index und Anteil der Kanäle über ihrer Basis →
+   `kanalindex_<klassifikation>_<format>.png`, `kanalindex_monat.csv`,
+   `kanalindex_methodik.md` (Phasenmittel inkl. gepoolter Hauptgrafik, Index
+   je Kanal). Aufruf:
    `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_plots`.
 8j. **`kriegsvideos_zeitreihen_plots.py`** (neu, 2026-10-14): deskriptive
    Zeitreihen der Russland-Ukraine-Videos aus `videos_roh.dta`, noch ohne
@@ -742,6 +906,68 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    (Vorher/Nachher-Tabelle, Stichwort-Abdeckung je Ereignis) nach
    `outputs/segment_analysis/ereignis_aufmerksamkeit/`. Aufruf:
    `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.ereignis_aufmerksamkeit_plots`.
+8l. **`shorts_anteil_plots.py`** (neu, 2026-10-26): Anteil der Shorts an
+   allen Videos (short + long, `format_klass == 1`, ohne Livestreams und
+   Videos ohne Format) je `rel_monat` (−37 bis 51, also ab 2019) und Gruppe
+   (Klassifikationen und Samples aus `marktanteil_rohdaten_plots.py`).
+   Zeilen: gepoolt (Shorts / alle Videos der Gruppe, Zellen ≥
+   `MIN_VIDEOS_ZELLE`) und Kanalmittel (ungewichtetes Mittel der
+   Kanal-Anteile, Kanäle ≥ `MIN_VIDEOS_KANAL_MONAT` Videos im Monat, Zellen ≥
+   `MIN_KANAELE_ZELLE` Kanäle). `KANALLISTE` schränkt die Kanäle ein,
+   `EREIGNISSE` zeichnet weitere Linien (Default Shorts-Start Juli 2021).
+   Schreibt `shorts_anteil_<sample>.png`, `shorts_anteil_monat.csv` und
+   `shorts_anteil_methodik.md` (Phasenmittel) nach
+   `outputs/segment_analysis/plots_shorts_anteil/`. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.shorts_anteil_plots`.
+8m. **`marktkonzentration_rohdaten_plots.py`** (neu, 2026-10-28): Konzentration
+   innerhalb der Gruppen aus 8i (Default nur Medientyp x Ideologie,
+   `KLASSIFIKATIONEN_AKTIV`): Wie viele Kanäle vereinen wie viel der Views bzw.
+   Uploads ihres Typs? Je Gruppe x Phase (`PHASEN`, sechs 12-Monats-Fenster,
+   zwei davon vor Kriegsbeginn als Pre-Trend-Check) über die aktiven Kanäle:
+   HHI, `N_eff = 1/HHI`, `N_eff/N`, CR1/CR3, k50/k80, Anteil der größten 10 %
+   und Gini. Gruppen, Samples (`alle`/`vorkrieg`), `KANALLISTE` und
+   `MANUELL_ALT_RECHTS` standardmäßig wie in 8i (importiert). Long-Videos,
+   alle Themen. Schreibt `konzentrationskurven_<klassifikation>_<sample><zusatz>.png`
+   (kumulierter Anteil nach Kanal-Rang, Phasen aus `KURVEN_PHASEN`; `KURVE_X`
+   = `rang`/`anteil`), `konzentration_zeitreihe_<klassifikation><zusatz>.png`
+   (N_eff und CR3 je Phase, beide Samples), `konzentration_phasen<zusatz>.csv`,
+   `konzentration_kanaele<zusatz>.csv` und `konzentration_methodik<zusatz>.md`
+   (Kennzahltabellen, größte Kanäle je Gruppe) nach
+   `outputs/segment_analysis/plots_marktkonzentration_rohdaten/`. Ersetzt den
+   Konzentrationscheck aus dem veralteten 8f. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktkonzentration_rohdaten_plots`.
+8n. **`event_study_rohdaten.py`** (neu, 2026-11-04): Event Study zum
+   Kanalerfolg (Frage 2) um die Daten in `EREIGNISSE` (Default 24.02.2022,
+   14.06.2022, 31.08.2022). Sample wie `KANALLISTE` in 8i, aber nur
+   Alternative rechts vs. ÖRR: Gruppen direkt aus `media_category` in
+   `channels_check.xlsx` (1 = ÖRR, 5 = Alternative rechts; Traditionelle
+   seit 04.11.2026 ausgeschlossen, da von wenigen Kanälen mit wechselnder
+   Strategie getragen), Unterkategorien aus der Spalte `sample`, aufgeteilt
+   nur für `UNTERKAT_AUFTEILEN` (Default Alternative rechts; ÖRR bleibt als
+   Referenz gepoolt). Hauptsample `sample` ∈ [1, 2, 3], `foreign` ≠ 1, nur
+   `format == long`.
+   Panel Kanal × Bin relativ zum Ereignis, Aggregation über `BIN_MODUS`
+   (je Modus Ereignisse, Fenster, Post-Blöcke und Ausgabeordner in `MODI`):
+   `"tage"` = 30-Tage-Bins (`BIN_TAGE`, Fenster −6..12, alle drei Daten,
+   Ordner `event_study_rohdaten/`); `"quartal"` (Default seit 04.11.2026) =
+   Quartale aus 3 Kalendermonaten, die am Ereignistag beginnen, nur
+   24.02. und 31.08.2022, Fenster −4..3, Ordner
+   `event_study_rohdaten_quartal/`. Referenz k = −1. Outcomes ln(Views-Summe + 1),
+   ln(Uploads + 1), ln(Views je Video + 1); Bins ohne Upload fallen im
+   Hauptmodell raus (`leere_bins` = `fehlend`, Robustheit `null`). Voll interagiertes Modell mit
+   Kanal-FE und nach Kanal geclusterten SE (`linearmodels.PanelOLS`);
+   ausgewiesen werden der Verlauf je Gruppe und die Differenz zur
+   Referenzgruppe (`REFERENZ`, Default ÖRR auf beiden Ebenen;
+   äquivalent zu Ereigniszeit-FE), Vortrend-F-Test und Post-Mittel
+   (`POST_BLOECKE`). Je Ebene Medientyp und Medientyp × Unterkategorie.
+   Robustheitsvarianten in `VARIANTEN` (je genau eine Änderung: weitere
+   `sample`-Codes, unbalanciertes Panel, sqrt-Gewichtung, ohne Top-Kanäle der
+   Alternativen, kurzes Fenster, leere Bins = 0). Schreibt `es_<ereignis>_<ebene>_<outcome>_<variante>.png`,
+   `es_robustheit_<ereignis>_<ebene>.png`, `event_study_koeffizienten.csv`
+   und `regression_results/event_study_ergebnisse.md` (Methodik, Funnel,
+   Tabellen) + `event_study_robustheit.md` nach
+   `outputs/segment_analysis/<MODI[BIN_MODUS]["ordner"]>/`. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.event_study_rohdaten`.
 9. **`populismuspraemie_kriegsvideos_bericht.py`**: Antwort auf TODO 2 aus
    `.claude/Aufgaben.md` ("Populismusprämie" — erhalten populistische
    Kriegsvideos innerhalb eines Kanals mehr Aufrufe als weniger populistische?),
@@ -1234,8 +1460,8 @@ Codebuchs ab. Steuerung nur über den CONFIG-Block:
 | Parameter | Bedeutung |
 |---|---|
 | `ANALYSIS_ID` / `KANAL_SAMPLE_PFAD` | Kanal-Sample (wie `prepare_channel_scores.py`) |
-| `MIN_DAUER_SEK` | Schwelle für `min_dauer` (`MIN_VIDEO_DURATION_SECONDS` = 181); kein Filter mehr, aber alle Kanalgrößen (Baselines, `sample_vorkrieg`, `n_videos`) nutzen nur `min_dauer == 1` |
-| `VORKRIEG_START`, `VORKRIEG_MIN_VIDEOS` | `sample_vorkrieg` = Whitelist UND ≥ n Videos in [24.02.2021, 24.02.2022) |
+| `MIN_DAUER_SEK` | Schwelle für `min_dauer` (`MIN_VIDEO_DURATION_SECONDS` = 181); kein Filter mehr, aber die Kanalgrößen (Baselines, `n_videos`) nutzen nur `min_dauer == 1` (`sample_vorkrieg` seit 28.10.2026 `format == long`) |
+| `VORKRIEG_START`, `VORKRIEG_MIN_VIDEOS` | `sample_vorkrieg` = ≥ n Videos mit `format == long` in [24.02.2021, 24.02.2022); seit 28.10.2026 ohne Whitelist-Bedingung und `format` statt `min_dauer` (alte Definition ≈ zusätzlich `sample_whitelist == 1`) |
 | `MEDIENTYP_PFAD`, `MEDIENTYP_UMKODIERUNG` | Rohcodes der Excel → Codebuch-Kodierung (3 ↔ 4 getauscht, Typ 5 → ÖRR) |
 | `REL_SPALTEN`, `KRIEG_TOPIC` | Titel-Topics `rel_<topic>_core/_cw` für alle Themen aus `TOPIC_KEYWORDS` (live per `KW_RE`); `video_topic_relevance[KRIEG_TOPIC]` nur intern für die Ideologie-Baseline |
 | `FORMAT_LISTEN_DIR`, `FORMAT_FENSTER` | Formatlauf-Statusdateien (`*_formats_status.csv`) und Format-Fenster → `format_klass`, `format_status` |
@@ -1265,6 +1491,8 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.s
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.schockfenster_bericht
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.export_stata_rohdaten
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_plots
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktkonzentration_rohdaten_plots
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.event_study_rohdaten
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.kriegsvideos_zeitreihen_plots
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.ereignis_aufmerksamkeit_plots
 ```
@@ -1342,6 +1570,12 @@ ergebnissen aufsetzen, liegen bewusst **nicht** hier, sondern in
 - `finde_download_kandidaten.py` — findet für dünn besetzte
   Kanal-Perioden-Zellen konkrete unklassifizierte Kriegsvideo-Kandidaten zum
   Nachdownloaden.
+- `marktanteil_sample_varianten.py` — führt `marktanteil_rohdaten_plots.py`
+  für mehrere Kanalauswahlen nach `sample`-Code aus `channels_check.xlsx`
+  aus (Default `[1]`, `[1, 2]`, `[1, 3]`, `[1, 2, 5]`), Ausgabe je Variante nach
+  `plots_marktanteil_rohdaten/sample_varianten/<variante>/`, Phasenvergleich
+  in `vergleich_sample_varianten<zusatz>.md` (Zusatz `_manuell`/`_oerrdoku`
+  wie im Hauptskript).
 - `video_sample_uebersicht.py` — Übersicht über bereits klassifizierte
   Videos nach Medientyp×Periode, identifiziert dünn besetzte Zellen
   (Grundlage für `finde_download_kandidaten.py`). Importiert

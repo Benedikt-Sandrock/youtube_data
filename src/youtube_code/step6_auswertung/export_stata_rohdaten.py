@@ -8,14 +8,33 @@ Logs, keine Aggregation ueber Videos auf Videoebene. Ausnahmen: die Messregel
 "deskriptiv"-Segmente = 0 bei den Positionsskalen sowie die Hilfsvariablen
 post_war und monat.
 
+Seit 23.10.2026 (Datenbasis-Erweiterung, .claude/plans/datenbasis_2019_2020.md)
+enthaelt die Registry und damit videos_roh Videos ab 01.01.2019 (nur
+Metadaten/Format/Themen-Stichworte; LLM-Analysen weiter erst ab 2021). Die
+Kanalgroessen n_videos/n_videos_alle/erstes_video_ts sind auf Videos ab
+01.01.2021 eingefroren (KANALGROESSE_AB), n_videos_ab2019/erstes_video_ts_ab2019
+sind die erweiterte Sicht; der Format-Laufstatus gilt je Fenster
+(format_status ab 2021, format_status_2019 fuer 2019-2020).
+
 Population Videos: ALLE Videos der Sample-Kanaele, kein Laengenfilter. Das
 Kennzeichen min_dauer (dauer_sek >= 181) ersetzt den frueheren Filter:
 Analysen mit LLM-Klassifikationen (pop_*/pos_*) muessen auf min_dauer == 1
 einschraenken (AP-1-Befund, siehe Codebuch). Alle Kanalgroessen
-(n_videos, erstes_video_ts, sample_vorkrieg, baseline_stichprobe,
+(n_videos, erstes_video_ts, baseline_stichprobe,
 pop_baseline, ideo_*_baseline) werden weiterhin nur aus Videos mit
 min_dauer == 1 berechnet und bleiben damit gegenueber dem Export mit Filter
 unveraendert.
+
+sample_vorkrieg (seit 28.10.2026): >= 1 Video mit format == "long" im Jahr
+vor Kriegsbeginn (statt min_dauer == 1), ohne die fruehere Bedingung
+sample_whitelist == 1. Die Frage-1-Whitelist ist ein inhaltlicher Filter
+(>= 5 Kriegsvideos, >= 5 Populismus-Klassifikationen, frage1_stichprobe.py),
+kein Aktivitaetskriterium: Vor dem Krieg aktive Kanaele mit wenig
+Kriegsberichterstattung (z. B. Clownswelt, _horizont_) galten dadurch als
+"nicht vorkrieg", und das Vorkriegs-Sample unterschied sich vom Gesamtsample
+schon vor Kriegsbeginn. Fuer Frage-1-Analysen weiter
+sample_vorkrieg == 1 & sample_whitelist == 1 verwenden (= alte Definition
+bis auf den Wechsel min_dauer -> format).
 
 Ausgabe (AUSGABE_PFAD = outputs/stata_rohdaten/)
 ------------------------------------------------
@@ -40,7 +59,10 @@ Quellen (ausschliesslich die Stores bzw. ihre Zugriffsmodule)
   gelesen und nicht exportiert.
 - format/format_quelle: video_registry.get_video_formats() (Tabelle
   video_format, step1_sample/channel_video_formats.py); Laufstatus je Kanal
-  aus data/channel_lists/video_formats/*_formats_status.csv.
+  aus data/channel_lists/video_formats/*_formats_status.csv. format_derived
+  = 1 fuer WELT-Videos ohne Format (FORMAT_AUSSCHLUSS_LONG) und fuer
+  Store-Zeilen mit source = "ausschluss_long"
+  (scripts/adhoc/welt_format_ausschluss_long.py).
 - news_show/special_show/pk_sitzung: step3_topic_relevance.news_show_patterns
   (Kategorien NEWS/SPECIAL/PRESSE), nur fuer Kanaele mit geprueften
   Titelmustern (FORMAT_LISTEN, drei Listen), sonst '.'.
@@ -117,8 +139,10 @@ AUSGABE_PFAD = OUTPUTS / "stata_rohdaten"
 # min_dauer = 1: Dauer >= MIN_VIDEO_DURATION_SECONDS (181 s, d. h. > 180 s).
 # Kein Filter mehr, nur Kennzeichen; Kanalgroessen nutzen nur min_dauer == 1.
 MIN_DAUER_SEK = MIN_VIDEO_DURATION_SECONDS
-# sample_vorkrieg: in der Frage-1-Whitelist UND >= 1 Video (> 180 s) in
-# [VORKRIEG_START, KRIEGSBEGINN)
+# sample_vorkrieg: >= VORKRIEG_MIN_VIDEOS Videos mit format == "long" in
+# [VORKRIEG_START, KRIEGSBEGINN); seit 28.10.2026 ohne Whitelist-Bedingung (die
+# Frage-1-Whitelist ist ein inhaltlicher Filter, kein Aktivitaetskriterium; fuer
+# Frage 1 mit sample_whitelist kombinieren) und format == "long" statt min_dauer == 1
 VORKRIEG_START = "2021-02-24"
 VORKRIEG_MIN_VIDEOS = 1
 
@@ -166,7 +190,18 @@ REL_SPALTEN = [f"rel_{t}_{v}" for t in TOPIC_KEYWORDS for v in ("core", "cw")]
 # PUBLISHED_AFTER/PUBLISHED_BEFORE (nicht importiert, weil das Modul beim
 # Import einen API-Client baut) - ausserhalb gibt es kein Format.
 FORMAT_LISTEN_DIR = CHANNEL_LISTS / "video_formats"
-FORMAT_FENSTER = ("2021-01-01", "2026-07-01")
+# Seit 23.10.2026 (Datenbasis-Erweiterung 2019-2020, .claude/plans/
+# datenbasis_2019_2020.md) zwei Teilfenster mit eigenem Laufstatus: der
+# Formatlauf fuer 2019-2020 (sample_2019_2020 + pilot_2019_2020) steht in
+# eigenen Status-Dateien mit fenster_von = 2019-01-01. FORMAT_FENSTER ist die
+# Vereinigung (Grenze fuer die Ausschluss-Regel FORMAT_AUSSCHLUSS_LONG).
+FORMAT_FENSTER = ("2019-01-01", "2026-07-01")
+FORMAT_FENSTER_2019 = ("2019-01-01", "2021-01-01")
+FORMAT_FENSTER_AB2021 = ("2021-01-01", "2026-07-01")
+# Kanalgroessen n_videos/n_videos_alle/erstes_video_ts bleiben auf Videos ab
+# diesem Datum eingefroren (Vergleichbarkeit mit Ergebnissen vor der
+# 2019-2020-Erweiterung); die Variablen *_ab2019 enthalten die erweiterte Sicht.
+KANALGROESSE_AB = "2021-01-01"
 # Kanallisten mit geprueften Sendungs-Titelmustern (news_show_patterns.py)
 # -> Code fuer kanaele_roh.format_liste. Nur fuer diese Kanaele werden
 # news_show/special_show/pk_sitzung berechnet (sonst .). Dateinamen duerfen
@@ -181,6 +216,10 @@ FORMAT_LISTEN_LABELS = {0: "keine", 1: "upload-starke Kanaele", 2: "alt_kanaele"
 # (format_derived = 1; ggf. inkl. inzwischen geloeschter/privater Videos).
 # Regel uebernommen aus step8_targeted_analysis/preparation.py.
 FORMAT_AUSSCHLUSS_LONG = {"UCZMsvbAhhRblVGXmEXW8TSA"}
+# Seit 04.11.2026 stehen die WELT-Videos 2022-01-01 bis 2022-10-26 schon im
+# Store als long (scripts/adhoc/welt_format_ausschluss_long.py, source =
+# FORMAT_QUELLE_AUSSCHLUSS); sie zaehlen ebenfalls als format_derived = 1.
+FORMAT_QUELLE_AUSSCHLUSS = "ausschluss_long"
 
 # Manuelle Hinweise je Kanal (Freitext, kanal_hinweis). Typ-5-Kanaele werden
 # automatisch ergaenzt.
@@ -376,13 +415,21 @@ def krieg_titel_beschreibung(video_ids):
 
 
 def lade_format_status():
-    """Letzter Laufstatus je Kanal ueber alle *_formats_status.csv (komplett,
-    unvollstaendig, fehler, abgebrochen_quota, ...)."""
+    """Letzter Laufstatus je Kanal und Format-Fenster ueber alle
+    *_formats_status.csv (komplett, unvollstaendig, fehler, abgebrochen_quota,
+    ...). Rueckgabe: {"ab2021": {channel_id: status}, "2019": {...}}.
+    Zeilen mit fenster_von < FORMAT_FENSTER_AB2021[0] zaehlen zum Fenster 2019-2020,
+    alle anderen (inkl. fehlendem fenster_von) zum Fenster ab 2021 - ein
+    spaeterer 2019-2020-Lauf ueberschreibt so nicht den Status ab 2021."""
     dateien = sorted(FORMAT_LISTEN_DIR.glob("*_formats_status.csv"))
-    status = pd.concat([pd.read_csv(d, usecols=["zeitpunkt", "channel_id", "status"]) for d in dateien])
-    status = status.sort_values("zeitpunkt").drop_duplicates("channel_id", keep="last")
-    log(f"[Laden] Format-Status aus {[d.name for d in dateien]}: {status['status'].value_counts().to_dict()}")
-    return dict(zip(status["channel_id"], status["status"]))
+    status = pd.concat([pd.read_csv(d, usecols=["zeitpunkt", "channel_id", "status", "fenster_von"]) for d in dateien])
+    ist_2019 = status["fenster_von"].fillna(FORMAT_FENSTER_AB2021[0]).astype(str).str[:10] < FORMAT_FENSTER_AB2021[0]
+    ergebnis = {}
+    for name, teil in (("ab2021", status[~ist_2019]), ("2019", status[ist_2019])):
+        teil = teil.sort_values("zeitpunkt").drop_duplicates("channel_id", keep="last")
+        log(f"[Laden] Format-Status Fenster {name} aus {[d.name for d in dateien]}: {teil['status'].value_counts().to_dict()}")
+        ergebnis[name] = dict(zip(teil["channel_id"], teil["status"]))
+    return ergebnis
 
 
 def lade_format_listen():
@@ -407,11 +454,18 @@ def video_format(v, format_status):
                                         inclusive="left")
     ausschluss = v["channel_id"].isin(FORMAT_AUSSCHLUSS_LONG) & v["format"].isna() & im_fenster
     v.loc[ausschluss, "format"] = "long"
-    v["format_derived"] = ausschluss.astype(int)
-    log(f"[Format] per Ausschluss als long gesetzt (FORMAT_AUSSCHLUSS_LONG): {int(ausschluss.sum())} Videos")
-    komplett = v["channel_id"].map(format_status).eq("komplett")
+    # Im Store schon per Ausschluss gesetzte Zeilen (scripts/adhoc/welt_format_ausschluss_long.py)
+    im_store = v["format_quelle"].eq(FORMAT_QUELLE_AUSSCHLUSS)
+    v["format_derived"] = (ausschluss | im_store).astype(int)
+    log(f"[Format] per Ausschluss als long gesetzt (FORMAT_AUSSCHLUSS_LONG): {int(ausschluss.sum())} Videos, "
+        f"im Store schon als {FORMAT_QUELLE_AUSSCHLUSS}: {int(im_store.sum())}")
+    # Status des Fensters, in das das Video faellt (2019-2020 bzw. ab 2021)
+    in_2019 = v["upload_ts"] < pd.Timestamp(FORMAT_FENSTER_AB2021[0])
+    komplett = pd.Series(False, index=v.index)
+    komplett[in_2019] = v.loc[in_2019, "channel_id"].map(format_status["2019"]).eq("komplett")
+    komplett[~in_2019] = v.loc[~in_2019, "channel_id"].map(format_status["ab2021"]).eq("komplett")
     v["format_klass"] = (komplett & im_fenster).astype(int)
-    log(f"[Format] format_klass = 1 (Kanal komplett, Video im Fenster {FORMAT_FENSTER[0]} bis "
+    log(f"[Format] format_klass = 1 (Kanal im jeweiligen Fenster komplett, Video im Fenster {FORMAT_FENSTER[0]} bis "
         f"< {FORMAT_FENSTER[1]}): {int(v['format_klass'].sum())} von {len(v)}; davon ohne Format: "
         f"{int(((v['format_klass'] == 1) & v['format'].isna()).sum())}")
     return v
@@ -584,7 +638,11 @@ def baue_videos(kanal_ids, format_status, format_listen):
 
 def baue_kanaele(kanal_ids, v_alle, ideo_video, format_status, format_listen):
     # Kanalgroessen nur aus Videos mit min_dauer == 1 (wie vor dem 13.10.2026)
-    v = v_alle[v_alle["min_dauer"] == 1]
+    # und (seit 23.10.2026) nur ab KANALGROESSE_AB; *_ab2019 = erweiterte Sicht
+    ab_gross = pd.Timestamp(KANALGROESSE_AB)
+    v19 = v_alle[v_alle["min_dauer"] == 1]
+    v = v19[v19["upload_ts"] >= ab_gross]
+    v_alle_g = v_alle[v_alle["upload_ts"] >= ab_gross]
     k = pd.DataFrame({"channel_id": kanal_ids})
     meta = video_registry.get_channels(kanal_ids)
     merge_bilanz("channels (Kanalmetadaten)", kanal_ids, meta["channel_id"])
@@ -594,29 +652,36 @@ def baue_kanaele(kanal_ids, v_alle, ideo_video, format_status, format_listen):
     meta["abonnenten"] = meta["abonnenten"].astype("float64")
     k = k.merge(meta, on="channel_id", how="left")
 
-    k["n_videos_alle"] = k["channel_id"].map(v_alle.groupby("channel_id").size()).fillna(0)
+    k["n_videos_alle"] = k["channel_id"].map(v_alle_g.groupby("channel_id").size()).fillna(0)
     k["n_videos"] = k["channel_id"].map(v.groupby("channel_id").size()).fillna(0)
     k["erstes_video_ts"] = k["channel_id"].map(v.groupby("channel_id")["upload_ts"].min())
+    k["n_videos_ab2019"] = k["channel_id"].map(v19.groupby("channel_id").size()).fillna(0)
+    k["erstes_video_ts_ab2019"] = k["channel_id"].map(v19.groupby("channel_id")["upload_ts"].min())
 
     log("[min_dauer] Videos je Kanal alle / min_dauer == 1 (channel_id | alle | min_dauer):")
     for z in k.itertuples():
         log(f"    {z.channel_id} | {int(z.n_videos_alle)} | {int(z.n_videos)}", nur_datei=True)
 
     # Videoformat: letzter Laufstatus von channel_video_formats.py, Kanalliste
-    k["format_status"] = k["channel_id"].map(format_status).fillna("fehlt")
+    k["format_status"] = k["channel_id"].map(format_status["ab2021"]).fillna("fehlt")
+    k["format_status_2019"] = k["channel_id"].map(format_status["2019"]).fillna("fehlt")
     k["format_liste"] = k["channel_id"].map(format_listen).fillna(0)
     log(f"[Format] format_status der Sample-Kanaele: {k['format_status'].value_counts().to_dict()}")
+    log(f"[Format] format_status_2019 der Sample-Kanaele: {k['format_status_2019'].value_counts().to_dict()}")
 
     # Sample-Kennzeichen
     whitelist = set(pd.read_csv(WHITELIST_PFAD)["channel_id"].astype(str))
     merge_bilanz("frage1_kanal_whitelist", kanal_ids, whitelist)
     k["sample_whitelist"] = k["channel_id"].isin(whitelist).astype(int)
-    vorkrieg = v[(v["upload_ts"] >= pd.Timestamp(VORKRIEG_START)) & (v["upload_ts"] < pd.Timestamp(KRIEGSBEGINN))]
+    vorkrieg = v_alle[(v_alle["format"] == "long") & (v_alle["upload_ts"] >= pd.Timestamp(VORKRIEG_START))
+                      & (v_alle["upload_ts"] < pd.Timestamp(KRIEGSBEGINN))]
     aktiv = vorkrieg.groupby("channel_id").size()
     aktiv = set(aktiv[aktiv >= VORKRIEG_MIN_VIDEOS].index)
-    log(f"[Sample] aktiv vor Kriegsbeginn (>= {VORKRIEG_MIN_VIDEOS} Video in [{VORKRIEG_START}, {KRIEGSBEGINN})): "
+    log(f"[Sample] aktiv vor Kriegsbeginn (>= {VORKRIEG_MIN_VIDEOS} Video format long in [{VORKRIEG_START}, {KRIEGSBEGINN})): "
         f"{len(aktiv & set(kanal_ids))} Kanaele")
-    k["sample_vorkrieg"] = (k["channel_id"].isin(aktiv) & (k["sample_whitelist"] == 1)).astype(int)
+    k["sample_vorkrieg"] = k["channel_id"].isin(aktiv).astype(int)
+    log(f"[Sample] sample_vorkrieg: {int(k['sample_vorkrieg'].sum())} Kanaele, davon nicht in der "
+        f"Whitelist: {int(((k['sample_vorkrieg'] == 1) & (k['sample_whitelist'] == 0)).sum())}")
 
     # Medientyp und Kriterien
     med = lade_medientyp()
@@ -701,6 +766,16 @@ def konsistenz(v, k):
     pruefe((v[["news_show", "special_show", "pk_sitzung"]].sum(axis=1) <= 1).all(),
            "5 news_show + special_show + pk_sitzung <= 1 (Kategorien schliessen sich aus)")
 
+    # 9: Videos vor 2021 (Erweiterung 2019-2020): nur Metadaten, keine LLM-Analyse
+    vor21 = v["upload_ts"] < pd.Timestamp(KANALGROESSE_AB)
+    pruefe((v.loc[vor21, ["pop_klass", "pos_klass", "baseline_stichprobe"]] == 0).all().all(),
+           "9 Videos vor 01.01.2021 haben pop_klass = pos_klass = baseline_stichprobe = 0")
+    pruefe(not v.loc[vor21, ["pop_gesamt", "pos_russland", "pos_westpolitik"]].notna().any().any(),
+           "9 Videos vor 01.01.2021 haben kein pop_*/pos_*")
+    pruefe((k["n_videos_ab2019"] >= k["n_videos"]).all(), "9 n_videos_ab2019 >= n_videos")
+    pruefe((k["erstes_video_ts_ab2019"].fillna(pd.Timestamp.max) <= k["erstes_video_ts"].fillna(pd.Timestamp.max)).all(),
+           "9 erstes_video_ts_ab2019 <= erstes_video_ts")
+
     # 8: Kanaltypologie
     pruefe((k["kanaltyp"].notna() == (k["sample_whitelist"] == 1)).all(),
            "8 kanaltyp gesetzt genau fuer sample_whitelist = 1")
@@ -714,6 +789,13 @@ def konsistenz(v, k):
         "scripts/adhoc/outputs/kanal_typologie_grenzfaelle.md):")
     log(pd.crosstab(abw["kanaltyp"].astype(int).map(KANALTYP_LABELS),
                     abw["medientyp"].fillna(-1).astype(int)).to_string())
+
+    # 10: sample_vorkrieg aus den exportierten Videos nachgerechnet (ohne Whitelist)
+    fenster = v[(v["format"] == "long") & (v["upload_ts"] >= pd.Timestamp(VORKRIEG_START))
+                & (v["upload_ts"] < pd.Timestamp(KRIEGSBEGINN))]
+    n_vor = k["channel_id"].map(fenster.groupby("channel_id").size()).fillna(0)
+    pruefe((k["sample_vorkrieg"] == (n_vor >= VORKRIEG_MIN_VIDEOS).astype(int)).all(),
+           "10 sample_vorkrieg = 1 genau bei >= VORKRIEG_MIN_VIDEOS Videos (format long) im Jahr vor Kriegsbeginn")
 
     # 6: unabhaengige Nachberechnung aus den exportierten Videowerten
     # (baseline_stichprobe enthaelt nur Videos mit min_dauer == 1)
@@ -743,7 +825,7 @@ VIDEO_SPALTEN = {
     "dauer_sek": ("long", "Videolaenge in Sekunden; . = unbekannt"),
     "min_dauer": ("byte", f"dauer_sek >= {MIN_VIDEO_DURATION_SECONDS} (Pflicht fuer LLM-Analysen)"),
     "format": ("str", "Format short/long/live (leer = nicht zugeordnet)"),
-    "format_quelle": ("str", "Quelle Format (api_UULF/UUSH/UULV, ytdlp_*)"),
+    "format_quelle": ("str", "Quelle Format (api_UULF/UUSH/UULV, ytdlp_*, ausschluss_long)"),
     "format_klass": ("byte", "Kanal-Formatlauf komplett und Video im Format-Fenster"),
     "format_derived": ("byte", "Format per Ausschluss als long gesetzt (nur WELT)"),
     "news_show": ("byte", "ganze Nachrichtensendung (Titelmuster); . = ungeprueft"),
@@ -785,10 +867,11 @@ KANAL_SPALTEN = {
     "channel_id": ("str", "YouTube-Kanal-ID"),
     "kanal_name": ("str", "Kanalname (Stand Abruf)"),
     "kanal_erstellt": ("tc", "Erstellungsdatum Kanal, UTC"),
-    "erstes_video_ts": ("tc", "aeltestes Video mit min_dauer = 1 im Datensatz, UTC"),
+    "erstes_video_ts": ("tc", "aeltestes Video mit min_dauer = 1 ab 01.01.2021, UTC"),
+    "erstes_video_ts_ab2019": ("tc", "aeltestes Video mit min_dauer = 1 ab 01.01.2019, UTC"),
     "abonnenten": ("double", "Abonnenten zum Abruf (deskriptiv)"),
     "kanal_hinweis": ("str", "Freitext Sonderfaelle"),
-    "sample_vorkrieg": ("byte", "Whitelist und >= 1 Video im Jahr vor Kriegsbeginn"),
+    "sample_vorkrieg": ("byte", ">= 1 Video (format long) im Jahr vor Kriegsbeginn"),
     "sample_baseline": ("byte", "Baseline-Populismus vorhanden"),
     "sample_whitelist": ("byte", "in frage1_kanal_whitelist.csv"),
     "medientyp": ("byte", "Medientyp (1 ÖRR, 2 trad., 3 Partei, 4 Creator/alt.)"),
@@ -807,10 +890,12 @@ KANAL_SPALTEN = {
     "ideo_wirtschaft_baseline": ("double", "Ideologie wirtschaftl. -2 umvert. .. +2 marktlib."),
     "ideo_baseline_n": ("long", "Anzahl Ideologie-Baseline-Videos (ohne Krieg)"),
     "api_abbruch": ("byte", "vom ~20.000er-Playlist-Limit betroffen (nachgescrapt)"),
-    "format_status": ("str", "letzter Status channel_video_formats.py (fehlt = nie)"),
+    "format_status": ("str", "letzter Status channel_video_formats.py, Fenster ab 2021 (fehlt = nie)"),
+    "format_status_2019": ("str", "letzter Status channel_video_formats.py, Fenster 2019-2020 (fehlt = nie)"),
     "format_liste": ("byte", "Kanalliste Formatlauf mit geprueften Sendungsmustern"),
-    "n_videos_alle": ("long", "Videos im Datensatz (alle Laengen)"),
-    "n_videos": ("long", "Videos mit min_dauer = 1"),
+    "n_videos_alle": ("long", "Videos ab 01.01.2021 (alle Laengen)"),
+    "n_videos": ("long", "Videos ab 01.01.2021 mit min_dauer = 1"),
+    "n_videos_ab2019": ("long", "Videos ab 01.01.2019 mit min_dauer = 1"),
 }
 
 DTYPES = {"byte": "Int8", "long": "Int32", "double": "float64", "str": "str"}
@@ -852,8 +937,10 @@ isid channel_id
 tab medientyp, missing
 tab kanaltyp medientyp, missing
 tab kanaltyp sample_vorkrieg if sample_whitelist == 1
+tab sample_vorkrieg sample_whitelist
 tab1 sample_vorkrieg sample_baseline sample_whitelist sample_kern api_abbruch format_liste
 tab format_status, missing
+tab format_status_2019, missing
 
 use videos_roh.dta, clear
 describe
@@ -891,6 +978,11 @@ def main():
         log(f"    {s} = 1: {int(v[s].sum())} ({v[s].mean():.2%})")
     log("[Abdeckung] format (leer = nicht zugeordnet) x format_klass:")
     log(pd.crosstab(v["format"].fillna("(leer)"), v["format_klass"]).to_string())
+    jahr = v["upload_ts"].dt.year
+    log("[Abdeckung] Videos je Jahr (alle / min_dauer = 1 / format_klass = 1 / format gesetzt):")
+    log(pd.DataFrame({"alle": v.groupby(jahr).size(), "min_dauer": v.groupby(jahr)["min_dauer"].sum(),
+                      "format_klass": v.groupby(jahr)["format_klass"].sum(),
+                      "format": v.groupby(jahr)["format"].count()}).loc[lambda d: d.index <= 2022].to_string())
     log("[Abdeckung] pop_klass x min_dauer:")
     log(pd.crosstab(v["pop_klass"], v["min_dauer"]).to_string())
     log("[Abdeckung] Kanaele je Sample-Kennzeichen und Medientyp:")

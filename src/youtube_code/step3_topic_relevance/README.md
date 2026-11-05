@@ -222,3 +222,27 @@ Ein neues Thema (z. B. Nahost, `KEYWORDS_MIDDLE_EAST` existiert bereits in
 funktioniert. `TOPICS_TO_RUN` in `classify_topic_relevance.py` nimmt das neue
 Thema automatisch mit auf (Default `list(TOPIC_KEYWORDS.keys())`), sofern es
 nicht explizit auf eine Teilmenge eingeschränkt wurde.
+
+## Keyword-Themen auf Transkript-Segmenten (`classify_segment_topics.py`)
+
+Unabhängig von der Titel/Beschreibungs-Klassifikation oben: Wendet die
+Segment-Klassifikatoren aus `scripts/adhoc/keyword_klassifikation_segmente.py`
+(Stichwort-Diktionär und TF-IDF + logistische Regression, 15 Themen + 15
+Kriegsaspekte, Plan `.claude/plans/keyword_klassifikation.md`) auf alle
+Transkript-Segmente der gezogenen Video-IDs an
+(`scripts/adhoc/outputs/video_ids_angebot_2022-06-02_2022-11-02.csv`).
+Transkripte kommen aus dem `transcript_store`. Die Segmentierung ist identisch
+mit `data/claude_classification/aufbereitung_angebotsstudie.py` (geprüft:
+gleiche Segment-IDs und Texte für überlappende Videos). Die Modelle werden
+einmal auf allen LLM-kodierten Segmenten geschätzt und in `modelle.joblib`
+gespeichert. Danach wird in Batches von `BATCH_GROESSE` Videos klassifiziert
+und nach jedem Batch angehängt. Mit `FORTSETZEN = True` setzt ein Lauf nach
+einem Abbruch oder nach weiterem Transkript-Download fort. Lexika und
+Funktionen werden per `importlib` aus den beiden Skripten geladen; deren
+Funktionsnamen daher nicht ändern. Ausgaben in
+`scripts/adhoc/keyword_klassifikation_segmente/anwendung_2022/`. Details im
+Docstring.
+
+```
+.venv/Scripts/python -m youtube_code.step3_topic_relevance.classify_segment_topics
+```
