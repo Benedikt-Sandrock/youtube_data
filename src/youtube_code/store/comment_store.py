@@ -292,6 +292,29 @@ def get_comments(video_ids) -> dict:
     return result
 
 
+def get_comment_meta(video_ids, fields=("video_id", "author_channel_id", "published_at")):
+    """
+    Wie get_comments(), aber als DataFrame und nur mit den Spalten fields, fuer
+    Auswertungen ueber viele Videos, die den Kommentartext nicht brauchen (spart
+    den Grossteil des Arbeitsspeichers). Eine Zeile je Kommentar.
+    """
+    import pandas as pd
+
+    video_ids = [str(v).strip() for v in video_ids if v]
+    con = _connect()
+    try:
+        teile = []
+        for chunk in _chunks(video_ids):
+            placeholders = ",".join("?" * len(chunk))
+            teile.append(pd.read_sql_query(
+                f"SELECT {', '.join(fields)} FROM comments WHERE video_id IN ({placeholders})",
+                con, params=chunk,
+            ))
+    finally:
+        con.close()
+    return pd.concat(teile, ignore_index=True) if teile else pd.DataFrame(columns=list(fields))
+
+
 def total_count() -> int:
     con = _connect()
     try:

@@ -49,6 +49,7 @@ for nr in BATCH_NR:
         if current_id is not None:
             full_text = " ".join(current_text_lines).strip()
             data.append({"segment_id": current_id, "text": full_text})
+            current_id = None  # sonst wird das letzte Segment beim nächsten Batch erneut angehängt
 
     temp_df = pd.read_json(CODE_PATH, lines = True)
     dfs.append(temp_df)

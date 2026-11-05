@@ -28,6 +28,8 @@ for file in directory.glob(results_pattern):
     dfs.append(temp_df)
 
 df = pd.concat(dfs, ignore_index = True)
+# Ältere Ergebnisdateien enthalten das letzte Segment jedes Batches doppelt (Fehler in check_results.py, behoben)
+df = df.drop_duplicates("segment_id")
 segments = len(df)
 print(f"Number of segments rated: {segments}")
 

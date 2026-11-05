@@ -12,6 +12,8 @@ Erfasst werden nur **Themen** (15 Kategorien, Mehrfachnennung, plus Hauptthema) 
   34 Kanäle, Jan–Apr 2022 (Phase „vor“ 01.01.–23.02., „nach“ 24.02.–30.04.).
   Spalten u. a. `text` (klein, ohne Satzzeichen), `themen`, `hauptthema`, `krieg_aspekte`
   (Listen als String → `ast.literal_eval`), `video_id`, `channel_id`, `medientyp`, `phase`, `datum_lokal`.
+  Enthält 176 exakte Dubletten (je das letzte Segment eines Batches, Fehler in `check_results.py`, behoben):
+  eindeutig sind 9038 Segmente. Training und Holdout-Lauf nutzen die Datei noch mit Dubletten.
 - Kategorien-Definitionen: `data/claude_classification/codebuch_angebotsstudie_v2.md`.
 - Erzeugt von `data/claude_classification/angebot/process_results.py` (nicht verändert).
 

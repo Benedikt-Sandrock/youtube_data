@@ -122,7 +122,9 @@ für einzelne Skripte/Analysen. Sie sind **nicht** die maßgebliche Datenquelle
 - `src/youtube_code/step7_comments/` — COMPLETE_PROCESS.md Schritt 7:
   Kommentar-Download über die YouTube-API (`select_targets.py`,
   `download_comments.py`), schreibt in `data/store/comments.sqlite`
-  (siehe `README.md` dort für Details und die noch offene Zielauswahl).
+  (siehe `README.md` dort für Details und die noch offene Zielauswahl), sowie
+  `descriptives_comments.py`: Medientypen der Kommentierenden, Überschneidung und
+  Wanderung (Ergebnisse in `outputs/kommentare/medientyp_ueberschneidung/`).
 - `src/youtube_code/llm_analysis/` — gemeinsame Infrastruktur für
   LLM-Batch-Jobs (Einreichung, Download, Registry-Anbindung).
 - `src/youtube_code/archive/` — abgelöster/toter Code, nicht mehr gepflegt,

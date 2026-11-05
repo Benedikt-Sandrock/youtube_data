@@ -88,6 +88,11 @@ youtube_code/step6_auswertung/
     event_study_rohdaten.py              8n: Event Study Kanalerfolg um Ereignisdaten
                                               (Kanal x 30-Tage-Bin, Kanal-FE, Differenz
                                               zur Referenzgruppe; Rohdatensatz)
+    strukturbruch_rohdaten.py            8p: Strukturbruchtests Alternative rechts vs. ÖRR
+                                              (Monate) und Event Study mit langem Fenster
+                                              (Kanal x Quartal, -12 bis 16; Rohdatensatz)
+    marktanteil_rohdaten_topics.py       8o: Marktanteile nach Segment-Themen (Spiegel von 8i,
+                                              hochgerechnet je Kanal-Einheit; Abdeckungspruefung)
     populismuspraemie_kriegsvideos_bericht.py 9: Populismus-/Haltungspraemie bei
                                               Kriegsvideos (.claude/Aufgaben.md TODO 2,
                                               MODUS = "populismus" | "stance")
@@ -968,6 +973,44 @@ braucht zusätzlich die Populismus-Zeitreihe aus Schritt 0
    Tabellen) + `event_study_robustheit.md` nach
    `outputs/segment_analysis/<MODI[BIN_MODUS]["ordner"]>/`. Aufruf:
    `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.event_study_rohdaten`.
+8p. **`strukturbruch_rohdaten.py`** (neu, 2026-11-05): Prüft, ob der Abstand
+   Alternative rechts − ÖRR mit dem Kriegsbeginn bricht (Frage 2; Bezug
+   `marktanteil_medientyp_ideologie_kombiniert_long_quartal_manuell_absolut.png`).
+   Sample wie 8n (`media_category` 1 und 5, `sample` ∈ [1, 2, 3], `foreign` ≠ 1,
+   `format == long`), läuft ohne `linearmodels`. Schritt 1, Monate −36 bis 50:
+   Bruchtests auf D_t = ln(Summe Alt) − ln(Summe ÖRR) für Views, Uploads und Views
+   je Video, Bruch in Niveau und Trend, nur Trend oder nur Niveau. Sup-F und
+   Chow-Test am Kriegsbeginn mit Bootstrap-p-Werten unter zwei Nullhypothesen
+   (AR um Trend, Random Walk), Konfidenzmenge für das Bruchdatum, Mehrfachbrüche
+   nach Bai-Perron und Placebo nur auf Vorkriegsmonaten. Stichproben `alle`,
+   `vorkrieg`, `balanciert`, `vorkrieg_ohne_top`. Schritt 2, Quartale −12 bis 16:
+   Event Study mit Kanal- und Quartals-FE (Referenz k = −1), SE nach Kanal geclustert
+   plus Wild-Cluster-Bootstrap wegen der wenigen ÖRR-Kanäle, Vortrend-Tests und
+   Jahresblöcke, Varianten in `ES_VARIANTEN`. Schreibt `bruch_<outcome>.png`,
+   `es_<outcome>_<variante>.png`, `es_vergleich_<outcome>.png`, `monatsreihen.csv`,
+   `bruchtests.csv`, `es_koeffizienten.csv` und
+   `regression_results/strukturbruch_ergebnisse.md` nach
+   `outputs/segment_analysis/strukturbruch_rohdaten/`. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.strukturbruch_rohdaten`.
+8o. **`marktanteil_rohdaten_topics.py`** (neu, 2026-11-05): Marktanteile nach den
+   Segment-Themen aus `step3_topic_relevance/classify_segment_topics.py`
+   (`videos_klassifiziert.csv`, Klassifikatoren `dict`/`lr`), Spiegel von 8i:
+   Kanäle, Klassifikationen, Samples und ihre Schalter kommen aus
+   `marktanteil_rohdaten_plots.py`. Long-Videos im Ziehungszeitraum
+   (06.01.2022–04.01.2023), Zeiteinheiten Monat/Woche/Quartal. Normierung: Views
+   und Videozahlen klassifizierter Videos × Faktor (alle long-Videos /
+   klassifizierte Videos je Kanal × Einheit, `NORMIERUNG_EINHEIT`). Abdeckung als
+   Trichter gesamt → gezogen → Scrape-Versuch → Transkript → klassifiziert
+   (Transkripte laut `transcript_store`) je Periode, Gruppe und Kanal, mit
+   Selektionstest über Titel-Kriegsvideos und Status `kritisch` (grau in den
+   Grafiken). Validierung gegen die aus `videos_roh.dta` bekannten wahren Anteile aller
+   Videos. Schreibt `marktanteil_topics_<klassifikation>_<klassifikator>_<zeiteinheit>.png`,
+   `marktanteil_topics_<zeiteinheit>.csv`, `abdeckung_*`, `validierung_*` und
+   `marktanteil_topics_methodik.md` (jeweils mit Zusatz wie 8i, z. B. `_manuell`) nach
+   `outputs/segment_analysis/plots_marktanteil_topics/`. Stand 05.11.2026: ab
+   06.10.2022 (Woche 32) fast nur kriegsbezogene Videos abgedeckt, diese Perioden nicht
+   interpretieren. Aufruf:
+   `PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_topics`.
 9. **`populismuspraemie_kriegsvideos_bericht.py`**: Antwort auf TODO 2 aus
    `.claude/Aufgaben.md` ("Populismusprämie" — erhalten populistische
    Kriegsvideos innerhalb eines Kanals mehr Aufrufe als weniger populistische?),
@@ -1493,6 +1536,7 @@ PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.s
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktanteil_rohdaten_plots
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.marktkonzentration_rohdaten_plots
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.event_study_rohdaten
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.strukturbruch_rohdaten
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.kriegsvideos_zeitreihen_plots
 PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step6_auswertung.ereignis_aufmerksamkeit_plots
 ```

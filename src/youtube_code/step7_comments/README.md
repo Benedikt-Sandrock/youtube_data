@@ -24,6 +24,22 @@ Analyseschritt tatsaechlich auf Kommentardaten aufbaut, gehoert dieser
 Abschnitt hier UND `COMPLETE_PROCESS.md` Schritt 7 entsprechend
 praezisiert.
 
+## `descriptives_comments.py` — Medientypen der Kommentierenden
+
+Deskriptive Auswertung der Kommentare aus der Videoliste in `VIDEO_LISTE`: bei
+welchen Medientypen (ÖRR, traditionelle Medien, Alternative rechts, Gruppen aus
+`step6_auswertung/marktanteil_rohdaten_plots.py`) die Nutzer kommentieren, wie stark
+sich die Publika ueberschneiden und ob Nutzer im Zeitverlauf wandern (Kohorten mit
+Benchmark gegen Regression zur Mitte, Robustheitslaeufe). Details im Moduldocstring,
+Parameter im CONFIG-Block, Ergebnisse in
+`outputs/kommentare/medientyp_ueberschneidung/bericht_kommentare_medientyp.md`.
+Laedt die Kommentare ohne Text ueber `comment_store.get_comment_meta()`. Nach weiterem
+Kommentar-Download das Skript neu laufen lassen und das Fensterende in `PERIODEN` pruefen.
+
+```
+PYTHONPATH=src PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe -m youtube_code.step7_comments.descriptives_comments
+```
+
 ## `comment_store.py` — Kernpunkte
 
 - Zwei Tabellen: `comment_fetch_status` (ein Datensatz pro Video, Resume-

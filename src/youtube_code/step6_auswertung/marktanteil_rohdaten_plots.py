@@ -317,7 +317,7 @@ GLAETTUNG_LOWESS_FRAC = 0
 # vollstaendig in den jeweiligen Monatsbereich fallen (z. B. -37..51 -> Quartale -12..16).
 # STREU_START und STREU_INTERVALL muessen dann durch 3 teilbar sein. Alle Ausgabedateien
 # bekommen den Zusatz _quartal (CSV: marktanteil_quartal.csv, Spalte rel_quartal).
-QUARTALSWEISE = True
+QUARTALSWEISE = False
 # Zusaetzlich Wochenwerte als Tabelle marktanteil_woche<zusatz>.csv (keine Grafiken),
 # gleiche Samples/Klassifikationen/Umfaenge/Formeln wie die Monats-CSV. True/False.
 # Woche k = [24.02.2022 + 7k Tage, + 7 Tage), also Donnerstag bis Mittwoch, Woche 0
@@ -401,7 +401,7 @@ POPULISMUS_TERTILE = False
 # Grafiken (Zeitreihen + Streudiagramme) fuer "populismus_median": ÖRR, traditionelle
 # Medien und alternative Medien geteilt am Median von pop_baseline (Median nur ueber
 # die alternativen Kanaele im Sample nach KANALLISTE). False = Klassifikation entfaellt. True/False.
-POPULISMUS_MEDIAN = True
+POPULISMUS_MEDIAN = False
 # Grafiken (Zeitreihen + Streudiagramme) fuer "medientyp_gesamt": ÖRR, traditionelle
 # Medien und alle alternativen Medien als EINE Gruppe, nach der manuellen
 # media_category in channels_check.xlsx (1 = ÖRR, 2 = traditionell, 3/4/5 =

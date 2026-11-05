@@ -241,7 +241,8 @@ einem Abbruch oder nach weiterem Transkript-Download fort. Lexika und
 Funktionen werden per `importlib` aus den beiden Skripten geladen; deren
 Funktionsnamen daher nicht ändern. Ausgaben in
 `scripts/adhoc/keyword_klassifikation_segmente/anwendung_2022/`. Details im
-Docstring.
+Docstring. Marktanteile nach diesen Themen berechnet
+`step6_auswertung/marktanteil_rohdaten_topics.py` (8o).
 
 ```
 .venv/Scripts/python -m youtube_code.step3_topic_relevance.classify_segment_topics

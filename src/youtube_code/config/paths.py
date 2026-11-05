@@ -32,3 +32,4 @@ MASTERARBEIT_SCRIPTS = ROOT / "scripts" / "masterarbeit"
 
 SRC = ROOT / "src" / "youtube_code"
 SCRIPTS = ROOT / "scripts" / "adhoc"
+KEYWORD_KLASSIFIZIERUNG = SCRIPTS / "keyword_klassifikation_segmente" / "anwendung_2022"

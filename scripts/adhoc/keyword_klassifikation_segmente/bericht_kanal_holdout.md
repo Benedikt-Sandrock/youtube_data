@@ -24,43 +24,6 @@ Quelle: `data/claude_classification/angebot/results_segment_level.csv` (nur `kod
 | 3 | oerr | 2 | 793 | MrWissen2go, tagesschau |
 | 3 | traditionell | 2 | 548 | WELT Nachrichtensender, stern TV |
 
-## 0. Vergleich: Video-Split vs. Kanal-Holdout (F1)
-
-Video-Split = Testset aus `test_vorhersagen.csv` (Kanäle auch im Training); Kanal-Holdout = dieser Lauf (alle Segmente, Kanäle nie im Training). Aspekte End-to-End.
-
-| Label | Typ | F1 Dict Video | F1 Dict Kanal | F1 LR Video | F1 LR Kanal |
-|---|---|---|---|---|---|
-| krieg_ukraine | Thema | 0.92 | 0.92 | 0.94 | 0.93 |
-| corona | Thema | 0.85 | 0.83 | 0.89 | 0.86 |
-| migration | Thema | 0.66 | 0.64 | 0.59 | 0.62 |
-| wirtschaft | Thema | 0.76 | 0.77 | 0.80 | 0.81 |
-| energie | Thema | 0.81 | 0.82 | 0.78 | 0.78 |
-| klima | Thema | 0.73 | 0.71 | 0.57 | 0.58 |
-| gender | Thema | 0.40 | 0.39 | 0.42 | 0.48 |
-| nahost | Thema | 0.75 | 0.76 | 0.71 | 0.81 |
-| iran | Thema | 0.33 | 0.56 | 0.58 | 0.60 |
-| eu | Thema | 0.41 | 0.48 | 0.55 | 0.51 |
-| usa | Thema | 0.46 | 0.48 | 0.55 | 0.47 |
-| bildung | Thema | 0.59 | 0.62 | 0.54 | 0.61 |
-| innenpolitik_sonstige | Thema | 0.58 | 0.59 | 0.65 | 0.66 |
-| sonstiges_politisch | Thema | 0.45 | 0.44 | 0.60 | 0.57 |
-| unpolitisch | Thema | 0.64 | 0.66 | 0.83 | 0.76 |
-| kriegsgeschehen_militaer | Aspekt (E2E) | 0.67 | 0.69 | 0.78 | 0.77 |
-| kriegsverbrechen_zivilisten | Aspekt (E2E) | 0.61 | 0.59 | 0.77 | 0.74 |
-| verhandlungen_diplomatie | Aspekt (E2E) | 0.67 | 0.67 | 0.71 | 0.70 |
-| waffenlieferungen | Aspekt (E2E) | 0.78 | 0.76 | 0.74 | 0.75 |
-| sanktionen | Aspekt (E2E) | 0.81 | 0.83 | 0.75 | 0.74 |
-| finanzhilfe | Aspekt (E2E) | 0.33 | 0.36 | 0.40 | 0.44 |
-| nato_eu_beitritt | Aspekt (E2E) | 0.59 | 0.59 | 0.61 | 0.63 |
-| truppen_einsatz | Aspekt (E2E) | 0.43 | 0.44 | 0.55 | 0.55 |
-| gefluechtete | Aspekt (E2E) | 0.66 | 0.69 | 0.73 | 0.72 |
-| energie_preise_inland | Aspekt (E2E) | 0.78 | 0.78 | 0.72 | 0.72 |
-| wirtschaft_inland | Aspekt (E2E) | 0.56 | 0.54 | 0.52 | 0.56 |
-| bundeswehr_sondervermoegen | Aspekt (E2E) | 0.58 | 0.62 | 0.65 | 0.61 |
-| russland_innen | Aspekt (E2E) | 0.32 | 0.37 | 0.55 | 0.56 |
-| medien_desinformation | Aspekt (E2E) | 0.61 | 0.61 | 0.63 | 0.60 |
-| sonstiges | Aspekt (E2E) | 0.00 | 0.00 | 0.38 | 0.36 |
-
 ## 1. Themen – Segmentgüte
 
 | Label | n LLM | Anteil LLM | Anteil Dict | P Dict | R Dict | F1 Dict | Anteil LR | P LR | R LR | F1 LR |
@@ -159,18 +122,18 @@ Korrelation der Wochenanteile (18 Wochen) und der Kanal-Veränderungen nach − 
 | kriegsgeschehen_militaer | 1130 | 0.31 | 0.37 | 0.65 | 0.79 | 0.71 | 0.32 | 0.76 | 0.79 | 0.78 |
 | kriegsverbrechen_zivilisten | 777 | 0.21 | 0.27 | 0.55 | 0.71 | 0.62 | 0.23 | 0.72 | 0.79 | 0.75 |
 | verhandlungen_diplomatie | 1028 | 0.28 | 0.31 | 0.65 | 0.73 | 0.68 | 0.31 | 0.67 | 0.74 | 0.71 |
-| waffenlieferungen | 824 | 0.22 | 0.17 | 0.90 | 0.68 | 0.77 | 0.23 | 0.74 | 0.77 | 0.76 |
+| waffenlieferungen | 824 | 0.22 | 0.17 | 0.90 | 0.68 | 0.77 | 0.24 | 0.72 | 0.78 | 0.75 |
 | sanktionen | 1277 | 0.34 | 0.36 | 0.83 | 0.87 | 0.85 | 0.43 | 0.69 | 0.86 | 0.76 |
-| finanzhilfe | 250 | 0.07 | 0.08 | 0.35 | 0.41 | 0.37 | 0.14 | 0.33 | 0.70 | 0.45 |
+| finanzhilfe | 250 | 0.07 | 0.08 | 0.35 | 0.41 | 0.37 | 0.12 | 0.37 | 0.63 | 0.46 |
 | nato_eu_beitritt | 419 | 0.11 | 0.15 | 0.52 | 0.68 | 0.59 | 0.14 | 0.57 | 0.71 | 0.63 |
-| truppen_einsatz | 403 | 0.11 | 0.25 | 0.33 | 0.75 | 0.46 | 0.13 | 0.51 | 0.61 | 0.56 |
-| gefluechtete | 470 | 0.13 | 0.12 | 0.73 | 0.70 | 0.72 | 0.13 | 0.72 | 0.74 | 0.73 |
-| energie_preise_inland | 1079 | 0.29 | 0.29 | 0.85 | 0.84 | 0.84 | 0.32 | 0.75 | 0.82 | 0.79 |
+| truppen_einsatz | 403 | 0.11 | 0.25 | 0.33 | 0.75 | 0.46 | 0.10 | 0.62 | 0.55 | 0.58 |
+| gefluechtete | 470 | 0.13 | 0.12 | 0.73 | 0.70 | 0.72 | 0.13 | 0.73 | 0.72 | 0.72 |
+| energie_preise_inland | 1079 | 0.29 | 0.29 | 0.85 | 0.84 | 0.84 | 0.33 | 0.74 | 0.84 | 0.79 |
 | wirtschaft_inland | 510 | 0.14 | 0.19 | 0.50 | 0.69 | 0.58 | 0.20 | 0.51 | 0.76 | 0.61 |
-| bundeswehr_sondervermoegen | 294 | 0.08 | 0.09 | 0.63 | 0.73 | 0.68 | 0.09 | 0.62 | 0.71 | 0.66 |
+| bundeswehr_sondervermoegen | 294 | 0.08 | 0.09 | 0.63 | 0.73 | 0.68 | 0.10 | 0.58 | 0.71 | 0.64 |
 | russland_innen | 310 | 0.08 | 0.10 | 0.36 | 0.43 | 0.39 | 0.11 | 0.49 | 0.66 | 0.56 |
-| medien_desinformation | 572 | 0.15 | 0.14 | 0.67 | 0.62 | 0.65 | 0.19 | 0.58 | 0.70 | 0.63 |
-| sonstiges | 444 | 0.12 | 0.00 |  | 0.00 | 0.00 | 0.21 | 0.33 | 0.59 | 0.42 |
+| medien_desinformation | 572 | 0.15 | 0.14 | 0.67 | 0.62 | 0.65 | 0.18 | 0.59 | 0.68 | 0.63 |
+| sonstiges | 444 | 0.12 | 0.00 |  | 0.00 | 0.00 | 0.19 | 0.35 | 0.55 | 0.43 |
 
 ### 3b. End-to-End: alle Testsegmente; Aspekt nur, wenn der Klassifikator selbst Krieg erkennt
 
@@ -179,18 +142,18 @@ Korrelation der Wochenanteile (18 Wochen) und der Kanal-Veränderungen nach − 
 | kriegsgeschehen_militaer | 1130 | 0.12 | 0.16 | 0.69 | 0.13 | 0.77 |
 | kriegsverbrechen_zivilisten | 777 | 0.08 | 0.11 | 0.59 | 0.10 | 0.74 |
 | verhandlungen_diplomatie | 1028 | 0.11 | 0.13 | 0.67 | 0.12 | 0.70 |
-| waffenlieferungen | 824 | 0.09 | 0.07 | 0.76 | 0.09 | 0.75 |
+| waffenlieferungen | 824 | 0.09 | 0.07 | 0.76 | 0.10 | 0.75 |
 | sanktionen | 1277 | 0.14 | 0.15 | 0.83 | 0.18 | 0.74 |
-| finanzhilfe | 250 | 0.03 | 0.03 | 0.36 | 0.06 | 0.44 |
+| finanzhilfe | 250 | 0.03 | 0.03 | 0.36 | 0.05 | 0.46 |
 | nato_eu_beitritt | 419 | 0.05 | 0.06 | 0.59 | 0.06 | 0.63 |
-| truppen_einsatz | 403 | 0.04 | 0.10 | 0.44 | 0.05 | 0.55 |
-| gefluechtete | 470 | 0.05 | 0.05 | 0.69 | 0.05 | 0.72 |
+| truppen_einsatz | 403 | 0.04 | 0.10 | 0.44 | 0.04 | 0.58 |
+| gefluechtete | 470 | 0.05 | 0.05 | 0.69 | 0.05 | 0.71 |
 | energie_preise_inland | 1079 | 0.12 | 0.11 | 0.78 | 0.13 | 0.72 |
 | wirtschaft_inland | 510 | 0.06 | 0.08 | 0.54 | 0.08 | 0.56 |
-| bundeswehr_sondervermoegen | 294 | 0.03 | 0.04 | 0.62 | 0.04 | 0.61 |
+| bundeswehr_sondervermoegen | 294 | 0.03 | 0.04 | 0.62 | 0.04 | 0.59 |
 | russland_innen | 310 | 0.03 | 0.04 | 0.37 | 0.05 | 0.56 |
-| medien_desinformation | 572 | 0.06 | 0.06 | 0.61 | 0.08 | 0.60 |
-| sonstiges | 444 | 0.05 | 0.00 | 0.00 | 0.10 | 0.36 |
+| medien_desinformation | 572 | 0.06 | 0.06 | 0.61 | 0.07 | 0.60 |
+| sonstiges | 444 | 0.05 | 0.00 | 0.00 | 0.09 | 0.36 |
 
 `sonstiges` hat kein Diktionär (Residualkategorie).
 
@@ -201,36 +164,36 @@ Korrelation der Wochenanteile (18 Wochen) und der Kanal-Veränderungen nach − 
 | kriegsgeschehen_militaer | 0.062 | 0.171 | 0.109 | 0.073 | 0.221 | 0.148 | 0.065 | 0.182 | 0.117 |
 | kriegsverbrechen_zivilisten | 0.004 | 0.147 | 0.143 | 0.030 | 0.182 | 0.152 | 0.011 | 0.162 | 0.150 |
 | verhandlungen_diplomatie | 0.093 | 0.126 | 0.034 | 0.086 | 0.162 | 0.075 | 0.101 | 0.144 | 0.043 |
-| waffenlieferungen | 0.034 | 0.133 | 0.099 | 0.024 | 0.101 | 0.076 | 0.044 | 0.132 | 0.088 |
+| waffenlieferungen | 0.034 | 0.133 | 0.099 | 0.024 | 0.101 | 0.076 | 0.047 | 0.137 | 0.091 |
 | sanktionen | 0.056 | 0.204 | 0.148 | 0.057 | 0.216 | 0.159 | 0.097 | 0.240 | 0.143 |
-| finanzhilfe | 0.008 | 0.042 | 0.034 | 0.007 | 0.052 | 0.045 | 0.017 | 0.093 | 0.076 |
+| finanzhilfe | 0.008 | 0.042 | 0.034 | 0.007 | 0.052 | 0.045 | 0.011 | 0.076 | 0.065 |
 | nato_eu_beitritt | 0.045 | 0.046 | 0.001 | 0.038 | 0.075 | 0.037 | 0.061 | 0.054 | -0.007 |
-| truppen_einsatz | 0.022 | 0.061 | 0.038 | 0.049 | 0.148 | 0.099 | 0.039 | 0.064 | 0.025 |
-| gefluechtete | 0.001 | 0.091 | 0.090 | 0.006 | 0.083 | 0.077 | 0.004 | 0.091 | 0.087 |
-| energie_preise_inland | 0.051 | 0.170 | 0.119 | 0.045 | 0.155 | 0.110 | 0.060 | 0.179 | 0.118 |
+| truppen_einsatz | 0.022 | 0.061 | 0.038 | 0.049 | 0.148 | 0.099 | 0.028 | 0.049 | 0.021 |
+| gefluechtete | 0.001 | 0.091 | 0.090 | 0.006 | 0.083 | 0.077 | 0.004 | 0.087 | 0.084 |
+| energie_preise_inland | 0.051 | 0.170 | 0.119 | 0.045 | 0.155 | 0.110 | 0.064 | 0.185 | 0.121 |
 | wirtschaft_inland | 0.007 | 0.093 | 0.086 | 0.027 | 0.116 | 0.089 | 0.026 | 0.122 | 0.095 |
-| bundeswehr_sondervermoegen | 0.003 | 0.055 | 0.052 | 0.007 | 0.059 | 0.052 | 0.009 | 0.062 | 0.053 |
+| bundeswehr_sondervermoegen | 0.003 | 0.055 | 0.052 | 0.007 | 0.059 | 0.052 | 0.012 | 0.066 | 0.053 |
 | russland_innen | 0.006 | 0.056 | 0.050 | 0.022 | 0.060 | 0.038 | 0.013 | 0.074 | 0.061 |
-| medien_desinformation | 0.026 | 0.091 | 0.065 | 0.029 | 0.087 | 0.057 | 0.029 | 0.113 | 0.085 |
-| sonstiges | 0.016 | 0.073 | 0.057 | 0.000 | 0.000 | 0.000 | 0.051 | 0.135 | 0.084 |
+| medien_desinformation | 0.026 | 0.091 | 0.065 | 0.029 | 0.087 | 0.057 | 0.025 | 0.107 | 0.081 |
+| sonstiges | 0.016 | 0.073 | 0.057 | 0.000 | 0.000 | 0.000 | 0.045 | 0.120 | 0.075 |
 
 | Label | r Woche Dict | r Kanal-Δ Dict | Vorzeichen Kanal-Δ gleich Dict | r Woche LR | r Kanal-Δ LR | Vorzeichen Kanal-Δ gleich LR |
 |---|---|---|---|---|---|---|
 | kriegsgeschehen_militaer | 0.97 | 0.83 | 0.72 | 0.99 | 0.90 | 0.78 |
 | kriegsverbrechen_zivilisten | 0.98 | 0.81 | 0.75 | 0.97 | 0.96 | 0.84 |
 | verhandlungen_diplomatie | 0.91 | 0.68 | 0.75 | 0.94 | 0.74 | 0.78 |
-| waffenlieferungen | 0.98 | 0.96 | 0.94 | 0.96 | 0.86 | 0.84 |
+| waffenlieferungen | 0.98 | 0.96 | 0.94 | 0.96 | 0.85 | 0.84 |
 | sanktionen | 0.99 | 0.91 | 0.97 | 0.99 | 0.95 | 0.97 |
-| finanzhilfe | 0.91 | 0.66 | 0.81 | 0.91 | 0.83 | 0.62 |
+| finanzhilfe | 0.91 | 0.66 | 0.81 | 0.89 | 0.82 | 0.59 |
 | nato_eu_beitritt | 0.70 | 0.51 | 0.69 | 0.92 | 0.62 | 0.56 |
-| truppen_einsatz | 0.90 | 0.55 | 0.75 | 0.87 | 0.65 | 0.72 |
-| gefluechtete | 0.98 | 0.93 | 0.78 | 0.99 | 0.97 | 0.81 |
-| energie_preise_inland | 0.99 | 0.92 | 1.00 | 0.99 | 0.77 | 0.91 |
+| truppen_einsatz | 0.90 | 0.55 | 0.75 | 0.89 | 0.45 | 0.75 |
+| gefluechtete | 0.98 | 0.93 | 0.78 | 0.99 | 0.96 | 0.81 |
+| energie_preise_inland | 0.99 | 0.92 | 1.00 | 0.99 | 0.75 | 0.91 |
 | wirtschaft_inland | 0.96 | 0.88 | 0.84 | 0.98 | 0.75 | 0.91 |
-| bundeswehr_sondervermoegen | 0.92 | 0.83 | 0.91 | 0.90 | 0.84 | 0.88 |
+| bundeswehr_sondervermoegen | 0.92 | 0.83 | 0.91 | 0.90 | 0.82 | 0.88 |
 | russland_innen | 0.88 | 0.20 | 0.62 | 0.97 | 0.54 | 0.75 |
-| medien_desinformation | 0.94 | 0.84 | 0.91 | 0.96 | 0.74 | 0.84 |
-| sonstiges |  |  | 0.09 | 0.96 | 0.58 | 0.88 |
+| medien_desinformation | 0.94 | 0.84 | 0.91 | 0.95 | 0.69 | 0.84 |
+| sonstiges |  |  | 0.09 | 0.95 | 0.59 | 0.88 |
 
 ### Veränderung nach − vor je Medientyp (ausgewählte Aspekte)
 
@@ -238,24 +201,24 @@ Korrelation der Wochenanteile (18 Wochen) und der Kanal-Veränderungen nach − 
 |---|---|---|---|---|---|
 | alternativ_links | sanktionen | 423/587 | +0.110 | +0.122 | +0.103 |
 | alternativ_links | waffenlieferungen | 423/587 | +0.029 | +0.028 | +0.024 |
-| alternativ_links | energie_preise_inland | 423/587 | +0.061 | +0.051 | +0.070 |
+| alternativ_links | energie_preise_inland | 423/587 | +0.061 | +0.051 | +0.074 |
 | alternativ_links | verhandlungen_diplomatie | 423/587 | +0.013 | +0.046 | +0.003 |
-| alternativ_links | medien_desinformation | 423/587 | +0.089 | +0.077 | +0.081 |
+| alternativ_links | medien_desinformation | 423/587 | +0.089 | +0.077 | +0.084 |
 | alternativ_rechts | sanktionen | 1557/1773 | +0.190 | +0.186 | +0.206 |
-| alternativ_rechts | waffenlieferungen | 1557/1773 | +0.062 | +0.045 | +0.036 |
-| alternativ_rechts | energie_preise_inland | 1557/1773 | +0.170 | +0.152 | +0.197 |
+| alternativ_rechts | waffenlieferungen | 1557/1773 | +0.062 | +0.045 | +0.037 |
+| alternativ_rechts | energie_preise_inland | 1557/1773 | +0.170 | +0.152 | +0.202 |
 | alternativ_rechts | verhandlungen_diplomatie | 1557/1773 | +0.052 | +0.064 | +0.021 |
-| alternativ_rechts | medien_desinformation | 1557/1773 | +0.048 | +0.048 | +0.050 |
+| alternativ_rechts | medien_desinformation | 1557/1773 | +0.048 | +0.048 | +0.047 |
 | oerr | sanktionen | 1223/1619 | +0.167 | +0.192 | +0.136 |
-| oerr | waffenlieferungen | 1223/1619 | +0.151 | +0.116 | +0.153 |
-| oerr | energie_preise_inland | 1223/1619 | +0.130 | +0.131 | +0.102 |
+| oerr | waffenlieferungen | 1223/1619 | +0.151 | +0.116 | +0.159 |
+| oerr | energie_preise_inland | 1223/1619 | +0.130 | +0.131 | +0.103 |
 | oerr | verhandlungen_diplomatie | 1223/1619 | +0.011 | +0.098 | +0.058 |
-| oerr | medien_desinformation | 1223/1619 | +0.077 | +0.064 | +0.105 |
+| oerr | medien_desinformation | 1223/1619 | +0.077 | +0.064 | +0.100 |
 | traditionell | sanktionen | 855/1177 | +0.072 | +0.088 | +0.069 |
-| traditionell | waffenlieferungen | 855/1177 | +0.114 | +0.087 | +0.099 |
-| traditionell | energie_preise_inland | 855/1177 | +0.060 | +0.047 | +0.046 |
+| traditionell | waffenlieferungen | 855/1177 | +0.114 | +0.087 | +0.100 |
+| traditionell | energie_preise_inland | 855/1177 | +0.060 | +0.047 | +0.050 |
 | traditionell | verhandlungen_diplomatie | 855/1177 | +0.033 | +0.060 | +0.057 |
-| traditionell | medien_desinformation | 855/1177 | +0.063 | +0.053 | +0.109 |
+| traditionell | medien_desinformation | 855/1177 | +0.063 | +0.053 | +0.105 |
 
 ## 5. Gewählte Diktionär-Schwellen (Mindest-Treffer je Segment)
 
